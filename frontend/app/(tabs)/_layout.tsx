@@ -14,24 +14,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="sos"
-        options={{
-          title: "SOS",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="alert-circle-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="report"
-        options={{
-          title: "Report",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="create-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="map"
         options={{
           title: "Map",
@@ -45,14 +27,24 @@ export default function TabsLayout() {
         options={{
           title: "Guardian",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="walk-outline" color={color} size={size} />
+            <Ionicons name="shield-checkmark-outline" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
+        name="report"
+        options={{
+          title: "Report",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="create-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      
+      <Tabs.Screen
         name="emergency"
         options={{
-          title: "Call",
+          title: "Emergency",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="call-outline" color={color} size={size} />
           ),
@@ -61,8 +53,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          href: null,
           title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
