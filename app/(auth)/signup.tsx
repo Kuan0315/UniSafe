@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native"; // <-- Add Image
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -39,9 +39,16 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Join your campus community</Text>
-
+      <View style={styles.hero}>
+        <Image
+          source={require("../../assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Create your account</Text>
+        <Text style={styles.subtitle}>Join your campus community</Text>
+      </View>
+      
       <TextInput
         style={styles.input}
         placeholder="Full name"
@@ -77,8 +84,9 @@ export default function SignupScreen() {
 
       <TouchableOpacity style={[styles.button, isSubmitting && styles.buttonDisabled]} onPress={onSubmit} disabled={isSubmitting}>
         <Text style={styles.buttonText}>{isSubmitting ? "Signing up..." : "Sign Up"}</Text>
- 
+      </TouchableOpacity>
 
+      <TouchableOpacity onPress={() => router.replace("/(auth)/signup")}>
         <Text style={styles.link}>Already have an account? Log in</Text>
       </TouchableOpacity>
     </View>
@@ -89,8 +97,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    justifyContent: "center",
     backgroundColor: "#fff",
+    justifyContent: "center",
+  },
+  hero: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,
@@ -101,7 +118,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 24,
+    marginBottom: 16,
     textAlign: "center",
   },
   input: {
