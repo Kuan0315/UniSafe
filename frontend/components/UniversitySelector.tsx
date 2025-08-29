@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Modal,
   ScrollView,
   Alert,
+  TextInput,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GeofencingService, { University } from '../services/GeofencingService';
@@ -22,6 +24,15 @@ export default function UniversitySelector({
 }: UniversitySelectorProps) {
   const [showModal, setShowModal] = useState(false);
   const universities = GeofencingService.getAvailableUniversities();
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return universities;
+    const q = query.toLowerCase();
+    return universities.filter(u =>
+      u.name.toLowerCase().includes(q)
+    );
+  }, [query, universities]);
 
   const handleUniversitySelect = (university: University) => {
     const success = GeofencingService.setUniversity(university.id);
@@ -76,10 +87,19 @@ export default function UniversitySelector({
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.universityList}>
-              {universities.map((university) => (
+            <TextInput
+              placeholder="Search university (e.g., UM, MMU, UKM)"
+              value={query}
+              onChangeText={setQuery}
+              style={styles.searchInput}
+              autoFocus
+            />
+
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item: university }) => (
                 <TouchableOpacity
-                  key={university.id}
                   style={[
                     styles.universityItem,
                     currentUniversity?.id === university.id && styles.universityItemActive
@@ -100,8 +120,10 @@ export default function UniversitySelector({
                     )}
                   </View>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              )}
+              style={styles.universityList}
+              keyboardShouldPersistTaps="handled"
+            />
 
             <View style={styles.modalFooter}>
               <Text style={styles.modalFooterText}>

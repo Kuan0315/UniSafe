@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
+import { MALAYSIAN_UNIVERSITIES, UniversityRecord } from './malaysian_universities';
 
 export interface University {
   id: string;
@@ -54,69 +55,14 @@ export class GeofencingService {
   }
 
   private initializeUniversities() {
-    // Add Malaysian universities with their coordinates and boundaries
-    this.universities = [
-      {
-        id: 'um',
-        name: 'University of Malaya (UM)',
-        center: { latitude: 3.1201, longitude: 101.6544 },
-        campusBoundary: [
-          { latitude: 3.1250, longitude: 101.6600 },
-          { latitude: 3.1250, longitude: 101.6480 },
-          { latitude: 3.1150, longitude: 101.6480 },
-          { latitude: 3.1150, longitude: 101.6600 },
-        ],
-        coverageRadius: 10
-      },
-      {
-        id: 'mmu-cyberjaya',
-        name: 'Multimedia University (MMU) - Cyberjaya',
-        center: { latitude: 2.9189, longitude: 101.6565 },
-        campusBoundary: [
-          { latitude: 2.9230, longitude: 101.6620 },
-          { latitude: 2.9230, longitude: 101.6510 },
-          { latitude: 2.9140, longitude: 101.6510 },
-          { latitude: 2.9140, longitude: 101.6620 },
-        ],
-        coverageRadius: 10
-      },
-      {
-        id: 'usm',
-        name: 'Universiti Sains Malaysia (USM)',
-        center: { latitude: 5.3561, longitude: 100.3017 },
-        campusBoundary: [
-          { latitude: 5.3610, longitude: 100.3070 },
-          { latitude: 5.3610, longitude: 100.2960 },
-          { latitude: 5.3510, longitude: 100.2960 },
-          { latitude: 5.3510, longitude: 100.3070 },
-        ],
-        coverageRadius: 10
-      },
-      {
-        id: 'ukm',
-        name: 'Universiti Kebangsaan Malaysia (UKM)',
-        center: { latitude: 2.9300, longitude: 101.7770 },
-        campusBoundary: [
-          { latitude: 2.9350, longitude: 101.7820 },
-          { latitude: 2.9350, longitude: 101.7720 },
-          { latitude: 2.9250, longitude: 101.7720 },
-          { latitude: 2.9250, longitude: 101.7820 },
-        ],
-        coverageRadius: 10
-      },
-      {
-        id: 'utm',
-        name: 'Universiti Teknologi Malaysia (UTM)',
-        center: { latitude: 1.5587, longitude: 103.6388 },
-        campusBoundary: [
-          { latitude: 1.5630, longitude: 103.6440 },
-          { latitude: 1.5630, longitude: 103.6330 },
-          { latitude: 1.5530, longitude: 103.6330 },
-          { latitude: 1.5530, longitude: 103.6440 },
-        ],
-        coverageRadius: 10
-      }
-    ];
+    // Load from dataset to allow scaling to all Malaysian universities
+    this.universities = MALAYSIAN_UNIVERSITIES.map((u: UniversityRecord) => ({
+      id: u.id,
+      name: u.name,
+      center: u.center,
+      campusBoundary: u.campusBoundary,
+      coverageRadius: u.coverageRadius,
+    }));
   }
 
   private initializeEmergencyContacts() {
