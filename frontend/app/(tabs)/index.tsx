@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
+import { speak } from '../../services/SpeechService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,6 +25,9 @@ export default function HomeScreen() {
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [showSOSModal, setShowSOSModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(3);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [sosHoldTimer, setSosHoldTimer] = useState<number | null>(null);
   const [isSOSActivated, setIsSOSActivated] = useState(false);
   const [capturedMedia, setCapturedMedia] = useState<{ photo?: string; video?: string }>({});
@@ -52,6 +56,12 @@ export default function HomeScreen() {
     { id: 4, type: 'checkin', count: 8, label: 'Safety Check-ins' },
   ]);
 
+  const notifications = useMemo(() => ([
+    { id: 'n1', title: 'Trusted Friend Request accepted', description: 'Emma accepted your request.', time: '2:45 PM', read: false },
+    { id: 'n2', title: 'Guardian session ended', description: 'Your route to Library completed.', time: '1:10 PM', read: true },
+    { id: 'n3', title: 'Safety Alert', description: 'Patrol near Science Building.', time: '12:30 PM', read: false },
+  ]), []);
+
   useEffect(() => {
     // Reset SOS press count after 3 seconds
     if (sosPressCount > 0) {
@@ -74,26 +84,46 @@ export default function HomeScreen() {
 
   const handleSOSPressIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSosPressCount(prev => prev + 1);
+    setSosPressCount(prev => {
+      const next = prev + 1;
+      if (next >= 3) {
+        activateSOS();
+        return 0;
+      }
+      return next;
+    });
     
-    // Start hold timer for 3 seconds
-    const timer = setTimeout(() => {
-      activateSOS();
-    }, 3000);
-    setSosHoldTimer(timer);
+    // Start hold countdown overlay for 3 seconds
+    let seconds = 3;
+    setCountdown(seconds);
+    const intervalId: any = setInterval(() => {
+      seconds -= 1;
+      setCountdown(seconds);
+      if (seconds <= 0) {
+        clearInterval(intervalId);
+        setCountdown(null);
+        activateSOS();
+      }
+    }, 1000);
+    setSosHoldTimer(intervalId as any);
+    speak('SOS will be sent in 3, 2, 1');
   };
 
   const handleSOSPressOut = () => {
     if (sosHoldTimer) {
-      clearTimeout(sosHoldTimer);
+      // clear interval countdown if present
+      // @ts-ignore
+      clearInterval(sosHoldTimer);
       setSosHoldTimer(null);
     }
+    setCountdown(null);
   };
 
   const activateSOS = async () => {
     setIsSOSActivated(true);
     setSosStartTime(new Date());
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    speak('SOS activated. Sending help now.');
     
     // SILENT AUTOMATIC ACTIONS (User doesn't see these happening)
     await silentEmergencyActions();
@@ -166,9 +196,9 @@ export default function HomeScreen() {
   const toggleTorch = async () => {
     try {
       // Simulate torch functionality for now
-      // In a real app, you would use the device's flashlight API
-      setIsTorchOn(!isTorchOn);
-      Alert.alert('Torch', isTorchOn ? 'Torch turned off' : 'Torch turned on');
+      const next = !isTorchOn;
+      setIsTorchOn(next);
+      Alert.alert('Torch', next ? 'Torch turned on' : 'Torch turned off');
     } catch (error) {
       Alert.alert('Error', 'Unable to control flashlight');
     }
@@ -223,23 +253,27 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header with Recent Activity Ring */}
+        {/* Header with Notifications Bell */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>Good morning! 👋</Text>
             <Text style={styles.subtitle}>Stay safe on campus</Text>
           </View>
           
-          {/* Recent Activity Ring Button */}
+          {/* Notifications Bell Button */}
           <TouchableOpacity 
             style={styles.activityRingButton}
-            onPress={() => setShowActivityModal(true)}
-            accessibilityLabel="Recent Activity"
-            accessibilityHint="Shows your recent safety activities"
+            onPress={() => { setShowNotificationsModal(true); setUnreadCount(0); }}
+            accessibilityLabel="Notifications"
+            accessibilityHint="View your notifications"
           >
-            <View style={styles.activityRing}>
-              <View style={styles.activityRingFill} />
-              <Text style={styles.activityRingText}>3</Text>
+            <View style={styles.bellContainer}>
+              <Ionicons name="notifications-outline" size={28} color="#007AFF" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -300,7 +334,7 @@ export default function HomeScreen() {
                 size={28} 
                 color={isFollowing ? '#fff' : '#007AFF'} 
               />
-              <Text style={[styles.actionButtonText, isFollowing && styles.actionButtonTextActive]}>
+              <Text style={isFollowing ? styles.actionButtonText : styles.followMeText}>
                 {isFollowing ? 'Following' : 'Follow Me'}
               </Text>
             </View>
@@ -319,13 +353,20 @@ export default function HomeScreen() {
                 size={28} 
                 color={isTorchOn ? '#fff' : '#FFD700'} 
               />
-              <Text style={[styles.actionButtonText, isTorchOn && styles.actionButtonTextActive]}>
+              <Text style={isTorchOn ? styles.actionButtonText : styles.torchButtonText}>
                 {isTorchOn ? 'ON' : 'Torch'}
               </Text>
             </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* SOS Countdown overlay */}
+      {countdown !== null && (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownText}>{countdown}</Text>
+        </View>
+      )}
 
       {/* Enhanced SOS Modal - Shows AFTER silent actions are complete */}
       <Modal
@@ -445,6 +486,41 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
+      
+
+      {/* Notifications Modal */}
+      <Modal
+        visible={showNotificationsModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowNotificationsModal(false)}
+      >
+        <View style={styles.sosModalOverlay}>
+          <View style={styles.sosModalContent}>
+            <View style={styles.sosModalHeader}>
+              <TouchableOpacity style={styles.notifCloseBtn} onPress={() => setShowNotificationsModal(false)}>
+                <Ionicons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+              <Ionicons name="notifications" size={40} color="#007AFF" />
+              <Text style={styles.notifTitle}>Notifications</Text>
+              <Text style={styles.sosModalSubtitle}>Your latest updates</Text>
+            </View>
+            <View>
+              {notifications.map(n => (
+                <View key={n.id} style={styles.alertItem}>
+                  <Ionicons name="notifications" size={20} color="#007AFF" />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ fontWeight: '600', color: '#1a1a1a' }}>{n.title}</Text>
+                    <Text style={{ color: '#666', marginTop: 2 }}>{n.description}</Text>
+                  </View>
+                  <Text style={styles.alertTime}>{n.time}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Recent Activity Modal */}
       <Modal
         visible={showActivityModal}
@@ -532,6 +608,46 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  countdownOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)'
+  },
+  countdownText: {
+    fontSize: 72,
+    fontWeight: '800',
+    color: '#FF3B30',
+  },
+  bellContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   alertsContainer: {
     marginHorizontal: 20,
@@ -771,12 +887,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  notifCloseBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    padding: 4,
+  },
+  notifTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginTop: 8,
+  },
   sosModalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FF3B30',
     marginTop: 12,
     marginBottom: 4,
+  },
+  notifHeaderRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sosModalSubtitle: {
     fontSize: 16,
@@ -870,6 +1004,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFD700',
   },
+  
   securityServicesContainer: {
     gap: 16,
     marginBottom: 24,
