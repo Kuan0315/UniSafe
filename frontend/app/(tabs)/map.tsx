@@ -11,6 +11,12 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GoogleMapsView from '../../components/GoogleMapsView';
+import UniversitySelector from '../../components/UniversitySelector';
+import HelpButton from '../../components/HelpButton';
+import * as Location from 'expo-location';
+import { MAPS_CONFIG } from '../../config/maps';
+import GeofencingService, { University } from '../../services/GeofencingService';
 
 
 const { width, height } = Dimensions.get('window');
@@ -32,7 +38,7 @@ const mockIncidents: Incident[] = [
     type: 'theft',
     title: 'Theft Report',
     description: 'Phone stolen near Engineering Building',
-    location: { latitude: 37.78825, longitude: -122.4324 },
+    location: { latitude: 3.1201, longitude: 101.6544 },
     time: '2 hours ago',
     severity: 'medium',
   },
@@ -41,7 +47,7 @@ const mockIncidents: Incident[] = [
     type: 'harassment',
     title: 'Harassment Report',
     description: 'Verbal harassment near Library',
-    location: { latitude: 37.78925, longitude: -122.4344 },
+    location: { latitude: 3.1250, longitude: 101.6600 },
     time: '1 hour ago',
     severity: 'high',
   },
@@ -50,7 +56,7 @@ const mockIncidents: Incident[] = [
     type: 'accident',
     title: 'Accident Report',
     description: 'Minor collision in parking lot',
-    location: { latitude: 37.78725, longitude: -122.4304 },
+    location: { latitude: 3.1150, longitude: 101.6480 },
     time: '30 mins ago',
     severity: 'low',
   },
@@ -65,9 +71,9 @@ const mockCrowdDensity = [
 
 // Mock safe route
 const mockSafeRoute = [
-  { latitude: 37.78725, longitude: -122.4304 },
-  { latitude: 37.78825, longitude: -122.4324 },
-  { latitude: 37.78925, longitude: -122.4344 },
+  { latitude: 3.1150, longitude: 101.6480 },
+  { latitude: 3.1201, longitude: 101.6544 },
+  { latitude: 3.1250, longitude: 101.6600 },
 ];
 
 const incidentIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -96,12 +102,44 @@ export default function MapScreen() {
   const [selectedIncidentType, setSelectedIncidentType] = useState('all');
   const [showSafeRoute, setShowSafeRoute] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [region, setRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
+  const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
+
+  // Request location permissions and get current location
+  useEffect(() => {
+    (async () => {
+      try {
+        console.log('Requesting location permissions...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        console.log('Location permission status:', status);
+        
+        if (status !== 'granted') {
+          console.log('Location permission denied');
+          Alert.alert('Permission denied', 'Location permission is required to show your current location on the map.');
+          return;
+        }
+
+        console.log('Getting current position...');
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+        });
+        console.log('Location obtained:', location.coords);
+        
+        setUserLocation(location);
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      } catch (error) {
+        console.error('Error getting location:', error);
+        Alert.alert('Location Error', 'Unable to get your current location. Please check your location settings.');
+      }
+    })();
+  }, []);
 
   const filteredIncidents = selectedIncidentType === 'all' 
     ? mockIncidents 
@@ -126,6 +164,23 @@ export default function MapScreen() {
     } else {
       Alert.alert('Navigation', 'Please enable safe routes first to get navigation guidance.');
     }
+  };
+
+  const centerOnUserLocation = () => {
+    if (userLocation) {
+      setRegion({
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  };
+
+  const handleMapPress = (event: any) => {
+    // Handle map press events - could be used for adding new incidents
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    console.log('Map pressed at:', { latitude, longitude });
   };
 
   const getRouteSafetyScore = () => {
@@ -153,6 +208,18 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* University Selector */}
+      <UniversitySelector
+        onUniversityChange={setCurrentUniversity}
+        currentUniversity={currentUniversity}
+      />
+
+      {/* Help Button */}
+      <HelpButton
+        userLocation={userLocation}
+        currentUniversity={currentUniversity}
+      />
+
       {/* Filter Bar */}
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -183,36 +250,32 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      {/* Map Placeholder */}
+      {/* Google Maps */}
       <View style={styles.mapContainer}>
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={64} color="#ccc" />
-          <Text style={styles.mapPlaceholderText}>Map View</Text>
-          <Text style={styles.mapPlaceholderSubtext}>
-            {filteredIncidents.length} incidents visible • {showSafeRoute ? 'Safe route enabled' : 'Safe route disabled'}
-          </Text>
-          
-          {/* Incident List */}
-          <ScrollView style={styles.incidentList} showsVerticalScrollIndicator={false}>
-            {filteredIncidents.map((incident) => (
-              <TouchableOpacity
-                key={incident.id}
-                style={styles.incidentCard}
-                onPress={() => handleIncidentPress(incident)}
-              >
-                <View style={[styles.incidentIcon, { backgroundColor: getIncidentColor(incident.type) }]}>
-                  <Ionicons name={getIncidentIcon(incident.type)} size={20} color="#fff" />
-                </View>
-                <View style={styles.incidentCardContent}>
-                  <Text style={styles.incidentCardTitle}>{incident.title}</Text>
-                  <Text style={styles.incidentCardDescription}>{incident.description}</Text>
-                  <Text style={styles.incidentCardTime}>{incident.time}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#ccc" />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {userLocation ? (
+                     <GoogleMapsView
+             userLocation={{
+               latitude: userLocation.coords.latitude,
+               longitude: userLocation.coords.longitude
+             }}
+             incidents={filteredIncidents}
+             showSafeRoute={showSafeRoute}
+             currentUniversity={currentUniversity}
+             onMapPress={(latitude, longitude) => {
+               console.log('Map clicked at:', { latitude, longitude });
+             }}
+           />
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Ionicons name="map" size={64} color="#007AFF" />
+            <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
+            <Text style={styles.mapPlaceholderSubtext}>
+              Requesting location permissions...
+            </Text>
+          </View>
+        )}
+
+
       </View>
 
       {/* Control Buttons */}
@@ -233,6 +296,13 @@ export default function MapScreen() {
           onPress={handleNavigateToDestination}
         >
           <Ionicons name="navigate" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={centerOnUserLocation}
+        >
+          <Ionicons name="locate" size={24} color="#007AFF" />
         </TouchableOpacity>
 
         {showSafeRoute && (
@@ -350,6 +420,18 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+    borderRadius: 16,
+  },
+  incidentListOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    maxHeight: height * 0.4,
   },
   incidentMarker: {
     width: 40,
@@ -533,6 +615,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
+  },
+  locationStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  locationStatusText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   incidentList: {
     marginTop: 10,
