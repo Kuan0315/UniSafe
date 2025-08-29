@@ -1,9 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import AppHeader from "../../components/AppHeader";
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: true }}>
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        header: ({ options }) => (
+          <AppHeader title={options.title as string} />
+        ),
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

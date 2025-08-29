@@ -46,8 +46,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ],
-
+      ]
     ],
     "experiments": {
       "typedRoutes": true
