@@ -17,6 +17,7 @@ import HelpButton from '../../components/HelpButton';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService, { University } from '../../services/GeofencingService';
+import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 
 
 const { width, height } = Dimensions.get('window');
@@ -105,6 +106,12 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
   const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
+  const [isFullScreenMap, setIsFullScreenMap] = useState(false);
+
+  // Speak page title on load for accessibility
+  useEffect(() => {
+    speakPageTitle('Campus Map');
+  }, []);
 
   // Request location permissions and get current location
   useEffect(() => {
@@ -116,6 +123,7 @@ export default function MapScreen() {
         
         if (status !== 'granted') {
           console.log('Location permission denied');
+          speakButtonAction('Location permission denied. Please enable location access in settings.');
           Alert.alert('Permission denied', 'Location permission is required to show your current location on the map.');
           return;
         }
@@ -136,6 +144,7 @@ export default function MapScreen() {
         });
       } catch (error) {
         console.error('Error getting location:', error);
+        speakButtonAction('Unable to get your current location. Please check your location settings.');
         Alert.alert('Location Error', 'Unable to get your current location. Please check your location settings.');
       }
     })();
@@ -280,6 +289,14 @@ export default function MapScreen() {
 
       {/* Control Buttons */}
       <View style={styles.controlButtons}>
+        {/* Fullscreen toggle */}
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => setIsFullScreenMap(true)}
+        >
+          <Ionicons name="expand" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.controlButton, showSafeRoute && styles.controlButtonActive]}
           onPress={handleSafeRouteToggle}
@@ -365,6 +382,50 @@ export default function MapScreen() {
               </View>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Fullscreen Map Modal*/}
+      <Modal
+        visible={isFullScreenMap}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => setIsFullScreenMap(false)}
+      >
+        <View style={styles.fullScreenContainer}>
+          {/* Close Button */}
+          <View style={styles.fullScreenTopBar}>
+            <TouchableOpacity 
+              style={styles.fullScreenCloseButton} 
+              onPress={() => setIsFullScreenMap(false)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Fullscreen Map*/}
+          {userLocation ? (
+            <GoogleMapsView
+              userLocation={{
+                latitude: userLocation.coords.latitude,
+                longitude: userLocation.coords.longitude
+              }}
+              incidents={filteredIncidents}
+              showSafeRoute={showSafeRoute}
+              currentUniversity={currentUniversity}
+              onMapPress={(latitude, longitude) => {
+                console.log('Map clicked at:', { latitude, longitude });
+              }}
+            />
+          ) : (
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="map" size={64} color="#007AFF" />
+              <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
+              <Text style={styles.mapPlaceholderSubtext}>
+                Requesting location permissions...
+              </Text>
+            </View>
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -615,6 +676,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  fullScreenTopBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+  },
+  fullScreenCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems:'center',
+    justifyContent: 'center',
   },
   locationStatus: {
     flexDirection: 'row',

@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import TextInputWithVoice from '../../components/TextInputWithVoice';
+import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 
 // Mock data for recent reports
 const mockRecentReports = [
@@ -66,6 +68,11 @@ const reportTypes = [
 ];
 
 export default function ReportScreen() {
+  // Speak page title on load for accessibility
+  React.useEffect(() => {
+    speakPageTitle('Report Incidents');
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState('');
@@ -131,10 +138,13 @@ export default function ReportScreen() {
 
   const handleCreateReport = () => {
     if (!selectedReportType || !reportDescription.trim() || !reportLocation.trim()) {
+      speakButtonAction('Please fill in all required fields');
       Alert.alert('Missing Information', 'Please fill in all required fields.');
       return;
     }
 
+    speakButtonAction('Report submitted successfully. Campus security has been notified.');
+    
     // TODO: Submit report to backend
     Alert.alert(
       'Report Submitted',
@@ -207,6 +217,7 @@ export default function ReportScreen() {
     });
     setFilteredReports(updatedReports);
     
+    speakButtonAction('Report marked as helpful');
     Alert.alert('Upvoted', 'Report marked as helpful!');
   };
 
@@ -253,12 +264,13 @@ export default function ReportScreen() {
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search reports and comments..."
+          <TextInputWithVoice
             value={searchQuery}
             onChangeText={handleSearch}
-            placeholderTextColor="#999"
+            placeholder="Search reports and comments..."
+            prompt="search query"
+            style={{ flex: 1, marginRight: 8 }}
+            inputStyle={styles.searchInput}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => handleSearch('')}>
@@ -460,27 +472,26 @@ export default function ReportScreen() {
             {/* Description */}
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Description *</Text>
-              <TextInput
-                style={styles.descriptionInput}
-                placeholder="Describe what happened in detail..."
+              <TextInputWithVoice
                 value={reportDescription}
                 onChangeText={setReportDescription}
+                placeholder="Describe what happened in detail..."
+                prompt="incident description"
                 multiline
                 numberOfLines={4}
-                textAlignVertical="top"
-                placeholderTextColor="#999"
+                inputStyle={styles.descriptionInput}
               />
             </View>
 
             {/* Location */}
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Location *</Text>
-              <TextInput
-                style={styles.locationInput}
-                placeholder="Where did this happen?"
+              <TextInputWithVoice
                 value={reportLocation}
                 onChangeText={setReportLocation}
-                placeholderTextColor="#999"
+                placeholder="Where did this happen?"
+                prompt="incident location"
+                inputStyle={styles.locationInput}
               />
             </View>
 
