@@ -255,4 +255,14 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
+  searchInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
 });

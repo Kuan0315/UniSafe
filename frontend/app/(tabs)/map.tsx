@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
-import UniversitySelector from '../../components/UniversitySelector';
 import HelpButton from '../../components/HelpButton';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
@@ -217,12 +216,6 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* University Selector */}
-      <UniversitySelector
-        onUniversityChange={setCurrentUniversity}
-        currentUniversity={currentUniversity}
-      />
-
       {/* Help Button */}
       <HelpButton
         userLocation={userLocation}
