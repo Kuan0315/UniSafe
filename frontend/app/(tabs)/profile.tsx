@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Linking, Platform } from 'react-native';
 
 // Mock user data
 const mockUser = {
@@ -30,16 +31,11 @@ const mockTrustedCircle = [
   { id: 3, name: 'Emma Friend', phone: '+1 (555) 345-6789', relationship: 'Best Friend', isOnline: true },
 ];
 
-// Mock emergency numbers
-const mockEmergencyNumbers = [
-  { id: 1, name: 'Campus Security', phone: '+1 (555) 911-0000', type: 'campus' },
-  { id: 2, name: 'Local Police', phone: '+1 (555) 911-0001', type: 'police' },
-  { id: 3, name: 'Ambulance', phone: '+1 (555) 911-0002', type: 'medical' },
-];
+
 
 export default function ProfileScreen() {
   const [showAddContactModal, setShowAddContactModal] = useState(false);
-  const [showAddEmergencyModal, setShowAddEmergencyModal] = useState(false);
+
   const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -56,9 +52,12 @@ export default function ProfileScreen() {
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('');
-  const [newEmergencyName, setNewEmergencyName] = useState('');
-  const [newEmergencyPhone, setNewEmergencyPhone] = useState('');
-  const [newEmergencyType, setNewEmergencyType] = useState('campus');
+
+
+  const callContact = (phone: string) => {
+    const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
+    Linking.openURL(url || `tel:${phone}`).catch(() => Alert.alert("Cannot place call", "Check your device call permissions."));
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -92,19 +91,7 @@ export default function ProfileScreen() {
     setNewContactRelationship('');
   };
 
-  const handleAddEmergency = () => {
-    if (!newEmergencyName.trim() || !newEmergencyPhone.trim()) {
-      Alert.alert('Missing Information', 'Please fill in all fields.');
-      return;
-    }
 
-    // TODO: Add emergency number to backend
-    Alert.alert('Success', 'Emergency number added');
-    setShowAddEmergencyModal(false);
-    setNewEmergencyName('');
-    setNewEmergencyPhone('');
-    setNewEmergencyType('campus');
-  };
 
   const handleRemoveContact = (contactId: number) => {
     Alert.alert(
@@ -124,23 +111,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleRemoveEmergency = (emergencyId: number) => {
-    Alert.alert(
-      'Remove Emergency Number',
-      'Are you sure you want to remove this emergency number?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            // TODO: Remove emergency number from backend
-            Alert.alert('Removed', 'Emergency number removed');
-          },
-        },
-      ]
-    );
-  };
+
 
   const handleChatbotQuery = () => {
     if (!chatbotQuery.trim()) {
@@ -167,7 +138,7 @@ export default function ProfileScreen() {
     } else if (query.includes('notification') || query.includes('alert')) {
       response = '🔔 Notifications: Get real-time alerts about nearby incidents and safety updates. Manage preferences in Profile settings.';
     } else if (query.includes('campus security') || query.includes('police')) {
-      response = '🚓 Emergency Contacts: Campus Security: +1 (555) 911-0000, Police: 999, Hospital: +1 (555) 911-0002. Add custom numbers in Profile settings.';
+      response = '🚓 Emergency Contacts: Campus Security: +1 (555) 911-0000, Police: 999, Hospital: +1 (555) 911-0002. Use the Emergency tab for quick access.';
     } else {
       response = '❓ I\'m here to help with safety questions! Try asking about SOS, Guardian mode, reporting incidents, safe routes, trusted contacts, privacy settings, or emergency numbers.';
     }
@@ -180,23 +151,7 @@ export default function ProfileScreen() {
     setChatbotResponse('');
   };
 
-  const getEmergencyIcon = (type: string) => {
-    switch (type) {
-      case 'campus': return 'shield-checkmark';
-      case 'police': return 'car';
-      case 'medical': return 'medical';
-      default: return 'call';
-    }
-  };
 
-  const getEmergencyColor = (type: string) => {
-    switch (type) {
-      case 'campus': return '#34C759';
-      case 'police': return '#007AFF';
-      case 'medical': return '#FF3B30';
-      default: return '#FF9500';
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -335,7 +290,10 @@ export default function ProfileScreen() {
               </View>
               
               <View style={styles.contactActions}>
-                <TouchableOpacity style={styles.contactActionButton}>
+                <TouchableOpacity 
+                  style={styles.contactActionButton}
+                  onPress={() => callContact(contact.phone)}
+                >
                   <Ionicons name="call" size={16} color="#34C759" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.contactActionButton}>
@@ -352,41 +310,7 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Emergency Numbers */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Emergency Numbers</Text>
-            <TouchableOpacity onPress={() => setShowAddEmergencyModal(true)}>
-              <Ionicons name="add-circle" size={24} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-          
-          {mockEmergencyNumbers.map((emergency) => (
-            <View key={emergency.id} style={styles.emergencyItem}>
-              <View style={styles.emergencyInfo}>
-                <View style={[styles.emergencyIcon, { backgroundColor: getEmergencyColor(emergency.type) }]}>
-                  <Ionicons name={getEmergencyIcon(emergency.type)} size={20} color="#fff" />
-                </View>
-                <View style={styles.emergencyDetails}>
-                  <Text style={styles.emergencyName}>{emergency.name}</Text>
-                  <Text style={styles.emergencyPhone}>{emergency.phone}</Text>
-                </View>
-              </View>
-              
-              <View style={styles.emergencyActions}>
-                <TouchableOpacity style={styles.emergencyActionButton}>
-                  <Ionicons name="call" size={16} color="#34C759" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.emergencyActionButton}
-                  onPress={() => handleRemoveEmergency(emergency.id)}
-                >
-                  <Ionicons name="trash" size={16} color="#FF3B30" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
+
 
         {/* App Settings */}
         <View style={styles.section}>
@@ -491,72 +415,7 @@ export default function ProfileScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Add Emergency Modal */}
-      <Modal
-        visible={showAddEmergencyModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowAddEmergencyModal(false)}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Add Emergency Number</Text>
-            <TouchableOpacity onPress={handleAddEmergency}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={newEmergencyName}
-                onChangeText={setNewEmergencyName}
-                placeholder="e.g., Campus Security"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number *</Text>
-              <TextInput
-                style={styles.input}
-                value={newEmergencyPhone}
-                onChangeText={setNewEmergencyPhone}
-                placeholder="Enter phone number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Type</Text>
-              <View style={styles.typeButtons}>
-                {['campus', 'police', 'medical'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.typeButton,
-                      newEmergencyType === type && styles.typeButtonSelected
-                    ]}
-                    onPress={() => setNewEmergencyType(type)}
-                  >
-                    <Text style={[
-                      styles.typeButtonText,
-                      newEmergencyType === type && styles.typeButtonTextSelected
-                    ]}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
 
       {/* Language Modal */}
       <Modal 
@@ -760,6 +619,15 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.faqSuggestionText}>How do I add trusted contacts?</Text>
                 </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.faqSuggestion}
+                  onPress={() => {
+                    setChatbotQuery('Where are emergency contacts?');
+                    handleChatbotQuery();
+                  }}
+                >
+                  <Text style={styles.faqSuggestionText}>Where are emergency contacts?</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -936,50 +804,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  emergencyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emergencyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  emergencyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  emergencyDetails: {
-    flex: 1,
-  },
-  emergencyName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1a1a1a',
-    marginBottom: 2,
-  },
-  emergencyPhone: {
-    fontSize: 14,
-    color: '#666',
-  },
-  emergencyActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  emergencyActionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f8f9fa',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   settingButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1061,32 +886,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     backgroundColor: '#f8f9fa',
   },
-  typeButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  typeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-    backgroundColor: '#f8f9fa',
-    alignItems: 'center',
-  },
-  typeButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  typeButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-  },
-  typeButtonTextSelected: {
-    color: '#fff',
-  },
+
   helpButton: {
     flexDirection: 'row',
     alignItems: 'center',
