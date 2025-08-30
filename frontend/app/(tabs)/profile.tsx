@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from "../../contexts/AuthContext"; // adjust path
+import { useRouter } from 'expo-router'; 
+
 import {
   View,
   Text,
@@ -60,23 +63,27 @@ export default function ProfileScreen() {
   const [newEmergencyPhone, setNewEmergencyPhone] = useState('');
   const [newEmergencyType, setNewEmergencyType] = useState('campus');
 
+
+  const { logout } = useAuth();
+  const router = useRouter(); // Add this
+
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            // TODO: Clear user session and navigate to login
-            router.replace('/(auth)/login');
-          },
+  Alert.alert(
+    "Logout",
+    "Are you sure you want to logout?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await logout(); // clears SecureStore + sets user = null
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
+
 
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim() || !newContactRelationship.trim()) {
