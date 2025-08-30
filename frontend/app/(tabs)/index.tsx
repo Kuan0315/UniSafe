@@ -15,7 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { speak } from '../../services/SpeechService';
+import { 
+  speak, 
+  speakButtonAction, 
+  speakNotification, 
+  speakEmergencyAlert,
+  speakSOSCountdown,
+  speakPageTitle
+} from '../../services/SpeechService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -82,6 +89,11 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  // Speak page title on load for accessibility
+  useEffect(() => {
+    speakPageTitle('Home');
+  }, []);
+
   const handleSOSPressIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSosPressCount(prev => {
@@ -106,7 +118,7 @@ export default function HomeScreen() {
       }
     }, 1000);
     setSosHoldTimer(intervalId as any);
-    speak('SOS will be sent in 3, 2, 1');
+    speakSOSCountdown(3);
   };
 
   const handleSOSPressOut = () => {
@@ -178,12 +190,14 @@ export default function HomeScreen() {
   };
 
   const handleFollowMe = () => {
-    setIsFollowing(!isFollowing);
+    const newState = !isFollowing;
+    setIsFollowing(newState);
+    speakButtonAction(newState ? 'Follow Me activated' : 'Follow Me deactivated');
     Alert.alert(
-      isFollowing ? 'Follow Me Deactivated' : 'Follow Me Activated',
-      isFollowing 
-        ? 'Your location is no longer being shared with trusted contacts.'
-        : 'Your location is now being shared with trusted contacts.',
+      newState ? 'Follow Me Activated' : 'Follow Me Deactivated',
+      newState 
+        ? 'Your location is now being shared with trusted contacts.'
+        : 'Your location is no longer being shared with trusted contacts.',
       [{ text: 'OK' }]
     );
   };
@@ -198,8 +212,10 @@ export default function HomeScreen() {
       // Simulate torch functionality for now
       const next = !isTorchOn;
       setIsTorchOn(next);
+      speakButtonAction(next ? 'Torch turned on' : 'Torch turned off');
       Alert.alert('Torch', next ? 'Torch turned on' : 'Torch turned off');
     } catch (error) {
+      speakButtonAction('Unable to control flashlight');
       Alert.alert('Error', 'Unable to control flashlight');
     }
   };
@@ -223,6 +239,7 @@ export default function HomeScreen() {
         break;
       case 'trusted':
         // TODO: Implement trusted contact notification
+        speakButtonAction('Notifying trusted contacts with live location');
         Alert.alert('Trusted Contact', 'Notifying your trusted contacts with live location');
         return;
     }
@@ -263,7 +280,11 @@ export default function HomeScreen() {
           {/* Notifications Bell Button */}
           <TouchableOpacity 
             style={styles.activityRingButton}
-            onPress={() => { setShowNotificationsModal(true); setUnreadCount(0); }}
+            onPress={() => { 
+              setShowNotificationsModal(true); 
+              setUnreadCount(0); 
+              speakButtonAction('Opening notifications');
+            }}
             accessibilityLabel="Notifications"
             accessibilityHint="View your notifications"
           >
@@ -505,6 +526,22 @@ export default function HomeScreen() {
               <Text style={styles.notifTitle}>Notifications</Text>
               <Text style={styles.sosModalSubtitle}>Your latest updates</Text>
             </View>
+            
+            {/* Read Aloud Button for Accessibility */}
+            <TouchableOpacity 
+              style={styles.readAloudButton}
+              onPress={() => {
+                const notificationText = notifications.map(n => 
+                  `${n.title}. ${n.description}. Received at ${n.time}`
+                ).join('. ');
+                speakNotification(notificationText);
+              }}
+              accessibilityLabel="Read notifications aloud"
+              accessibilityHint="Tap to hear all notifications read aloud"
+            >
+              <Ionicons name="volume-high" size={20} color="#007AFF" />
+              <Text style={styles.readAloudText}>Read Aloud</Text>
+            </TouchableOpacity>
             <View>
               {notifications.map(n => (
                 <View key={n.id} style={styles.alertItem}>
@@ -1102,6 +1139,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  readAloudButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f8ff',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  readAloudText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginLeft: 8,
   },
 });
 

@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Linking, Platform } from 'react-native';
+import TextInputWithVoice from '../../components/TextInputWithVoice';
+import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 
 // Mock user data
 const mockUser = {
@@ -34,6 +36,11 @@ const mockTrustedCircle = [
 
 
 export default function ProfileScreen() {
+  // Speak page title on load for accessibility
+  React.useEffect(() => {
+    speakPageTitle('Profile and Settings');
+  }, []);
+
   const [showAddContactModal, setShowAddContactModal] = useState(false);
 
   const [showChatbotModal, setShowChatbotModal] = useState(false);
@@ -79,11 +86,13 @@ export default function ProfileScreen() {
 
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim() || !newContactRelationship.trim()) {
+      speakButtonAction('Please fill in all fields');
       Alert.alert('Missing Information', 'Please fill in all fields.');
       return;
     }
 
     // TODO: Add contact to backend
+    speakButtonAction('Contact added to trusted circle');
     Alert.alert('Success', 'Contact added to trusted circle');
     setShowAddContactModal(false);
     setNewContactName('');
@@ -115,9 +124,12 @@ export default function ProfileScreen() {
 
   const handleChatbotQuery = () => {
     if (!chatbotQuery.trim()) {
+      speakButtonAction('Please enter a question first');
       Alert.alert('Error', 'Please enter a question');
       return;
     }
+
+    speakButtonAction(`Processing your question about ${chatbotQuery}`);
 
     // Simple FAQ responses based on keywords
     const query = chatbotQuery.toLowerCase();
@@ -378,39 +390,30 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={newContactName}
-                onChangeText={setNewContactName}
-                placeholder="Enter contact name"
-                placeholderTextColor="#999"
-              />
-            </View>
+            <TextInputWithVoice
+              label="Name *"
+              value={newContactName}
+              onChangeText={setNewContactName}
+              placeholder="Enter contact name"
+              prompt="contact name"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number *</Text>
-              <TextInput
-                style={styles.input}
-                value={newContactPhone}
-                onChangeText={setNewContactPhone}
-                placeholder="Enter phone number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
+            <TextInputWithVoice
+              label="Phone Number *"
+              value={newContactPhone}
+              onChangeText={setNewContactPhone}
+              placeholder="Enter phone number"
+              prompt="phone number"
+              keyboardType="phone-pad"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Relationship *</Text>
-              <TextInput
-                style={styles.input}
-                value={newContactRelationship}
-                onChangeText={setNewContactRelationship}
-                placeholder="e.g., Mother, Father, Friend"
-                placeholderTextColor="#999"
-              />
-            </View>
+            <TextInputWithVoice
+              label="Relationship *"
+              value={newContactRelationship}
+              onChangeText={setNewContactRelationship}
+              placeholder="e.g., Mother, Father, Friend"
+              prompt="relationship"
+            />
           </View>
         </SafeAreaView>
       </Modal>
@@ -555,13 +558,15 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.queryInputContainer}>
-                <TextInput
-                  style={styles.queryInput}
+                <TextInputWithVoice
                   value={chatbotQuery}
                   onChangeText={setChatbotQuery}
                   placeholder="Ask a safety question..."
-                  placeholderTextColor="#999"
+                  prompt="safety question"
                   multiline
+                  numberOfLines={3}
+                  style={{ flex: 1, marginRight: 8 }}
+                  inputStyle={styles.queryInput}
                 />
                 <TouchableOpacity 
                   style={styles.askButton}

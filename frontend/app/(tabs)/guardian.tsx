@@ -16,6 +16,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 // import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
+import TextInputWithVoice from '../../components/TextInputWithVoice';
+import { 
+  speakPageTitle, 
+  speakButtonAction, 
+  speakGuardianStatus, 
+  speakEmergencyAlert 
+} from '../../services/SpeechService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,6 +64,11 @@ export default function GuardianScreen() {
 
   // Animation for check-in reminder
   const pulseAnimation = useRef(new Animated.Value(1)).current;
+
+  // Speak page title on load for accessibility
+  useEffect(() => {
+    speakPageTitle('Guardian Mode');
+  }, []);
 
   useEffect(() => {
     if (guardianSession?.isActive) {
@@ -127,6 +139,7 @@ export default function GuardianScreen() {
 
   const handleStartGuardian = () => {
     if (!destination.trim() || selectedContacts.length === 0) {
+      speakButtonAction('Please enter destination and select trusted contacts');
       Alert.alert('Missing Information', 'Please enter destination and select trusted contacts');
       return;
     }
@@ -145,6 +158,9 @@ export default function GuardianScreen() {
     setShowStartModal(false);
     setDestination('');
     setSelectedContacts([]);
+
+    // Speak Guardian mode activation
+    speakGuardianStatus(`Guardian mode activated. Security monitoring your path to ${destination}`);
 
     // Notify trusted contacts
     Alert.alert(
@@ -343,16 +359,13 @@ export default function GuardianScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Destination *</Text>
-              <TextInput
-                style={styles.input}
-                value={destination}
-                onChangeText={setDestination}
-                placeholder="Where are you going?"
-                placeholderTextColor="#999"
-              />
-            </View>
+                         <TextInputWithVoice
+               label="Destination *"
+               value={destination}
+               onChangeText={setDestination}
+               placeholder="Where are you going?"
+               prompt="destination"
+             />
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Select Trusted Contacts *</Text>
@@ -402,23 +415,24 @@ export default function GuardianScreen() {
           </View>
 
           <View style={styles.modalContent}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Safety Check-in Interval</Text>
-                <Text style={styles.settingDescription}>
-                  How often to ask if you're okay during your journey
-                </Text>
-              </View>
-              <TextInput
-                style={styles.intervalInput}
-                value={checkInInterval.toString()}
-                onChangeText={(text) => setCheckInInterval(parseInt(text) || 5)}
-                keyboardType="numeric"
-                placeholder="5"
-                placeholderTextColor="#999"
-              />
-              <Text style={styles.intervalUnit}>min</Text>
-            </View>
+                         <View style={styles.settingItem}>
+               <View style={styles.settingInfo}>
+                 <Text style={styles.settingLabel}>Safety Check-in Interval</Text>
+                 <Text style={styles.settingDescription}>
+                   How often to ask if you're okay during your journey
+                 </Text>
+               </View>
+               <TextInputWithVoice
+                 value={checkInInterval.toString()}
+                 onChangeText={(text) => setCheckInInterval(parseInt(text) || 5)}
+                 keyboardType="numeric"
+                 placeholder="5"
+                 prompt="check-in interval in minutes"
+                 style={{ flex: 1, marginRight: 8 }}
+                 inputStyle={{ width: 60, textAlign: 'center' }}
+               />
+               <Text style={styles.intervalUnit}>min</Text>
+             </View>
           </View>
         </SafeAreaView>
       </Modal>

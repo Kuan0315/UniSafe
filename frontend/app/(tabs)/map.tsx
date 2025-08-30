@@ -17,6 +17,7 @@ import HelpButton from '../../components/HelpButton';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService, { University } from '../../services/GeofencingService';
+import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 
 
 const { width, height } = Dimensions.get('window');
@@ -106,6 +107,11 @@ export default function MapScreen() {
   const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
   const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
 
+  // Speak page title on load for accessibility
+  useEffect(() => {
+    speakPageTitle('Campus Map');
+  }, []);
+
   // Request location permissions and get current location
   useEffect(() => {
     (async () => {
@@ -116,6 +122,7 @@ export default function MapScreen() {
         
         if (status !== 'granted') {
           console.log('Location permission denied');
+          speakButtonAction('Location permission denied. Please enable location access in settings.');
           Alert.alert('Permission denied', 'Location permission is required to show your current location on the map.');
           return;
         }
@@ -136,6 +143,7 @@ export default function MapScreen() {
         });
       } catch (error) {
         console.error('Error getting location:', error);
+        speakButtonAction('Unable to get your current location. Please check your location settings.');
         Alert.alert('Location Error', 'Unable to get your current location. Please check your location settings.');
       }
     })();
