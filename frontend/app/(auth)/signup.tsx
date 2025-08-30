@@ -1,11 +1,15 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native"; // <-- Add Image
+import GeofencingService, { University } from '../../services/GeofencingService';
+import UniversitySelector from '../../components/UniversitySelector';
 
 export default function SignupScreen() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
+  const [error, setError] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,6 +18,14 @@ export default function SignupScreen() {
     if (!fullName.trim()) return "Full name is required";
     if (!email.trim()) return "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email";
+    const handleSignUp = () => {
+      if (!currentUniversity) {
+        setError("Please select your university.");
+        return;
+      }
+      // If valid, proceed with sign up
+      console.log("Signing up with:", currentUniversity);
+    };
     if (!password) return "Password is required";
     if (password.length < 6) return "Password must be at least 6 characters";
     if (password !== confirmPassword) return "Passwords do not match";
@@ -65,6 +77,11 @@ export default function SignupScreen() {
         onChangeText={setEmail}
         placeholderTextColor="#999"
       />
+      {/* University Selector */}
+            <UniversitySelector
+              onUniversityChange={setCurrentUniversity}
+              currentUniversity={currentUniversity}
+            />
       <TextInput
         style={styles.input}
         placeholder="Password"
