@@ -671,7 +671,7 @@ export default function ReportScreen() {
                   <Ionicons name="person" size={16} color="#666" />
                   <Text style={styles.authorText}>{report.author}</Text>
                 </View>
-
+                 <View style={styles.footerSpacer} />
                 <View style={styles.reportActions}>
                   {/* Upvote Button */}
                   <TouchableOpacity
@@ -1330,11 +1330,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+// Add some internal padding
+  gap: 16,
+  },
+  footerSpacer: {
+    flex: 1, // This will push the buttons to the right
+    minWidth: 16, // Minimum space between author and buttons
   },
   reportAuthor: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
   },
   authorText: {
     fontSize: 14,
@@ -1343,6 +1351,7 @@ const styles = StyleSheet.create({
   reportActions: {
     flexDirection: 'row',
     gap: 8,
+    flexShrink: 0,
   },
 
   actionButtonActive: {
@@ -1350,7 +1359,7 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
   },
@@ -1358,14 +1367,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   actionCount: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#007AFF',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 10,
-    minWidth: 24,
+    minWidth: 20,
     textAlign: 'center',
   },
 
@@ -1373,17 +1382,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
     borderWidth: 1,
     borderColor: '#007AFF',
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 2,
+    minWidth: 0,           // Allow button to shrink
+    flexShrink: 1, 
   },
 
   actionCountActive: {
