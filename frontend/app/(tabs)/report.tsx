@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Video, ResizeMode } from "expo-av";
+import { Video, ResizeMode, Audio } from "expo-av";
 import { useCallback } from "react";
 import {
   View,
@@ -15,10 +15,12 @@ import {
   Switch,
   Image,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
 import type { ComponentProps } from "react";
+import { startRecording, stopRecording, convertSpeechToText } from '../../services/speech';
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 import TextInputWithVoice from '../../components/TextInputWithVoice';
@@ -37,8 +39,45 @@ const sortOptions: SortOption[] = [
   { key: "most_commented", label: "Most Commented", icon: "chatbubbles-outline" },
 ];
 
+{/*Add this utility function near the top of your component file*/ }
+const formatTime = (timeString: string) => {
+  const now = new Date();
+  const time = new Date(timeString);
+  const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
 
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} week${diffInWeeks !== 1 ? 's' : ''} ago`;
+  }
+
+  {/* For older dates, show the actual date */ }
+  return time.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: time.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  });
+};
 const now = new Date();
+
 
 const mockRecentReports: Report[] = [
   {
@@ -52,7 +91,7 @@ const mockRecentReports: Report[] = [
     author: 'John D.',
     upvotes: 12,
     isUpvoted: false,
-    media: [ // Add media examples
+    media: [
       { uri: 'https://picsum.photos/400/300', type: 'image' },
       { uri: 'https://picsum.photos/400/301', type: 'image' }
     ],
@@ -88,7 +127,7 @@ const mockRecentReports: Report[] = [
     author: 'Anonymous',
     upvotes: 8,
     isUpvoted: false,
-    media: [ // Add media examples
+    media: [
       { uri: 'https://picsum.photos/400/302', type: 'image' }
     ],
     comments: [
@@ -105,8 +144,6 @@ const mockRecentReports: Report[] = [
   },
 ];
 
-
-// Update the Comment type to include liked and reported properties
 type Comment = {
   id: number;
   author: string;
@@ -115,7 +152,7 @@ type Comment = {
   anonymous?: boolean;
   avatarUrl?: string;
   liked?: boolean;
-  likes?: number; // Add this line
+  likes?: number;
   reported?: boolean;
   reportReason?: string;
   replies?: Comment[];
@@ -133,7 +170,7 @@ type Report = {
   upvotes: number;
   isUpvoted: boolean;
   comments: Comment[];
-  media?: { uri: string; type: "image" | "video" }[]; // Add this line
+  media?: { uri: string; type: "image" | "video" }[];
 };
 
 type ReportType = {
@@ -180,11 +217,13 @@ const MediaDisplay = ({ media }: { media: { uri: string; type: "image" | "video"
 };
 
 export default function ReportScreen() {
-  // Speak page title on load for accessibility
+  {/*Speak page title on load for accessibility*/ }
   React.useEffect(() => {
     speakPageTitle('Report Incidents');
   }, []);
-
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState('');
@@ -196,7 +235,7 @@ export default function ReportScreen() {
   const [selectedDangerType, setSelectedDangerType] = useState('all');
   const [sortBy, setSortBy] = useState('latest');
   const [showSortModal, setShowSortModal] = useState(false);
-  const [showCommentModal, setShowCommentModal] = useState(false); // MOVE THIS UP
+  const [showCommentModal, setShowCommentModal] = useState(false);
   const [currentReportId, setCurrentReportId] = useState<number | null>(null);
   const [newComment, setNewComment] = useState("");
   const [replyStates, setReplyStates] = useState<{
@@ -211,7 +250,7 @@ export default function ReportScreen() {
   const [reportReason, setReportReason] = useState<string>("");
 
 
-  // Add the back button handler here - right after the first useEffect
+  {/* Add the back button handler here - right after the first useEffect */ }
   useEffect(() => {
     const backAction = () => {
       if (showCommentModal) {
@@ -226,6 +265,10 @@ export default function ReportScreen() {
         setShowSortModal(false);
         return true;
       }
+      if (showSearchModal) {
+        setShowSearchModal(false);
+        return true;
+      }
       return false;
     };
 
@@ -235,7 +278,89 @@ export default function ReportScreen() {
     );
 
     return () => backHandler.remove();
-  }, [showCommentModal, showReportModal, showSortModal]);
+  }, [showCommentModal, showReportModal, showSortModal, showSearchModal]);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [processingSpeech, setProcessingSpeech] = useState(false);
+
+  const recordingRef = useRef<Audio.Recording | null>(null);
+
+  {/* Speech-to-text functions */ }
+  const startSpeechToText = async () => {
+    try {
+      {/* Request permissions first */ }
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Microphone access is needed for voice search');
+        return;
+      }
+
+      setIsRecording(true);
+      speakButtonAction('Listening... Speak now');
+
+      {/* Start recording using the service function */ }
+      const newRecording = await startRecording();
+      recordingRef.current = newRecording;
+      setRecording(newRecording);
+
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+      setIsRecording(false);
+    }
+  };
+
+  const stopSpeechToText = async () => {
+    try {
+      if (!recordingRef.current) {
+        setIsRecording(false);
+        return;
+      }
+
+      setIsRecording(false);
+      setProcessingSpeech(true);
+
+      {/* Stop recording and get the URI using the service function */ }
+      const audioUri = await stopRecording(recordingRef.current);
+
+      if (audioUri) {
+        {/* Convert speech to text using the service function */ }
+        const text = await convertSpeechToText(audioUri);
+        setSearchQuery(text);
+        speakButtonAction(`Heard: ${text}`);
+      }
+
+      setProcessingSpeech(false);
+      recordingRef.current = null;
+      setRecording(null);
+
+    } catch (error) {
+      console.error('Failed to process speech:', error);
+      Alert.alert('Error', 'Failed to process speech. Please try again.');
+      setProcessingSpeech(false);
+      setIsRecording(false);
+      recordingRef.current = null;
+      setRecording(null);
+    }
+  };
+
+  const handleMicPress = () => {
+    if (isRecording) {
+      stopSpeechToText();
+    } else {
+      startSpeechToText();
+    }
+  };
+
+  {/* Clean up on unmount */ }
+  useEffect(() => {
+    return () => {
+      if (recordingRef.current) {
+        stopRecording(recordingRef.current).catch(console.error);
+      }
+    };
+  }, []);
 
   const handleCreateReport = () => {
     if (!selectedReportType || !reportDescription.trim() || !reportLocation.trim()) {
@@ -244,9 +369,27 @@ export default function ReportScreen() {
       return;
     }
 
+    {/* Create new report object */ }
+    const newReport: Report = {
+      id: Date.now(),
+      type: selectedReportType,
+      title: reportDescription.split('.')[0] || 'New Report',
+      description: reportDescription,
+      location: reportLocation,
+      time: new Date().toISOString(),
+      anonymous: isAnonymous,
+      author: isAnonymous ? 'Anonymous' : 'Current User',
+      upvotes: 0,
+      isUpvoted: false,
+      comments: [],
+      media: media
+    };
+
+    {/* Add to filtered reports */ }
+    setFilteredReports(prev => [newReport, ...prev]);
+
     speakButtonAction('Report submitted successfully. Campus security has been notified.');
 
-    // TODO: Submit report to backend
     Alert.alert(
       'Report Submitted',
       'Your report has been submitted successfully. Campus security has been notified.',
@@ -263,7 +406,7 @@ export default function ReportScreen() {
   };
 
 
-  // Toggle replies for a comment
+  {/* Toggle replies for a comment */ }
   const toggleReplies = (commentId: number) => {
     setReplyStates(prev => ({
       ...prev,
@@ -296,7 +439,7 @@ export default function ReportScreen() {
 
     if (!replyText?.trim() || currentReportId === null) return;
 
-    // Set submitting state
+    {/* Set submitting state */ }
     setReplyStates(prev => ({
       ...prev,
       [commentId]: { ...prev[commentId], isSubmitting: true }
@@ -308,7 +451,7 @@ export default function ReportScreen() {
           if (comment.id === commentId) {
             const newReplies = comment.replies ? [...comment.replies] : [];
             newReplies.push({
-              id: Date.now(), // Use timestamp for unique ID
+              id: Date.now(),
               author: isAnonymous ? 'Anonymous' : 'You',
               text: replyText.trim(),
               time: new Date().toISOString(),
@@ -328,7 +471,7 @@ export default function ReportScreen() {
 
     setFilteredReports(updatedReports);
 
-    // Clear reply text and reset submitting state
+    {/* Clear reply text and reset submitting state */ }
     setReplyStates(prev => ({
       ...prev,
       [commentId]: {
@@ -362,13 +505,13 @@ export default function ReportScreen() {
 
 
 
-  // When user clicks "Report"
+  {/* When user clicks "Report" */ }
   const handleReportClick = (commentId: number) => {
     setSelectedCommentId(commentId);
     setReportModalVisible(true);
   };
 
-  // Submit the report
+  {/* Submit the report */ }
   const submitReport = () => {
     if (!reportReason.trim() || selectedCommentId === null) return;
 
@@ -405,6 +548,22 @@ export default function ReportScreen() {
     filterAndSortReports(query, selectedDangerType, sortBy);
   };
 
+  {/* Add a new function for saving searches */ }
+  const saveSearch = () => {
+    if (searchQuery.trim() !== '') {
+      setRecentSearches(prev => {
+        const filtered = prev.filter(item => item !== searchQuery);
+        return [searchQuery, ...filtered].slice(0, 5);
+      });
+      {/* Perform the search */ }
+      filterAndSortReports(searchQuery, selectedDangerType, sortBy);
+    }
+  };
+
+  const removeRecentSearch = (index: number) => {
+    setRecentSearches(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleDangerTypeFilter = (type: string) => {
     setSelectedDangerType(type);
     filterAndSortReports(searchQuery, type, sortBy);
@@ -415,7 +574,7 @@ export default function ReportScreen() {
     filterAndSortReports(searchQuery, selectedDangerType, sort);
   };
 
-  // Replace filterAndSortReports with memoized version
+  {/* Replace filterAndSortReports with memoized version */ }
   const filterAndSortReports = useCallback((query: string, dangerType: string, sort: string) => {
     let filtered = mockRecentReports;
 
@@ -459,10 +618,10 @@ export default function ReportScreen() {
     setMedia([]);
   };
 
-  // each item will look like: { uri: string, type: "image" | "video", ... }
+  {/* each item will look like: { uri: string, type: "image" | "video", ... } */ }
   const [media, setMedia] = useState<{ uri: string; type: "image" | "video" }[]>([]);
 
-  // Helper function to add media
+  {/* Helper function to add media */ }
   const addMedia = (newFiles: { uri: string; type: "image" | "video" }[]) => {
     if (media.length + newFiles.length > 5) {
       Alert.alert("Limit reached", "You can only attach up to 5 files.");
@@ -471,7 +630,7 @@ export default function ReportScreen() {
     setMedia((prev) => [...prev, ...newFiles].slice(0, 5));
   };
 
-  // Take Photo
+  {/* Take Photo */ }
   const takePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -493,7 +652,7 @@ export default function ReportScreen() {
     }
   };
 
-  // Take Video
+  {/* Take Video */ }
   const takeVideo = async () => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
@@ -506,7 +665,7 @@ export default function ReportScreen() {
     }
   };
 
-  // Pick from Library
+  {/* Pick from Library */ }
   const pickMedia = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
@@ -528,10 +687,6 @@ export default function ReportScreen() {
     setMedia((prev) => prev.filter((item) => item.uri !== uri));
   };
 
-
-
-
-
   const getReportTypeInfo = (type: string) => {
     return reportTypes.find(rt => rt.key === type) || reportTypes[0];
   };
@@ -550,7 +705,6 @@ export default function ReportScreen() {
     setFilteredReports(updatedReports);
   };
 
-
   const submitComment = () => {
     if (!newComment.trim() || currentReportId === null) {
       Alert.alert("Error", "Comment cannot be empty.");
@@ -564,10 +718,10 @@ export default function ReportScreen() {
           comments: [
             ...report.comments,
             {
-              id: Date.now(), // CHANGE THIS
+              id: Date.now(),
               author: isAnonymous ? 'Anonymous' : 'You',
               text: newComment.trim(),
-              time: new Date().toISOString(), // Also fix timestamp
+              time: new Date().toISOString(),
               anonymous: isAnonymous,
               liked: false,
               likes: 0
@@ -584,26 +738,27 @@ export default function ReportScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Search and Filter Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInputWithVoice
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholder="Search reports and comments..."
-            prompt="search query"
-            style={{ flex: 1, marginRight: 8 }}
-            inputStyle={styles.searchInput}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => handleSearch('')}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Recent Reports Feed */}
+      <ScrollView style={styles.feedContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.feedHeader}>
+          <View>
+            <Text style={styles.feedTitle}>Recent Reports</Text>
+            <Text style={styles.feedSubtitle}>Stay informed about campus safety</Text>
+          </View>
 
-        {/* Danger Type Filter */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => setShowSearchModal(true)}
+              style={styles.searchHeaderButton}
+            >
+              <Ionicons name="search-outline" size={24} color="#007AFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setShowSortModal(true)}>
+              <Ionicons name="menu-outline" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
           <TouchableOpacity
             style={[styles.filterChip, selectedDangerType === 'all' && styles.filterChipActive]}
@@ -626,21 +781,6 @@ export default function ReportScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
-
-      {/* Recent Reports Feed */}
-      <ScrollView style={styles.feedContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.feedHeader}>
-          <View>
-            <Text style={styles.feedTitle}>Recent Reports</Text>
-            <Text style={styles.feedSubtitle}>Stay informed about campus safety</Text>
-          </View>
-
-          <TouchableOpacity onPress={() => setShowSortModal(true)}>
-            <Ionicons name="menu-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        </View>
-
         {filteredReports.map((report) => {
           const typeInfo = getReportTypeInfo(report.type);
           return (
@@ -650,7 +790,7 @@ export default function ReportScreen() {
                   <Ionicons name={typeInfo.icon} size={20} color={typeInfo.color} />
                   <Text style={styles.reportType}>{typeInfo.label}</Text>
                 </View>
-                <Text style={styles.reportTime}>{report.time}</Text>
+                <Text style={styles.reportTime}>{formatTime(report.time)}</Text>
               </View>
 
               <Text style={styles.reportTitle}>{report.title}</Text>
@@ -671,7 +811,7 @@ export default function ReportScreen() {
                   <Ionicons name="person" size={16} color="#666" />
                   <Text style={styles.authorText}>{report.author}</Text>
                 </View>
-                 <View style={styles.footerSpacer} />
+                <View style={styles.footerSpacer} />
                 <View style={styles.reportActions}>
                   {/* Upvote Button */}
                   <TouchableOpacity
@@ -716,8 +856,227 @@ export default function ReportScreen() {
         })}
 
       </ScrollView>
+      {/* Search Modal */}
+      <Modal
+        visible={showSearchModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSearchModal(false)}
+      >
+        <SafeAreaView style={styles.searchModalContainer}>
+          <View style={styles.searchModalHeader}>
+            {/* Back button */}
+            <TouchableOpacity
+              onPress={() => {
+                if (isRecording) stopSpeechToText();
+                setSearchQuery('');
+                filterAndSortReports('', selectedDangerType, sortBy);
+                setShowSearchModal(false);
+              }}
+              style={styles.searchModalBackButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#007AFF" />
+            </TouchableOpacity>
 
-      {/* Sort Modal */}
+            {/* Extended search input container */}
+            <View style={styles.searchModalInputContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchModalIcon} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Search reports, comments, locations..."
+                style={styles.searchModalInput}
+                autoFocus={true}
+                onSubmitEditing={saveSearch}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                placeholderTextColor="#999"
+              />
+
+              {searchQuery.length > 0 && !isRecording && (
+                <TouchableOpacity onPress={() => handleSearch('')}>
+                  <Ionicons name="close-circle" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Voice-to-text button */}
+            <TouchableOpacity
+              onPress={handleMicPress}
+              style={[
+                styles.voiceSearchButton,
+                isRecording && styles.voiceSearchButtonActive
+              ]}
+              disabled={processingSpeech}
+            >
+              {processingSpeech ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : isRecording ? (
+                <Ionicons name="stop" size={24} color="#FF3B30" />
+              ) : (
+                <Ionicons name="mic" size={24} color="#007AFF" />
+              )}
+            </TouchableOpacity>
+
+            {/* Search button */}
+            <TouchableOpacity
+              onPress={saveSearch}
+              style={styles.searchModalSearchButton}
+            >
+              <Ionicons name="search" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView>
+            {/* Display recording state */}
+            {isRecording && (
+              <View style={styles.recordingContainer}>
+                <View style={styles.recordingIndicator}>
+                  <View style={styles.recordingDot} />
+                  <Text style={styles.recordingText}>Recording... Speak now</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={stopSpeechToText}
+                  style={styles.stopRecordingButton}
+                >
+                  <Text style={styles.stopRecordingText}>Stop Recording</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Display processing state */}
+            {processingSpeech && (
+              <View style={styles.processingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.processingText}>Processing your speech...</Text>
+              </View>
+            )}
+
+            {/* Recent Searches (only show when not recording/processing) */}
+            {recentSearches.length > 0 && !isRecording && !processingSpeech && (
+              <View style={styles.recentSearchesContainer}>
+                <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
+                {recentSearches.map((search, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.recentSearchItem}
+                    onPress={() => {
+                      handleSearch(search);
+                      setShowSearchModal(false);
+                    }}
+                  >
+                    <Ionicons name="time-outline" size={16} color="#666" />
+                    <Text style={styles.recentSearchText}>{search}</Text>
+                    <TouchableOpacity
+                      onPress={() => removeRecentSearch(index)}
+                      style={styles.removeSearchButton}
+                    >
+                      <Ionicons name="close" size={16} color="#999" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Search Results (only show when not recording/processing) */}
+            {searchQuery.length > 0 && filteredReports.length > 0 && !isRecording && !processingSpeech && (
+              <View style={styles.searchResultsPreview}>
+                <Text style={styles.searchResultsTitle}>
+                  {filteredReports.length} result{filteredReports.length !== 1 ? 's' : ''} found
+                </Text>
+                {filteredReports.map((report) => {
+                  const typeInfo = getReportTypeInfo(report.type);
+                  return (
+                    <View key={report.id} style={styles.searchResultCard}>
+                      <View style={styles.reportHeader}>
+                        <View style={styles.reportTypeContainer}>
+                          <Ionicons name={typeInfo.icon} size={20} color={typeInfo.color} />
+                          <Text style={styles.reportType}>{typeInfo.label}</Text>
+                        </View>
+                        <Text style={styles.reportTime}>{formatTime(report.time)}</Text>
+                      </View>
+
+                      <Text style={styles.reportTitle}>{report.title}</Text>
+                      <Text style={styles.reportDescription}>{report.description}</Text>
+
+                      {/* Media Display */}
+                      {report.media && report.media.length > 0 && (
+                        <MediaDisplay media={report.media} />
+                      )}
+
+                      <View style={styles.reportLocation}>
+                        <Ionicons name="location" size={16} color="#666" />
+                        <Text style={styles.locationText}>{report.location}</Text>
+                      </View>
+
+                      <View style={styles.reportFooter}>
+                        <View style={styles.reportAuthor}>
+                          <Ionicons name="person" size={16} color="#666" />
+                          <Text style={styles.authorText}>{report.author}</Text>
+                        </View>
+                        <View style={styles.footerSpacer} />
+                        <View style={styles.reportActions}>
+                          {/* Upvote Button */}
+                          <TouchableOpacity
+                            style={[
+                              styles.actionButton,
+                              report.isUpvoted && styles.actionButtonActive
+                            ]}
+                            onPress={() => handleUpvote(report.id)}
+                          >
+                            <Ionicons
+                              name={report.isUpvoted ? "arrow-up" : "arrow-up-outline"}
+                              size={16}
+                              color={report.isUpvoted ? "#ffffff" : "#007AFF"}
+                            />
+                            <Text style={[
+                              styles.actionText,
+                              report.isUpvoted && styles.actionTextActive
+                            ]}>
+                              Helpful
+                            </Text>
+                            <Text style={[
+                              styles.actionCount,
+                              report.isUpvoted && styles.actionCountActive
+                            ]}>
+                              {report.upvotes}
+                            </Text>
+                          </TouchableOpacity>
+
+                          {/* Comment Button */}
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => {
+                              setCurrentReportId(report.id);
+                              setShowCommentModal(true);
+                              setShowSearchModal(false);
+                            }}
+                          >
+                            <Ionicons name="chatbubble-outline" size={16} color="#007AFF" />
+                            <Text style={styles.actionText}>Comment</Text>
+                            <Text style={styles.actionCount}>{report.comments.length}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* No results message */}
+            {searchQuery.length > 0 && filteredReports.length === 0 && !isRecording && !processingSpeech && (
+              <View style={styles.noResultsContainer}>
+                <Ionicons name="search" size={48} color="#ccc" />
+                <Text style={styles.noResultsText}>No results found</Text>
+                <Text style={styles.noResultsSubtext}>
+                  Try different keywords or search for something else
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       <Modal
         visible={showSortModal}
         transparent
@@ -726,13 +1085,15 @@ export default function ReportScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.sortModalContent}>
-            <Text style={styles.sortModalTitle}>Sort Reports</Text>
+            <Text style={styles.sortModalTitle}>Sort By</Text>
 
-            {/* ✅ Use central sortOptions array */}
             {sortOptions.map((option) => (
               <TouchableOpacity
                 key={option.key}
-                style={[styles.sortOption, sortBy === option.key && styles.sortOptionActive]}
+                style={[
+                  styles.sortOption,
+                  sortBy === option.key && styles.sortOptionActive
+                ]}
                 onPress={() => {
                   handleSortChange(option.key);
                   setShowSortModal(false);
@@ -743,9 +1104,10 @@ export default function ReportScreen() {
                   size={20}
                   color={sortBy === option.key ? '#007AFF' : '#666'}
                 />
-                <Text
-                  style={[styles.sortOptionText, sortBy === option.key && styles.sortOptionTextActive]}
-                >
+                <Text style={[
+                  styles.sortOptionText,
+                  sortBy === option.key && styles.sortOptionTextActive
+                ]}>
                   {option.label}
                 </Text>
                 {sortBy === option.key && (
@@ -819,7 +1181,7 @@ export default function ReportScreen() {
                           {comment.anonymous ? "Anonymous" : comment.author}
                         </Text>
                         <Text>{comment.text}</Text>
-                        <Text style={{ fontSize: 12, color: "#666" }}>{comment.time}</Text>
+                        <Text style={{ fontSize: 12, color: "#666" }}>{formatTime(comment.time)}</Text>
                         {/* Like / Report / Reply buttons */}
                         <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
                           <TouchableOpacity
@@ -918,7 +1280,7 @@ export default function ReportScreen() {
                               {reply.anonymous ? "Anonymous" : reply.author}
                             </Text>
                             <Text style={{ fontSize: 12 }}>{reply.text}</Text>
-                            <Text style={{ fontSize: 10, color: "#666" }}>{reply.time}</Text>
+                            <Text style={{ fontSize: 10, color: "#666" }}>{formatTime(reply.time)}</Text>
                           </View>
                         </View>
                       ))}
@@ -1063,6 +1425,8 @@ export default function ReportScreen() {
         </View>
       </Modal >
 
+
+
       {/* Report Button */}
       < TouchableOpacity
         style={styles.reportButton}
@@ -1173,31 +1537,26 @@ export default function ReportScreen() {
                     </TouchableOpacity>
                   </View>
                 ))}
-
-
               </ScrollView>
 
               {/* Upload buttons */}
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.actionButton} onPress={takePhoto}>
-                  <Ionicons name="camera" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Take Photo</Text>
+              <View style={styles.uploadButtonContainer}>
+                <TouchableOpacity style={styles.mediaActionButton} onPress={takePhoto}>
+                  <Ionicons name="camera" size={20} color="#007AFF" />
+                  <Text style={styles.mediaActionButtonText}>Take Photo</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={takeVideo}>
-                  <Ionicons name="videocam" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Take Video</Text>
+                <TouchableOpacity style={styles.mediaActionButton} onPress={takeVideo}>
+                  <Ionicons name="videocam" size={20} color="#007AFF" />
+                  <Text style={styles.mediaActionButtonText}>Take Video</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={pickMedia}>
-                  <Ionicons name="images" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Gallery</Text>
+                <TouchableOpacity style={styles.mediaActionButton} onPress={pickMedia}>
+                  <Ionicons name="images" size={20} color="#007AFF" />
+                  <Text style={styles.mediaActionButtonText}>Gallery</Text>
                 </TouchableOpacity>
               </View>
-
-
             </View>
-
 
             {/* Anonymous Toggle */}
             <View style={styles.formSection}>
@@ -1223,12 +1582,209 @@ export default function ReportScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+
+  headerActions: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
+  },
+  searchModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  searchModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+    gap: 12,
+  },
+  searchModalBackButton: {
+    padding: 8,
+  },
+  voiceSearchButton: {
+    padding: 8,
+  },
+  voiceSearchButtonActive: {
+    backgroundColor: '#FF3B3020',
+  },
+  recordingContainer: {
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#FFF0F0',
+  },
+  recordingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recordingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF3B30',
+    marginRight: 8,
+  },
+  recordingText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  stopRecordingButton: {
+    padding: 8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+  },
+  stopRecordingText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  processingContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  processingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#007AFF',
+  },
+  searchModalSearchButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
+  searchModalInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 50,
+  },
+  searchModalIcon: {
+    marginRight: 12,
+  },
+  searchModalInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1a1a1a',
+    paddingVertical: 4,
+  },
+
+  searchButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  recentSearchesContainer: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  recentSearchesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  recentSearchItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 12,
+  },
+  recentSearchText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1a1a1a',
+  },
+  removeSearchButton: {
+    padding: 4,
+  },
+  searchResultCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchResultsPreview: {
+    padding: 16,
+  },
+  searchResultsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 16,
+  },
+  searchResultItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  searchResultContent: {
+    flex: 1,
+  },
+  searchResultTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  searchResultDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  searchResultMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchResultLocation: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+  },
+  searchResultTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  noResultsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  searchHeaderButton: {
+    padding: 4,
+  },
+
   searchContainer: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
@@ -1236,22 +1792,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+
+  searchModalCloseButton: {
+    padding: 4,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
+
+  searchModalCloseText: {
     fontSize: 16,
-    color: '#1a1a1a',
+    color: '#007AFF',
   },
+
   feedContainer: {
     flex: 1,
     paddingHorizontal: 20,
@@ -1331,8 +1881,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
-// Add some internal padding
-  gap: 16,
+    gap: 16,
   },
   footerSpacer: {
     flex: 1, // This will push the buttons to the right
@@ -1377,7 +1926,6 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: 'center',
   },
-
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1393,9 +1941,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     minWidth: 0,           // Allow button to shrink
-    flexShrink: 1, 
+    flexShrink: 1,
   },
-
   actionCountActive: {
     color: '#007AFF',
     backgroundColor: '#ffffff',
@@ -1417,6 +1964,36 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
+  },
+  uploadButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 8,
+  },
+
+  mediaActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+    minWidth: 110,
+    flex: 1,
+    minHeight: 60,
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  mediaActionButtonText: {
+    color: "#007AFF",
+    fontSize: 14,
+    fontWeight: '500',
   },
   reportButton: {
     flexDirection: 'row',
@@ -1562,7 +2139,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: "#000", // helps video look cleaner
   },
-
   removeImageButton: {
     position: "absolute",
     top: 4,
@@ -1570,8 +2146,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
   },
-
-
   anonymousContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1583,8 +2157,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   filterContainer: {
-    marginTop: 12,
+    marginTop: 2,
     paddingHorizontal: 16,
+    marginBottom: 16,
   },
   filterChip: {
     flexDirection: 'row',
@@ -1734,5 +2309,4 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-
 });
