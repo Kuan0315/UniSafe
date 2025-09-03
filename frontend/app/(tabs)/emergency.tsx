@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
+import { useFocusEffect } from '@react-navigation/native';
 
 function callNumber(phone: string, contactName: string) {
   speakButtonAction(`Calling ${contactName}`);
@@ -13,9 +14,11 @@ function callNumber(phone: string, contactName: string) {
 
 export default function EmergencyCallScreen() {
   // Speak page title on load for accessibility
-  useEffect(() => {
-    speakPageTitle('Emergency Contacts');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Emergency Contacts');
+    }, [])
+  );
 
   return (
     <View style={styles.container}>

@@ -1,5 +1,14 @@
 import * as Speech from 'expo-speech';
 
+let ttsEnabled = true; // 🔊 TTS is ON by default
+
+export function setTTSEnabled(enabled: boolean) {
+  ttsEnabled = enabled;
+  if (!enabled) {
+    Speech.stop(); // Stop any ongoing speech when disabled
+  }
+}
+
 export interface SpeechOptions {
   language?: string;
   pitch?: number;
@@ -8,7 +17,7 @@ export interface SpeechOptions {
 }
 
 export function speak(text: string, options: SpeechOptions = {}) {
-  if (!text) return;
+  if (!ttsEnabled || !text) return; // 🚫 Skip if TTS is disabled
   try {
     Speech.stop();
     Speech.speak(text, { 
@@ -31,7 +40,7 @@ export function stopSpeaking() {
 }
 
 export function speakPageTitle(title: string) {
-  speak(`Navigated to ${title} page`);
+  speak(`Navigated to ${title} page`); 
 }
 
 export function speakButtonAction(action: string) {
