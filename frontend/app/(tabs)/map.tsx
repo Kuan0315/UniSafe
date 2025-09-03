@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -109,9 +110,11 @@ export default function MapScreen() {
   const [isFullScreenMap, setIsFullScreenMap] = useState(false);
 
   // Speak page title on load for accessibility
-  useEffect(() => {
-    speakPageTitle('Campus Map');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Campus Map');
+    }, [])
+  );
 
   // Request location permissions and get current location
   useEffect(() => {

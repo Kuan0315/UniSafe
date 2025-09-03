@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Video, ResizeMode, Audio } from "expo-av";
 import { useCallback } from "react";
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -218,9 +219,11 @@ const MediaDisplay = ({ media }: { media: { uri: string; type: "image" | "video"
 
 export default function ReportScreen() {
   {/*Speak page title on load for accessibility*/ }
-  React.useEffect(() => {
-    speakPageTitle('Report Incidents');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Report Incidents');
+    }, [])
+  );
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);

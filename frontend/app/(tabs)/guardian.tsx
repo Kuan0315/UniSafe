@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -66,9 +67,11 @@ export default function GuardianScreen() {
   const pulseAnimation = useRef(new Animated.Value(1)).current;
 
   // Speak page title on load for accessibility
-  useEffect(() => {
-    speakPageTitle('Guardian Mode');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Guardian Mode');
+    }, [])
+  );
 
   useEffect(() => {
     if (guardianSession?.isActive) {

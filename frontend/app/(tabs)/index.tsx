@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -90,9 +91,11 @@ export default function HomeScreen() {
   }, []);
 
   // Speak page title on load for accessibility
-  useEffect(() => {
-    speakPageTitle('Home');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Home');
+    }, [])
+  );
 
   const handleSOSPressIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
