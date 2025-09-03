@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
 import { useRouter } from 'expo-router'; 
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
   View,
@@ -19,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Linking, Platform } from 'react-native';
 import TextInputWithVoice from '../../components/TextInputWithVoice';
-import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
+import { speakPageTitle, speakButtonAction, setTTSEnabled } from '../../services/SpeechService';
 
 // Mock user data
 const mockUser = {
@@ -40,9 +41,11 @@ const mockTrustedCircle = [
 
 export default function ProfileScreen() {
   // Speak page title on load for accessibility
-  React.useEffect(() => {
-    speakPageTitle('Profile and Settings');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Profile and Settings');
+    }, [])
+  );
 
   const [showAddContactModal, setShowAddContactModal] = useState(false);
 
@@ -63,6 +66,7 @@ export default function ProfileScreen() {
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('');
 
+  const [ttsEnabled, setTtsEnabled] = useState(true); // Default ON
 
   const callContact = (phone: string) => {
     const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
@@ -170,7 +174,14 @@ export default function ProfileScreen() {
     setChatbotResponse('');
   };
 
-
+  const toggleTTS = () => {
+    setTtsEnabled((prev) => {
+      const newState = !prev;
+      setTTSEnabled(newState); // Tell SpeechService
+      speakButtonAction(newState ? 'Text-to-Speech enabled' : 'Text-to-Speech disabled');
+      return newState;
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -274,6 +285,22 @@ export default function ProfileScreen() {
             <Switch
               value={true}
               onValueChange={() => {}}
+              trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="volume-high" size={20} color="#666" />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Text-to-Speech</Text>
+                <Text style={styles.settingDescription}>Enable voice feedback throughout the app</Text>
+              </View>
+            </View>
+            <Switch
+              value={ttsEnabled}
+              onValueChange={toggleTTS}
               trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
               thumbColor="#fff"
             />
