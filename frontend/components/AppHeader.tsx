@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   titleBar: {
-    backgroundColor: BLUE,
+    backgroundColor: "#335499",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
