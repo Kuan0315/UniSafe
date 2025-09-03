@@ -137,6 +137,7 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  // Speak page title on load for accessibility
   useEffect(() => {
     speakPageTitle('Home');
   }, []);

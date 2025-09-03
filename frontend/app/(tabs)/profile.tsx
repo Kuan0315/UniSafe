@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
 import { useRouter } from 'expo-router'; 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Linking, Platform } from 'react-native';
 import TextInputWithVoice from '../../components/TextInputWithVoice';
-import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
+import { speakPageTitle, speakButtonAction, setTTSEnabled } from '../../services/SpeechService';
 
 // Mock user data
 const mockUser = {
@@ -40,13 +40,7 @@ const mockTrustedCircle = [
 
 
 export default function ProfileScreen() {
-// Router
-  const router = useRouter();
-
-  // Auth context
-  const { logout } = useAuth();
-
-  // Accessibility: speak page title on load
+  // Speak page title on load for accessibility
   React.useEffect(() => {
     speakPageTitle('Profile and Settings');
   }, []);
@@ -71,33 +65,9 @@ export default function ProfileScreen() {
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('');
 
-  // ===== Load autoCaptureSOS setting from AsyncStorage =====
-  React.useEffect(() => {
-    const loadAutoCapture = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('@autoCaptureSOS');
-        if (saved !== null) {
-          setAutoCaptureSOS(saved === 'true');
-        }
-      } catch (error) {
-        console.log('Error loading autoCaptureSOS:', error);
-      }
-    };
-    loadAutoCapture();
-  }, []);
+  const { logout } = useAuth();
+  const router = useRouter(); // Add this
 
-  // ===== Toggle handler for Auto-capture SOS =====
-  const toggleAutoCaptureSOS = async () => {
-    try {
-      const newValue = !autoCaptureSOS;
-      setAutoCaptureSOS(newValue);
-      await AsyncStorage.setItem('@autoCaptureSOS', newValue.toString());
-    } catch (error) {
-      console.log('Error saving autoCaptureSOS:', error);
-    }
-  };
-
-  // ===== Logout handler =====
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -197,6 +167,8 @@ export default function ProfileScreen() {
     setChatbotQuery('');
     setChatbotResponse('');
   };
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -304,34 +276,6 @@ export default function ProfileScreen() {
               thumbColor="#fff"
             />
           </View>
-          <View style={styles.settingItem}>
-  <View style={styles.settingItem}>
-  <View style={styles.settingInfo}>
-    <Ionicons name="camera" size={20} color="#666" />
-    <View style={styles.settingText}>
-      <Text style={styles.settingLabel}>Auto-capture on SOS</Text>
-      <Text style={styles.settingDescription}>
-        {autoCaptureSOS 
-          ? "Automatically start camera recording during SOS" 
-          : "Disabled - manual capture only during SOS"}
-      </Text>
-    </View>
-  </View>
-  <Switch
-    value={autoCaptureSOS}
-    onValueChange={toggleAutoCaptureSOS}
-    trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
-    thumbColor="#fff"
-  />
-</View>
-  <Switch
-    value={autoCaptureSOS}
-    onValueChange={toggleAutoCaptureSOS}
-    trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
-    thumbColor="#fff"
-  />
-</View>
-
         </View>
 
         {/* Trusted Circle */}
