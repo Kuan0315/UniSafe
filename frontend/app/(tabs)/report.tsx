@@ -78,7 +78,6 @@ const formatTime = (timeString: string) => {
 };
 const now = new Date();
 
-
 const mockRecentReports: Report[] = [
   {
     id: 1,

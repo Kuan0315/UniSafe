@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
 import { useRouter } from 'expo-router'; 
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -38,14 +38,22 @@ const mockTrustedCircle = [
 
 
 
+
 export default function ProfileScreen() {
-  // Speak page title on load for accessibility
+// Router
+  const router = useRouter();
+
+  // Auth context
+  const { logout } = useAuth();
+
+  // Accessibility: speak page title on load
   React.useEffect(() => {
     speakPageTitle('Profile and Settings');
   }, []);
 
+  // ===== States =====
+  const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
-
   const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -57,39 +65,63 @@ export default function ProfileScreen() {
   const [locationSharing, setLocationSharing] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [selectedTheme, setSelectedTheme] = useState('Light');
-  
+
   // New contact/emergency form states
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('');
 
+  // ===== Load autoCaptureSOS setting from AsyncStorage =====
+  React.useEffect(() => {
+    const loadAutoCapture = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@autoCaptureSOS');
+        if (saved !== null) {
+          setAutoCaptureSOS(saved === 'true');
+        }
+      } catch (error) {
+        console.log('Error loading autoCaptureSOS:', error);
+      }
+    };
+    loadAutoCapture();
+  }, []);
 
-  const callContact = (phone: string) => {
-    const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
-    Linking.openURL(url || `tel:${phone}`).catch(() => Alert.alert("Cannot place call", "Check your device call permissions."));
+  // ===== Toggle handler for Auto-capture SOS =====
+  const toggleAutoCaptureSOS = async () => {
+    try {
+      const newValue = !autoCaptureSOS;
+      setAutoCaptureSOS(newValue);
+      await AsyncStorage.setItem('@autoCaptureSOS', newValue.toString());
+    } catch (error) {
+      console.log('Error saving autoCaptureSOS:', error);
+    }
   };
 
-
-  const { logout } = useAuth();
-  const router = useRouter(); // Add this
-
+  // ===== Logout handler =====
   const handleLogout = () => {
-  Alert.alert(
-    "Logout",
-    "Are you sure you want to logout?",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await logout(); // clears SecureStore + sets user = null
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            await logout(); // clears SecureStore + sets user = null
+          },
         },
-      },
-    ]
-  );
-};
+      ]
+    );
+  };
 
+  // ===== Call contact =====
+  const callContact = (phone: string) => {
+    const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
+    Linking.openURL(url || `tel:${phone}`).catch(() => 
+      Alert.alert("Cannot place call", "Check your device call permissions.")
+    );
+  };
 
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim() || !newContactRelationship.trim()) {
@@ -106,8 +138,6 @@ export default function ProfileScreen() {
     setNewContactPhone('');
     setNewContactRelationship('');
   };
-
-
 
   const handleRemoveContact = (contactId: number) => {
     Alert.alert(
@@ -126,8 +156,6 @@ export default function ProfileScreen() {
       ]
     );
   };
-
-
 
   const handleChatbotQuery = () => {
     if (!chatbotQuery.trim()) {
@@ -169,8 +197,6 @@ export default function ProfileScreen() {
     setChatbotQuery('');
     setChatbotResponse('');
   };
-
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -278,6 +304,34 @@ export default function ProfileScreen() {
               thumbColor="#fff"
             />
           </View>
+          <View style={styles.settingItem}>
+  <View style={styles.settingItem}>
+  <View style={styles.settingInfo}>
+    <Ionicons name="camera" size={20} color="#666" />
+    <View style={styles.settingText}>
+      <Text style={styles.settingLabel}>Auto-capture on SOS</Text>
+      <Text style={styles.settingDescription}>
+        {autoCaptureSOS 
+          ? "Automatically start camera recording during SOS" 
+          : "Disabled - manual capture only during SOS"}
+      </Text>
+    </View>
+  </View>
+  <Switch
+    value={autoCaptureSOS}
+    onValueChange={toggleAutoCaptureSOS}
+    trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
+    thumbColor="#fff"
+  />
+</View>
+  <Switch
+    value={autoCaptureSOS}
+    onValueChange={toggleAutoCaptureSOS}
+    trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
+    thumbColor="#fff"
+  />
+</View>
+
         </View>
 
         {/* Trusted Circle */}
