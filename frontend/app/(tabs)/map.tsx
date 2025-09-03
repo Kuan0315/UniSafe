@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService, { University } from '../../services/GeofencingService';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
+import { openGoogleMaps } from '../../services/NavigationService';
 
 
 const { width, height } = Dimensions.get('window');
@@ -282,6 +283,26 @@ export default function MapScreen() {
 
       {/* Control Buttons */}
       <View style={styles.controlButtons}>
+        {/* Navigation button */}
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => {
+            if (selectedIncident) {
+              openGoogleMaps(
+                selectedIncident.location.latitude,
+                selectedIncident.location.longitude
+              );
+            } else {
+              Alert.alert(
+                'No Destination Selected',
+                'Please tap on an incident or location to navigate to.'
+              );
+            }
+          }}
+        >
+          <Ionicons name="navigate-circle" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
         {/* Fullscreen toggle */}
         <TouchableOpacity
           style={styles.controlButton}
