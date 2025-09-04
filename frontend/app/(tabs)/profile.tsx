@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
 import { useRouter } from 'expo-router'; 
 import { useFocusEffect } from '@react-navigation/native';
-
+import * as ImagePicker from 'expo-image-picker';
 import {
   View,
   Text,
@@ -67,6 +67,49 @@ export default function ProfileScreen() {
   const [newContactRelationship, setNewContactRelationship] = useState('');
 
   const [ttsEnabled, setTtsEnabled] = useState(true); // Default ON
+
+  const [avatar, setAvatar] = useState<string | null>(mockUser.avatar);
+
+  // Handle choosing/taking photo
+  const handlePickImage = async () => {
+    const options = ["Choose from Gallery", "Take a Photo", "Cancel"];
+    const cancelButtonIndex = 2;
+
+    Alert.alert(
+      "Update Profile Picture",
+      "Select an option",
+      [
+        {
+          text: options[0],
+          onPress: async () => {
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 1,
+            });
+            if (!result.canceled) {
+              setAvatar(result.assets[0].uri);
+            }
+          },
+        },
+        {
+          text: options[1],
+          onPress: async () => {
+            let result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 1,
+            });
+            if (!result.canceled) {
+              setAvatar(result.assets[0].uri);
+            }
+          },
+        },
+        { text: options[2], style: "cancel" },
+      ]
+    );
+  };
 
   const callContact = (phone: string) => {
     const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
@@ -189,14 +232,14 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            {mockUser.avatar ? (
-              <Image source={{ uri: mockUser.avatar }} style={styles.avatar} />
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Ionicons name="person" size={40} color="#fff" />
               </View>
             )}
-            <TouchableOpacity style={styles.editAvatarButton}>
+            <TouchableOpacity style={styles.editAvatarButton} onPress={handlePickImage}>
               <Ionicons name="camera" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
