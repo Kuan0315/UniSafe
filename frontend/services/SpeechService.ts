@@ -75,4 +75,3 @@ export function speakSettingsChange(setting: string, value: string) {
   speak(`${setting} changed to ${value}`);
 }
 
-
