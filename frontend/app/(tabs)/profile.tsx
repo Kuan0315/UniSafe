@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
-import { useRouter } from 'expo-router'; 
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import {
   View,
@@ -17,7 +18,6 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Linking, Platform } from 'react-native';
 import TextInputWithVoice from '../../components/TextInputWithVoice';
 import { speakPageTitle, speakButtonAction, setTTSEnabled } from '../../services/SpeechService';
@@ -37,8 +37,6 @@ const mockTrustedCircle = [
   { id: 3, name: 'Emma Friend', phone: '+1 (555) 345-6789', relationship: 'Best Friend', isOnline: true },
 ];
 
-
-
 export default function ProfileScreen() {
   // Speak page title on load for accessibility
   useFocusEffect(
@@ -48,7 +46,7 @@ export default function ProfileScreen() {
   );
 
   const [showAddContactModal, setShowAddContactModal] = useState(false);
-
+  const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
   const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -60,7 +58,7 @@ export default function ProfileScreen() {
   const [locationSharing, setLocationSharing] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [selectedTheme, setSelectedTheme] = useState('Light');
-  
+
   // New contact/emergency form states
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
@@ -110,6 +108,30 @@ export default function ProfileScreen() {
       ]
     );
   };
+  // ===== Load autoCaptureSOS setting from AsyncStorage =====
+  React.useEffect(() => {
+    const loadAutoCapture = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@autoCaptureSOS');
+        if (saved !== null) {
+          setAutoCaptureSOS(saved === 'true');
+        }
+      } catch (error) {
+        console.log('Error loading autoCaptureSOS:', error);
+      }
+    };
+    loadAutoCapture();
+  }, []);
+  const toggleAutoCaptureSOS = async (value: boolean) => {
+    try {
+      setAutoCaptureSOS(value);
+      await AsyncStorage.setItem('@autoCaptureSOS', value.toString());
+    } catch (error) {
+      console.log('Error saving autoCaptureSOS:', error);
+    }
+  };
+
+
 
   const callContact = (phone: string) => {
     const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
@@ -121,53 +143,16 @@ export default function ProfileScreen() {
   const router = useRouter(); // Add this
 
   const handleLogout = () => {
-  Alert.alert(
-    "Logout",
-    "Are you sure you want to logout?",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await logout(); // clears SecureStore + sets user = null
-        },
-      },
-    ]
-  );
-};
-
-
-  const handleAddContact = () => {
-    if (!newContactName.trim() || !newContactPhone.trim() || !newContactRelationship.trim()) {
-      speakButtonAction('Please fill in all fields');
-      Alert.alert('Missing Information', 'Please fill in all fields.');
-      return;
-    }
-
-    // TODO: Add contact to backend
-    speakButtonAction('Contact added to trusted circle');
-    Alert.alert('Success', 'Contact added to trusted circle');
-    setShowAddContactModal(false);
-    setNewContactName('');
-    setNewContactPhone('');
-    setNewContactRelationship('');
-  };
-
-
-
-  const handleRemoveContact = (contactId: number) => {
     Alert.alert(
-      'Remove Contact',
-      'Are you sure you want to remove this contact from your trusted circle?',
+      "Logout",
+      "Are you sure you want to logout?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            // TODO: Remove contact from backend
-            Alert.alert('Removed', 'Contact removed from trusted circle');
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            await logout(); // clears SecureStore + sets user = null
           },
         },
       ]
@@ -175,6 +160,22 @@ export default function ProfileScreen() {
   };
 
 
+  const [trustedCircle, setTrustedCircle] = useState(mockTrustedCircle);
+
+  const handleAddContact = () => {
+    const newContact = {
+      id: Date.now(),
+      name: newContactName,
+      phone: newContactPhone,
+      relationship: newContactRelationship,
+      isOnline: false,
+    };
+    setTrustedCircle([...trustedCircle, newContact]);
+  };
+
+  const handleRemoveContact = (contactId: number) => {
+    setTrustedCircle(trustedCircle.filter(c => c.id !== contactId));
+  };
 
   const handleChatbotQuery = () => {
     if (!chatbotQuery.trim()) {
@@ -243,7 +244,7 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={styles.userName}>{mockUser.name}</Text>
           <Text style={styles.userEmail}>{mockUser.email}</Text>
           <Text style={styles.userId}>ID: {mockUser.studentId}</Text>
@@ -252,7 +253,7 @@ export default function ProfileScreen() {
         {/* Privacy & Safety Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy & Safety Settings</Text>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Ionicons name="eye-off" size={20} color="#666" />
@@ -300,23 +301,7 @@ export default function ProfileScreen() {
               thumbColor="#fff"
             />
           </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="alert-circle" size={20} color="#666" />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Auto-flashlight on SOS</Text>
-                <Text style={styles.settingDescription}>Automatically turn on flashlight during emergency</Text>
-              </View>
-            </View>
-            <Switch
-              value={false}
-              onValueChange={() => {}}
-              trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
-              thumbColor="#fff"
-            />
-          </View>
-
+          
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Ionicons name="warning" size={20} color="#666" />
@@ -327,7 +312,7 @@ export default function ProfileScreen() {
             </View>
             <Switch
               value={true}
-              onValueChange={() => {}}
+              onValueChange={() => { }}
               trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
               thumbColor="#fff"
             />
@@ -348,6 +333,27 @@ export default function ProfileScreen() {
               thumbColor="#fff"
             />
           </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="camera" size={20} color="#666" />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Auto-capture on SOS</Text>
+                <Text style={styles.settingDescription}>
+                  {autoCaptureSOS
+                    ? "Automatically start camera recording during SOS"
+                    : "Disabled - manual capture only during SOS"}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={autoCaptureSOS}
+              onValueChange={toggleAutoCaptureSOS}
+              trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
+              thumbColor="#fff"
+            />
+          </View>
+
         </View>
 
         {/* Trusted Circle */}
@@ -358,7 +364,7 @@ export default function ProfileScreen() {
               <Ionicons name="add-circle" size={24} color="#007AFF" />
             </TouchableOpacity>
           </View>
-          
+
           {mockTrustedCircle.map((contact) => (
             <View key={contact.id} style={styles.contactItem}>
               <View style={styles.contactInfo}>
@@ -377,9 +383,9 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               </View>
-              
+
               <View style={styles.contactActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.contactActionButton}
                   onPress={() => callContact(contact.phone)}
                 >
@@ -388,7 +394,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity style={styles.contactActionButton}>
                   <Ionicons name="location" size={16} color="#007AFF" />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.contactActionButton}
                   onPress={() => handleRemoveContact(contact.id)}
                 >
@@ -404,7 +410,7 @@ export default function ProfileScreen() {
         {/* App Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Settings</Text>
-          
+
           <TouchableOpacity style={styles.settingButton} onPress={() => setShowLanguageModal(true)}>
             <Ionicons name="language" size={20} color="#666" />
             <Text style={styles.settingButtonText}>Language</Text>
@@ -432,7 +438,7 @@ export default function ProfileScreen() {
             <Ionicons name="help-circle" size={24} color="#007AFF" />
             <Text style={styles.sectionTitle}>Help & Support</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.helpButton}
             onPress={() => setShowChatbotModal(true)}
           >
@@ -498,9 +504,9 @@ export default function ProfileScreen() {
 
 
       {/* Language Modal */}
-      <Modal 
-        visible={showLanguageModal} 
-        animationType="slide" 
+      <Modal
+        visible={showLanguageModal}
+        animationType="slide"
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
@@ -515,8 +521,8 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.modalContent}>
             {['English', 'Spanish', 'French', 'German', 'Chinese', 'Arabic'].map((language) => (
-              <TouchableOpacity 
-                key={language} 
+              <TouchableOpacity
+                key={language}
                 style={styles.languageOption}
                 onPress={() => {
                   setSelectedLanguage(language);
@@ -534,9 +540,9 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Theme Modal */}
-      <Modal 
-        visible={showThemeModal} 
-        animationType="slide" 
+      <Modal
+        visible={showThemeModal}
+        animationType="slide"
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
@@ -551,8 +557,8 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.modalContent}>
             {['Light', 'Dark', 'Auto'].map((theme) => (
-              <TouchableOpacity 
-                key={theme} 
+              <TouchableOpacity
+                key={theme}
                 style={styles.themeOption}
                 onPress={() => {
                   setSelectedTheme(theme);
@@ -573,9 +579,9 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Terms & Privacy Modal */}
-      <Modal 
-        visible={showTermsModal} 
-        animationType="slide" 
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
@@ -610,9 +616,9 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Chatbot FAQ Modal */}
-      <Modal 
-        visible={showChatbotModal} 
-        animationType="slide" 
+      <Modal
+        visible={showChatbotModal}
+        animationType="slide"
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
@@ -645,7 +651,7 @@ export default function ProfileScreen() {
                   style={{ flex: 1, marginRight: 8 }}
                   inputStyle={styles.queryInput}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.askButton}
                   onPress={handleChatbotQuery}
                 >
@@ -665,7 +671,7 @@ export default function ProfileScreen() {
 
               <View style={styles.faqSuggestions}>
                 <Text style={styles.faqTitle}>Quick Questions:</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.faqSuggestion}
                   onPress={() => {
                     setChatbotQuery('How does SOS work?');
@@ -674,7 +680,7 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.faqSuggestionText}>How does SOS work?</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.faqSuggestion}
                   onPress={() => {
                     setChatbotQuery('What is Virtual Guardian?');
@@ -683,7 +689,7 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.faqSuggestionText}>What is Virtual Guardian?</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.faqSuggestion}
                   onPress={() => {
                     setChatbotQuery('How do I report an incident?');
@@ -692,7 +698,7 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.faqSuggestionText}>How do I report an incident?</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.faqSuggestion}
                   onPress={() => {
                     setChatbotQuery('How do I add trusted contacts?');
@@ -701,7 +707,7 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.faqSuggestionText}>How do I add trusted contacts?</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.faqSuggestion}
                   onPress={() => {
                     setChatbotQuery('Where are emergency contacts?');
@@ -1133,4 +1139,3 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-

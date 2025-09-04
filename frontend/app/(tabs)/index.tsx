@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -16,10 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { 
-  speak, 
-  speakButtonAction, 
-  speakNotification, 
+import { Camera } from "expo-camera";
+import { CameraView, CameraType, FlashMode } from "expo-camera";
+import * as MediaLibrary from 'expo-media-library';
+
+import {
+  speak,
+  speakButtonAction,
+  speakNotification,
   speakEmergencyAlert,
   speakSOSCountdown,
   speakPageTitle
@@ -36,12 +40,40 @@ export default function HomeScreen() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [sosHoldTimer, setSosHoldTimer] = useState<number | null>(null);
   const [isSOSActivated, setIsSOSActivated] = useState(false);
   const [capturedMedia, setCapturedMedia] = useState<{ photo?: string; video?: string }>({});
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [sosStartTime, setSosStartTime] = useState<Date | null>(null);
-  
+  const [locationAddress, setLocationAddress] = useState<string>('Getting address...');
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [hasMicrophonePermission, setHasMicrophonePermission] = useState<boolean | null>(null);
+
+  const [cameraReady, setCameraReady] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const cameraRef = useRef<CameraView | null>(null);
+  const [cameraType, setCameraType] = useState<CameraType>('back');
+  const [cameraFlash, setCameraFlash] = useState<FlashMode>('off');
+  const [hasMediaLibraryPermission, setHasMediaLibraryPermission] = useState(false);
+  const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
+
+  const sosTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingRef = useRef<{ isRecording: boolean }>({ isRecording: false });
+  useEffect(() => {
+    (async () => {
+      const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+      setHasMediaLibraryPermission(status === "granted");
+    })();
+  }, []);
+
+  const toggleCameraType = () => {
+    setCameraType(prev => (prev === 'back' ? 'front' : 'back'));
+  };
+
+  const toggleFlash = () => {
+    setCameraFlash(prev => (prev === 'off' ? 'on' : 'off'));
+  };
+
   const [safetyAlerts, setSafetyAlerts] = useState([
     {
       id: 1,
@@ -71,124 +103,406 @@ export default function HomeScreen() {
   ]), []);
 
   useEffect(() => {
-    // Reset SOS press count after 3 seconds
     if (sosPressCount > 0) {
-      const timer = setTimeout(() => setSosPressCount(0), 3000);
+      const timer = setTimeout(() => {
+        setSosPressCount(0);
+        setCountdown(null);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [sosPressCount]);
 
-  // Request location permissions
   useEffect(() => {
     (async () => {
+
       const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
-      
+
       if (locationStatus === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
         setCurrentLocation(location);
+        reverseGeocode(location.coords.latitude, location.coords.longitude);
       }
+
+      const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
+      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
+
+      setHasCameraPermission(camStatus === "granted");
+      setHasMicrophonePermission(micStatus === "granted");
+
+      console.log("Camera:", camStatus, "Mic:", micStatus);
+
+      const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+      setHasMediaLibraryPermission(mediaStatus === 'granted');
     })();
   }, []);
 
-  // Speak page title on load for accessibility
-  useFocusEffect(
-    useCallback(() => {
-      speakPageTitle('Home');
-    }, [])
-  );
+  useEffect(() => {
+    speakPageTitle('Home');
+  }, []);
 
-  const handleSOSPressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSosPressCount(prev => {
-      const next = prev + 1;
-      if (next >= 3) {
-        activateSOS();
-        return 0;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        {/* Request location permissions*/ }
+        const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+
+        if (locationStatus === 'granted') {
+          {/*Get current location*/ }
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High
+          });
+          setCurrentLocation(location);
+
+          {/* Reverse geocode to get address*/ }
+          await reverseGeocode(location.coords.latitude, location.coords.longitude);
+        } else {
+          setLocationAddress('Location permission denied');
+        }
+
+      } catch (error) {
+        console.error('Error getting location:', error);
+        setLocationAddress('Error getting location');
       }
-      return next;
-    });
-    
-    // Start hold countdown overlay for 3 seconds
-    let seconds = 3;
-    setCountdown(seconds);
-    const intervalId: any = setInterval(() => {
-      seconds -= 1;
-      setCountdown(seconds);
-      if (seconds <= 0) {
-        clearInterval(intervalId);
-        setCountdown(null);
-        activateSOS();
-      }
-    }, 1000);
-    setSosHoldTimer(intervalId as any);
-    speakSOSCountdown(3);
+    })();
+  }, []);
+  
+  useEffect(() => {
+  return () => {
+    if (sosTimeoutRef.current) {
+      clearTimeout(sosTimeoutRef.current);
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
   };
+}, []);
 
-  const handleSOSPressOut = () => {
-    if (sosHoldTimer) {
-      // clear interval countdown if present
-      // @ts-ignore
-      clearInterval(sosHoldTimer);
-      setSosHoldTimer(null);
+  useEffect(() => {
+    (async () => {
+      const saved = await AsyncStorage.getItem('@autoCaptureSOS');
+      if (saved !== null) setAutoCaptureSOS(saved === 'true');
+    })();
+  }, []);
+
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    try {
+      setLocationAddress('Getting address...');
+
+      const reverseGeocodedAddress = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      if (reverseGeocodedAddress.length > 0) {
+        const address = reverseGeocodedAddress[0];
+
+        {/*Format address more cleanly*/ }
+        const addressParts = [
+          address.name,
+          address.street,
+          address.city,
+          address.region,
+          address.postalCode,
+          address.country
+        ].filter(part => part && part.trim() !== '');
+
+        setLocationAddress(addressParts.join(', ') || 'Address not available');
+      } else {
+        setLocationAddress('Address not available');
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      setLocationAddress('Error getting address');
+    }
+  };
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        setCurrentLocation(location);
+        await reverseGeocode(location.coords.latitude, location.coords.longitude);
+      }
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+    }
+  };
+  // Add this ref declaration at the top with your other refs
+const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+// Move the cleanup useEffect to the right position (after all the other useEffects)
+useEffect(() => {
+  return () => {
+    if (sosTimeoutRef.current) {
+      clearTimeout(sosTimeoutRef.current);
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+  };
+}, []);
+
+// Update your handleSOSPressIn function to fix the timing issue:
+const handleSOSPressIn = () => {
+  setCountdown(3);
+
+  // Clear any existing interval first
+  if (countdownIntervalRef.current) {
+    clearInterval(countdownIntervalRef.current);
+    countdownIntervalRef.current = null;
+  }
+
+  // Clear any existing timeout
+  if (sosTimeoutRef.current) {
+    clearTimeout(sosTimeoutRef.current);
+    sosTimeoutRef.current = null;
+  }
+
+  // Start the countdown interval
+  countdownIntervalRef.current = setInterval(() => {
+    setCountdown(prev => {
+      if (prev && prev > 1) {
+        return prev - 1;
+      } else {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        return null;
+      }
+    });
+  }, 1000);
+
+  // Start the SOS activation timeout
+  sosTimeoutRef.current = setTimeout(() => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
     }
     setCountdown(null);
-  };
+    activateSOS();
+  }, 3000);
+};
 
-  const activateSOS = async () => {
+// Also make sure your activateSOS function properly triggers the modal:
+const activateSOS = async () => {
+  try {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    
+    // Set SOS as activated first
     setIsSOSActivated(true);
     setSosStartTime(new Date());
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    speak('SOS activated. Sending help now.');
     
-    // SILENT AUTOMATIC ACTIONS (User doesn't see these happening)
+    // Then trigger the actions and show modal
+    await triggerSOSActions();
+  } catch (err) {
+    console.error("SOS activation error:", err);
+  }
+};
+
+const triggerSOSActions = async () => {
+  try {
     await silentEmergencyActions();
-    
-    // Show SOS modal with options
-    setShowSOSModal(true);
+    setShowSOSModal(true); // This should now show the modal
+    console.log("🚨 SOS fully activated!");
+  } catch (error) {
+    console.error("Error in triggerSOSActions:", error);
+  }
+};
+  // Replace your captureEmergencyMedia function with this:
+  const captureEmergencyMedia = async () => {
+    if (!hasCameraPermission || !autoCaptureSOS) {
+      console.log('No camera permission or auto-capture disabled, skipping media capture');
+      return;
+    }
+
+    try {
+      // Take photo first with a small delay
+      await takePicture();
+
+      // Add a small delay before starting video recording
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Then start video recording
+      if (cameraRef.current && cameraReady) {
+        setIsRecording(true);
+        recordingRef.current.isRecording = true;
+
+        // Add a longer delay to ensure camera is ready for video
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const video = await cameraRef.current.recordAsync({
+          maxDuration: 10,
+          maxFileSize: 10_000_000,
+        });
+
+        if (video?.uri) {
+          if (hasMediaLibraryPermission) {
+            try {
+              const asset = await MediaLibrary.createAssetAsync(video.uri);
+              await MediaLibrary.createAlbumAsync("SafetySOS", asset, false);
+            } catch (mediaError) {
+              console.log("Error saving video to media library:", mediaError);
+            }
+          }
+          setCapturedMedia(prev => ({ ...prev, video: video.uri }));
+        }
+      }
+    } catch (error) {
+      console.log('Error in captureEmergencyMedia:', error);
+    } finally {
+      setIsRecording(false);
+      recordingRef.current.isRecording = false;
+    }
   };
+
+  const toggleRecording = async () => {
+    if (!hasCameraPermission || !hasMicrophonePermission) {
+      Alert.alert("Error", "Camera or microphone permission not granted");
+      return;
+    }
+
+    if (cameraRef.current && cameraReady) {
+      try {
+        if (isRecording) {
+          // Stop recording
+          await cameraRef.current.stopRecording();
+          setIsRecording(false);
+          speak("Video recording stopped");
+        } else {
+          // Start recording
+          setIsRecording(true);
+          speak("Video recording started");
+
+          // Add a small delay to ensure camera is ready
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          const video = await cameraRef.current.recordAsync({
+            maxDuration: 60,
+            maxFileSize: 50_000_000,
+          });
+
+          if (video?.uri) {
+            if (hasMediaLibraryPermission) {
+              try {
+                const asset = await MediaLibrary.createAssetAsync(video.uri);
+                await MediaLibrary.createAlbumAsync("SafetySOS", asset, false);
+                setCapturedMedia(prev => ({ ...prev, video: video.uri }));
+              } catch (mediaError) {
+                console.log("Error saving video:", mediaError);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log("Error with video recording:", error);
+        speak("Failed to control video recording");
+        setIsRecording(false);
+      }
+    }
+  };
+
+  // Also fix the useEffect for media library permissions:
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
+        setHasMediaLibraryPermission(mediaStatus === "granted");
+      } catch (error) {
+        console.log("Media library permission error:", error);
+      }
+    })();
+  }, []);
+  const takePicture = async () => {
+    if (!hasCameraPermission) {
+      Alert.alert('Error', 'Camera permission not granted');
+      return;
+    }
+
+    if (cameraRef.current && cameraReady) {
+      try {
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.8,
+          skipProcessing: false,
+          exif: true
+        });
+
+        if (hasMediaLibraryPermission) {
+          try {
+            const asset = await MediaLibrary.createAssetAsync(photo.uri);
+            await MediaLibrary.createAlbumAsync('SafetySOS', asset, false);
+          } catch (mediaError) {
+            console.log('Error saving photo:', mediaError);
+          }
+        }
+
+        setCapturedMedia(prev => ({ ...prev, photo: photo.uri }));
+        console.log('Photo captured successfully:', photo.uri);
+      } catch (error) {
+        console.log('Error taking picture:', error);
+      }
+    }
+  };
+
+// Update your handleSOSPressOut function:
+const handleSOSPressOut = () => {
+  // Clear the countdown interval
+  if (countdownIntervalRef.current) {
+    clearInterval(countdownIntervalRef.current);
+    countdownIntervalRef.current = null;
+  }
+  
+  // Clear the SOS activation timeout
+  if (sosTimeoutRef.current) {
+    clearTimeout(sosTimeoutRef.current);
+    sosTimeoutRef.current = null;
+  }
+  
+  // Reset the countdown
+  setCountdown(null);
+};
 
   const silentEmergencyActions = async () => {
     try {
-      // 1. SILENTLY take picture (simulated)
-      setCapturedMedia(prev => ({ ...prev, photo: 'emergency_photo.jpg' }));
-      
-      // 2. SILENTLY start video recording (simulated)
-      setCapturedMedia(prev => ({ ...prev, video: 'emergency_video.mp4' }));
-      
-      // 3. SILENTLY get live location
-      const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
-      if (locationStatus === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        setCurrentLocation(location);
+      if (autoCaptureSOS) {
+        try {
+          const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
+          if (locationStatus === 'granted') {
+            const location = await Location.getCurrentPositionAsync({});
+            setCurrentLocation(location);
+            await reverseGeocode(location.coords.latitude, location.coords.longitude);
+          } else {
+            setLocationAddress('Location permission needed for SOS');
+          }
+        } catch (locationError) {
+          console.error('Location error in SOS:', locationError);
+          setLocationAddress('Location unavailable');
+        }
+        await captureEmergencyMedia();
+        await sendSilentEmergencyData();
+
+        console.log('🚨 SILENT EMERGENCY ACTIONS COMPLETED:');
+        console.log('- Location obtained:', currentLocation ? 'Yes' : 'No');
+      } else {
+        console.log('🚨 Auto-capture disabled, skipping media capture');
+        await sendSilentEmergencyData();
       }
-      
-      // 4. SILENTLY bundle and send data to emergency contacts
-      await sendSilentEmergencyData();
-      
-      console.log('🚨 SILENT EMERGENCY ACTIONS COMPLETED:');
-      console.log('- Photo captured');
-      console.log('- Video recording started');
-      console.log('- Location obtained');
-      console.log('- Data sent to emergency contacts');
-      
     } catch (error) {
       console.log('Silent emergency actions failed:', error);
     }
   };
 
   const sendSilentEmergencyData = async () => {
-    // TODO: In real app, this would silently send SMS/app notifications
-    // with photo, video, location, and timestamp to all emergency contacts
     console.log('📱 SILENTLY sending emergency data to all contacts...');
-    
-    // Simulate sending to multiple contacts
+
     const emergencyContacts = ['Mom', 'Dad', 'Campus Security'];
     emergencyContacts.forEach(contact => {
       console.log(`📤 Data sent to ${contact}:`);
       console.log(`   📍 Location: ${currentLocation ? 'Captured' : 'Getting...'}`);
       console.log(`   📸 Photo: ${capturedMedia.photo ? 'Captured' : 'Failed'}`);
       console.log(`   🎥 Video: ${capturedMedia.video ? 'Recording' : 'Failed'}`);
-      console.log(`   ⏰ Time: ${sosStartTime?.toLocaleTimeString()}`);
+      console.log(`   ⏰ Time: ${new Date().toLocaleTimeString()}`);
     });
   };
 
@@ -198,7 +512,7 @@ export default function HomeScreen() {
     speakButtonAction(newState ? 'Follow Me activated' : 'Follow Me deactivated');
     Alert.alert(
       newState ? 'Follow Me Activated' : 'Follow Me Deactivated',
-      newState 
+      newState
         ? 'Your location is now being shared with trusted contacts.'
         : 'Your location is no longer being shared with trusted contacts.',
       [{ text: 'OK' }]
@@ -206,42 +520,32 @@ export default function HomeScreen() {
   };
 
   const handleViewAllAlerts = () => {
-    // TODO: Navigate to detailed alerts page
-    Alert.alert('Safety Alerts', 'View all safety alerts');
+    router.push('/alerts');
+    speakButtonAction('Viewing all safety alerts');
   };
 
-  const toggleTorch = async () => {
-    try {
-      // Simulate torch functionality for now
-      const next = !isTorchOn;
-      setIsTorchOn(next);
-      speakButtonAction(next ? 'Torch turned on' : 'Torch turned off');
-      Alert.alert('Torch', next ? 'Torch turned on' : 'Torch turned off');
-    } catch (error) {
-      speakButtonAction('Unable to control flashlight');
-      Alert.alert('Error', 'Unable to control flashlight');
-    }
+  const toggleTorch = () => {
+    setIsTorchOn(prev => !prev);
   };
 
   const handleEmergencyCall = (type: string) => {
     let phoneNumber = '';
     let title = '';
-    
+
     switch (type) {
       case 'campus':
-        phoneNumber = '+1 (555) 911-0000'; // Campus Security
+        phoneNumber = '+1 (555) 911-0000';
         title = 'Campus Security';
         break;
       case 'police':
-        phoneNumber = '999'; // Emergency Police
+        phoneNumber = '999';
         title = 'Police (999)';
         break;
       case 'hospital':
-        phoneNumber = '+1 (555) 911-0002'; // Hospital
+        phoneNumber = '+1 (555) 911-0002';
         title = 'Hospital';
         break;
       case 'trusted':
-        // TODO: Implement trusted contact notification
         speakButtonAction('Notifying trusted contacts with live location');
         Alert.alert('Trusted Contact', 'Notifying your trusted contacts with live location');
         return;
@@ -263,6 +567,12 @@ export default function HomeScreen() {
   };
 
   const handleCancelSOS = () => {
+    if (recordingRef.current.isRecording && cameraRef.current) {
+      cameraRef.current.stopRecording();
+      setIsRecording(false);
+      recordingRef.current.isRecording = false;
+    }
+
     setShowSOSModal(false);
     setIsSOSActivated(false);
     setSosStartTime(null);
@@ -272,6 +582,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+
+      <CameraView
+        ref={cameraRef}
+        style={{ width: 1, height: 1, position: "absolute", top: -1000 }}
+        facing={cameraType}
+        flash={(isTorchOn ? "torch" : "off") as FlashMode}
+        ratio="16:9"
+        onCameraReady={() => setCameraReady(true)}
+      />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header with Notifications Bell */}
         <View style={styles.header}>
@@ -279,13 +598,13 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Good morning! 👋</Text>
             <Text style={styles.subtitle}>Stay safe on campus</Text>
           </View>
-          
+
           {/* Notifications Bell Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.activityRingButton}
-            onPress={() => { 
-              setShowNotificationsModal(true); 
-              setUnreadCount(0); 
+            onPress={() => {
+              setShowNotificationsModal(true);
+              setUnreadCount(0);
               speakButtonAction('Opening notifications');
             }}
             accessibilityLabel="Notifications"
@@ -312,10 +631,10 @@ export default function HomeScreen() {
           </View>
           {safetyAlerts.slice(0, 2).map((alert) => (
             <View key={alert.id} style={styles.alertItem}>
-              <Ionicons 
-                name={alert.type === 'warning' ? 'warning' : 'information-circle'} 
-                size={20} 
-                color={alert.type === 'warning' ? '#ff6b35' : '#007AFF'} 
+              <Ionicons
+                name={alert.type === 'warning' ? 'warning' : 'information-circle'}
+                size={20}
+                color={alert.type === 'warning' ? '#ff6b35' : '#007AFF'}
               />
               <Text style={styles.alertMessage}>{alert.message}</Text>
               <Text style={styles.alertTime}>{alert.time}</Text>
@@ -323,66 +642,69 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Main Action Buttons - Three Equal Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          {/* SOS Button */}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.sosButton, sosPressCount > 0 && styles.sosButtonActive]}
-            onPressIn={handleSOSPressIn}
-            onPressOut={handleSOSPressOut}
-            activeOpacity={0.8}
-            accessibilityLabel="SOS Emergency Button"
-            accessibilityHint="Press and hold for 3 seconds to activate emergency SOS"
-          >
-            <View style={styles.actionButtonContent}>
-              <Ionicons name="alert-circle" size={28} color="#fff" />
-              <Text style={styles.actionButtonText}>
-                {sosPressCount === 0 ? 'SOS' : `${sosPressCount}/3`}
-              </Text>
-              <Text style={styles.actionButtonSubtext}>
-                {sosPressCount === 0 ? 'Hold 3s' : 'Keep holding!'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+        {/* SOS Button as Large Circle with Secondary Buttons Below */}
+<View style={styles.sosMainContainer}>
+  {/* SOS Button */}
+  <TouchableOpacity
+    style={[styles.sosCircleButton, countdown !== null && styles.sosCircleButtonActive]}
+    onPressIn={handleSOSPressIn}
+    onPressOut={handleSOSPressOut}
+    activeOpacity={0.8}
+    accessibilityLabel="SOS Emergency Button"
+    accessibilityHint="Press and hold for 3 seconds to activate emergency SOS"
+  >
+    <View style={styles.sosCircleButtonContent}>
+      <Ionicons name="alert-circle" size={40} color="#fff" />
+      <Text style={styles.sosCircleButtonText}>
+        {countdown !== null ? countdown : 'SOS'}
+      </Text>
+      <Text style={styles.sosCircleButtonSubtext}>
+        {countdown !== null ? 'Hold...' : 'Hold 3s'}
+      </Text>
+    </View>
+  </TouchableOpacity>
 
-          {/* Follow Me Button */}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
-            onPress={handleFollowMe}
-            accessibilityLabel="Follow Me Button"
-            accessibilityHint="Share your location with trusted contacts"
-          >
-            <View style={styles.actionButtonContent}>
-              <Ionicons 
-                name={isFollowing ? 'location' : 'location-outline'} 
-                size={28} 
-                color={isFollowing ? '#fff' : '#007AFF'} 
-              />
-              <Text style={isFollowing ? styles.actionButtonText : styles.followMeText}>
-                {isFollowing ? 'Following' : 'Follow Me'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+  {/* Secondary Buttons Below SOS */}
+  <View style={styles.secondaryButtonsContainer}>
+    {/* Follow Me Button */}
+    <TouchableOpacity
+      style={[styles.secondaryButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
+      onPress={handleFollowMe}
+      accessibilityLabel="Follow Me Button"
+      accessibilityHint="Share your location with trusted contacts"
+    >
+      <View style={styles.secondaryButtonContent}>
+        <Ionicons
+          name={isFollowing ? 'location' : 'location-outline'}
+          size={24}
+          color={isFollowing ? '#fff' : '#007AFF'}
+        />
+        <Text style={isFollowing ? styles.secondaryButtonText : styles.followMeText}>
+          {isFollowing ? 'Following' : 'Follow Me'}
+        </Text>
+      </View>
+    </TouchableOpacity>
 
-          {/* Torchlight Button */}
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.torchButton, isTorchOn && styles.torchButtonActive]} 
-            onPress={toggleTorch}
-            accessibilityLabel="Torchlight Button"
-            accessibilityHint="Turn on or off your device flashlight"
-          >
-            <View style={styles.actionButtonContent}>
-              <Ionicons 
-                name={isTorchOn ? 'flashlight' : 'flashlight-outline'} 
-                size={28} 
-                color={isTorchOn ? '#fff' : '#FFD700'} 
-              />
-              <Text style={isTorchOn ? styles.actionButtonText : styles.torchButtonText}>
-                {isTorchOn ? 'ON' : 'Torch'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+    {/* Torchlight Button */}
+    <TouchableOpacity
+      style={[styles.secondaryButton, styles.torchButton, isTorchOn && styles.torchButtonActive]}
+      onPress={toggleTorch}
+      accessibilityLabel="Torchlight Button"
+      accessibilityHint="Turn on or off your device flashlight"
+    >
+      <View style={styles.secondaryButtonContent}>
+        <Ionicons
+          name={isTorchOn ? "flashlight" : "flashlight-outline"}
+          size={24}
+          color={isTorchOn ? "#fff" : "#FFD700"}
+        />
+        <Text style={isTorchOn ? styles.secondaryButtonText : styles.torchButtonText}>
+          {isTorchOn ? "ON" : "Torch"}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  </View>
+</View>
       </ScrollView>
 
       {/* SOS Countdown overlay */}
@@ -392,7 +714,11 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Enhanced SOS Modal - Shows AFTER silent actions are complete */}
+      {/* Hidden Camera for emergency capture */}
+      <View style={styles.hiddenCameraContainer}>
+
+      </View>
+      {/* SOS Modal - Shows AFTER silent actions are complete */}
       <Modal
         visible={showSOSModal}
         animationType="slide"
@@ -401,116 +727,200 @@ export default function HomeScreen() {
       >
         <View style={styles.sosModalOverlay}>
           <View style={styles.sosModalContent}>
-            {/* Header */}
-            <View style={styles.sosModalHeader}>
-              <Ionicons name="alert-circle" size={40} color="#FF3B30" />
-              <Text style={styles.sosModalTitle}>🚨 SOS ACTIVATED</Text>
-              <Text style={styles.sosModalSubtitle}>Emergency data already sent to contacts</Text>
-              <Text style={styles.sosModalTime}>
-                Activated at: {sosStartTime?.toLocaleTimeString()}
-              </Text>
-            </View>
-
-            {/* Status of Silent Actions */}
-            <View style={styles.silentActionsStatus}>
-              <Text style={styles.silentActionsTitle}>✅ Silent Actions Completed:</Text>
-              <View style={styles.statusItem}>
-                <Ionicons name="camera" size={20} color="#34C759" />
-                <Text style={styles.statusText}>Photo captured automatically</Text>
+            {/* Make the content scrollable */}
+            <ScrollView
+              style={styles.scrollableModalContent}
+              showsVerticalScrollIndicator={true}
+            >
+              {/* Header */}
+              <View style={styles.sosModalHeader}>
+                <Ionicons name="alert-circle" size={40} color="#FF3B30" />
+                <Text style={styles.sosModalTitle}>🚨 SOS ACTIVATED</Text>
+                <Text style={styles.sosModalSubtitle}>Emergency data sent to contacts</Text>
+                <Text style={styles.sosModalTime}>
+                  Activated at: {sosStartTime?.toLocaleTimeString()}
+                </Text>
               </View>
-              <View style={styles.statusItem}>
-                <Ionicons name="videocam" size={20} color="#34C759" />
-                <Text style={styles.statusText}>Video recording started</Text>
+
+              {/* Status of Silent Actions - Icons only */}
+              <View style={styles.silentActionsStatus}>
+                <Text style={styles.silentActionsTitle}>✅ Actions Completed:</Text>
+                <View style={styles.statusIconsContainer}>
+                  <View style={styles.statusIcon}>
+                    <Ionicons
+                      name="camera"
+                      size={24}
+                      color={autoCaptureSOS && capturedMedia.photo ? "#34C759" : "#FF3B30"}
+                    />
+                    <Text style={styles.statusIconText}>
+                      {autoCaptureSOS ? (capturedMedia.photo ? "Photo" : "No Photo") : "Auto-capture Off"}
+                    </Text>
+                  </View>
+                  <View style={styles.statusIcon}>
+                    <Ionicons
+                      name="videocam"
+                      size={24}
+                      color={autoCaptureSOS && capturedMedia.video ? "#34C759" : "#FF3B30"}
+                    />
+                    <Text style={styles.statusIconText}>
+                      {autoCaptureSOS ? (capturedMedia.video ? "Video" : "No Video") : "Auto-capture Off"}
+                    </Text>
+                  </View>
+                  <View style={styles.statusIcon}>
+                    <Ionicons
+                      name="location"
+                      size={24}
+                      color={currentLocation ? "#34C759" : "#FF3B30"}
+                    />
+                    <Text style={styles.statusIconText}>
+                      {currentLocation ? "Location" : "No Location"}
+                    </Text>
+                  </View>
+                  <View style={styles.statusIcon}>
+                    <Ionicons
+                      name="send"
+                      size={24}
+                      color="#34C759"
+                    />
+                    <Text style={styles.statusIconText}>Sent</Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.statusItem}>
-                <Ionicons name="location" size={20} color="#34C759" />
-                <Text style={styles.statusText}>Live location obtained</Text>
+
+              {/* Camera Controls in SOS Modal */}
+              <View style={styles.cameraControls}>
+                <Text style={styles.cameraControlsTitle}>
+                  {autoCaptureSOS ? "Capture More Evidence:" : "Manual Evidence Capture:"}
+                </Text>
+                {!autoCaptureSOS && (
+                  <Text style={styles.cameraNote}>
+                    Auto-capture is disabled. Enable it in Profile settings.
+                  </Text>
+                )}
+                <View style={styles.cameraButtonsRow}>
+                  <TouchableOpacity
+                    style={[styles.cameraControlButton, styles.photoButton]}
+                    onPress={takePicture}
+                  >
+                    <Ionicons name="camera" size={20} color="#fff" />
+                    <Text style={styles.cameraControlText}>Photo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.cameraControlButton, isRecording ? styles.stopButton : styles.videoButton]}
+                    onPress={toggleRecording}
+                  >
+                    <Ionicons
+                      name={isRecording ? "stop" : "videocam"}
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.cameraControlText}>
+                      {isRecording ? "Stop" : "Video"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.cameraControlButton, styles.flashButton]}
+                    onPress={toggleFlash}
+                  >
+                    <Ionicons
+                      name={cameraFlash === 'on' ? "flash" : "flash-off"}
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.cameraControlText}>
+                      {cameraFlash === 'on' ? "Flash On" : "Flash Off"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.cameraControlButton, styles.switchCameraButton]}
+                    onPress={toggleCameraType}
+                  >
+                    <Ionicons name="camera-reverse" size={20} color="#fff" />
+                    <Text style={styles.cameraControlText}>Switch</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.statusItem}>
-                <Ionicons name="send" size={20} color="#34C759" />
-                <Text style={styles.statusText}>Data sent to emergency contacts</Text>
+
+              {/* Location Display */}
+              <View style={styles.locationContainer}>
+                <Ionicons name="location" size={24} color="#007AFF" />
+                <View style={styles.locationTextContainer}>
+                  <Text style={styles.locationText}>Your Location:</Text>
+                  {currentLocation ? (
+                    <Text style={styles.locationAddress}>
+                      {locationAddress}
+                    </Text>
+                  ) : (
+                    <TouchableOpacity onPress={requestLocationPermission}>
+                      <Text style={styles.locationPermissionText}>
+                        Tap to enable location services
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-            </View>
 
-            {/* Live Location Display */}
-            <View style={styles.locationMapContainer}>
-              <Ionicons name="location" size={48} color="#007AFF" />
-              <Text style={styles.locationText}>Your Current Location</Text>
-              <Text style={styles.locationSubtext}>
-                {currentLocation ? 
-                  `Lat: ${currentLocation.coords.latitude.toFixed(4)}, Lon: ${currentLocation.coords.longitude.toFixed(4)}` :
-                  'Getting your location...'
-                }
-              </Text>
-            </View>
+              {/* Next Steps - User chooses what to do next */}
+              <View style={styles.nextStepsContainer}>
+                <Text style={styles.nextStepsTitle}>What would you like to do next?</Text>
 
-            {/* Next Steps - User chooses what to do next */}
-            <View style={styles.nextStepsContainer}>
-              <Text style={styles.nextStepsTitle}>What would you like to do next?</Text>
-              
-              <View style={styles.emergencyActionsContainer}>
-                <TouchableOpacity 
-                  style={[styles.emergencyButton, styles.policeButton]}
-                  onPress={() => handleEmergencyCall('police')}
-                >
-                  <Ionicons name="car" size={24} color="#fff" />
-                  <Text style={styles.emergencyButtonText}>🚓 Call 911</Text>
-                </TouchableOpacity>
+                <View style={styles.emergencyActionsContainer}>
+                  <TouchableOpacity
+                    style={[styles.emergencyButton, styles.policeButton]}
+                    onPress={() => handleEmergencyCall('police')}
+                  >
+                    <Ionicons name="car" size={20} color="#fff" />
+                    <Text style={styles.emergencyButtonText}>Call 999</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.emergencyButton, styles.campusButton]}
-                  onPress={() => handleEmergencyCall('campus')}
-                >
-                  <Ionicons name="shield-checkmark" size={24} color="#fff" />
-                  <Text style={styles.emergencyButtonText}>📞 Call Campus Security</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.emergencyButton, styles.campusButton]}
+                    onPress={() => handleEmergencyCall('campus')}
+                  >
+                    <Ionicons name="shield-checkmark" size={20} color="#fff" />
+                    <Text style={styles.emergencyButtonText}>Campus</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.emergencyButton, styles.hospitalButton]}
-                  onPress={() => handleEmergencyCall('hospital')}
-                >
-                  <Ionicons name="medical" size={24} color="#fff" />
-                  <Text style={styles.emergencyButtonText}>🏥 Call Hospital</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.emergencyButton, styles.trustedButton]}
-                  onPress={() => handleEmergencyCall('trusted')}
-                >
-                  <Ionicons name="people" size={24} color="#fff" />
-                  <Text style={styles.emergencyButtonText}>👥 Call Mom/Dad</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.emergencyButton, styles.hospitalButton]}
+                    onPress={() => handleEmergencyCall('hospital')}
+                  >
+                    <Ionicons name="medical" size={20} color="#fff" />
+                    <Text style={styles.emergencyButtonText}>Hospital</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </ScrollView>
 
-            {/* Bottom Action Buttons */}
+            {/* Bottom Action Buttons - Fixed at bottom (outside ScrollView) */}
             <View style={styles.bottomActionsContainer}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
+              <TouchableOpacity
+                style={[styles.bottomActionButton, styles.cancelButton]}
                 onPress={handleCancelSOS}
               >
                 <Text style={styles.cancelButtonText}>Cancel Emergency</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.flashlightButton}
+              <TouchableOpacity
+                style={[styles.bottomActionButton, styles.flashlightButton]}
                 onPress={toggleTorch}
               >
-                <Ionicons 
-                  name={isTorchOn ? 'flashlight' : 'flashlight-outline'} 
-                  size={20} 
-                  color="#FFD700" 
+                <Ionicons
+                  name={isTorchOn ? 'flashlight' : 'flashlight-outline'}
+                  size={16}
+                  color="#FFD700"
                 />
                 <Text style={styles.flashlightButtonText}>
-                  {isTorchOn ? 'Turn Off' : 'Turn On'} Flashlight
+                  {isTorchOn ? 'Light On' : 'Light Off'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      
 
       {/* Notifications Modal */}
       <Modal
@@ -529,12 +939,12 @@ export default function HomeScreen() {
               <Text style={styles.notifTitle}>Notifications</Text>
               <Text style={styles.sosModalSubtitle}>Your latest updates</Text>
             </View>
-            
+
             {/* Read Aloud Button for Accessibility */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.readAloudButton}
               onPress={() => {
-                const notificationText = notifications.map(n => 
+                const notificationText = notifications.map(n =>
                   `${n.title}. ${n.description}. Received at ${n.time}`
                 ).join('. ');
                 speakNotification(notificationText);
@@ -575,7 +985,7 @@ export default function HomeScreen() {
               <Text style={styles.sosModalTitle}>📊 Recent Activity</Text>
               <Text style={styles.sosModalSubtitle}>Your Safety Summary</Text>
             </View>
-            
+
             <View style={styles.activitySummaryContainer}>
               {recentActivities.map((activity) => (
                 <View key={activity.id} style={styles.activityStat}>
@@ -584,7 +994,7 @@ export default function HomeScreen() {
                 </View>
               ))}
             </View>
-            
+
             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowActivityModal(false)}>
               <Text style={styles.cancelButtonText}>Close</Text>
             </TouchableOpacity>
@@ -636,6 +1046,100 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
+  // Add these styles to your StyleSheet
+sosMainContainer: {
+  alignItems: 'center',
+  marginVertical: 24,
+  paddingHorizontal: 20,
+},
+sosCircleButton: {
+  width: 180,
+  height: 180,
+  borderRadius: 90,
+  backgroundColor: '#ff3b30',
+  justifyContent: 'center',
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.3,
+  shadowRadius: 12,
+  elevation: 10,
+  marginBottom: 24,
+},
+sosCircleButtonActive: {
+  backgroundColor: '#ff6b35',
+  transform: [{ scale: 1.05 }],
+},
+sosCircleButtonContent: {
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+sosCircleButtonText: {
+  fontSize: 28,
+  fontWeight: 'bold',
+  color: '#fff',
+  marginTop: 8,
+  marginBottom: 4,
+},
+sosCircleButtonSubtext: {
+  fontSize: 14,
+  color: '#fff',
+  textAlign: 'center',
+  opacity: 0.9,
+},
+secondaryButtonsContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  width: '100%',
+  gap: 16,
+},
+secondaryButton: {
+  flex: 1,
+  backgroundColor: '#fff',
+  borderRadius: 16,
+  padding: 16,
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  elevation: 4,
+},
+secondaryButtonContent: {
+  alignItems: 'center',
+},
+secondaryButtonText: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#fff',
+  marginTop: 8,
+},
+followMeButton: {
+  borderWidth: 2,
+  borderColor: '#007AFF',
+},
+followMeButtonActive: {
+  backgroundColor: '#007AFF',
+},
+followMeText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#007AFF',
+  marginTop: 8,
+},
+torchButton: {
+  borderWidth: 2,
+  borderColor: '#FFD700',
+},
+torchButtonActive: {
+  backgroundColor: '#FFD700',
+},
+torchButtonText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#FFD700',
+  marginTop: 8,
+},
   activityRingFill: {
     position: 'absolute',
     width: '100%',
@@ -658,6 +1162,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)'
+  },
+  locationPermissionText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   countdownText: {
     fontSize: 72,
@@ -691,7 +1201,7 @@ const styles = StyleSheet.create({
   },
   alertsContainer: {
     marginHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 10,
   },
   alertsHeader: {
     flexDirection: 'row',
@@ -761,74 +1271,160 @@ const styles = StyleSheet.create({
   sosButtonContent: {
     alignItems: 'center',
   },
-     actionButtonContent: {
-     alignItems: 'center',
-   },
-   actionButtonText: {
-     fontSize: 20,
-     fontWeight: 'bold',
-     color: '#fff',
-     marginTop: 8,
-     marginBottom: 4,
-   },
-   actionButtonSubtext: {
-     fontSize: 12,
-     color: '#fff',
-     textAlign: 'center',
-     opacity: 0.9,
-   },
-   actionButtonTextActive: {
-     color: '#fff',
-   },
-  followMeButton: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+  bottomActionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 16,
+  },
+  bottomActionButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    flexDirection: 'row',
+    gap: 6,
   },
-  followMeButtonActive: {
-    backgroundColor: '#007AFF',
+  cancelButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
   },
-  followMeText: {
+  cancelButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
-    marginTop: 8,
+    color: '#666',
   },
-  followMeTextActive: {
-    color: '#fff',
-  },
-  torchButton: {
+  flashlightButton: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  flashlightButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFD700',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f8ff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  locationTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  locationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 4,
+  },
+  locationAddress: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+
+  locationCoords: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+  },
+  hiddenCameraContainer: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+  },
+  hiddenCamera: {
+    width: 1,
+    height: 1,
+  },
+  cameraControls: {
+    marginBottom: 16,
+  },
+  cameraControlsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  cameraButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  cameraControlButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    padding: 8,
+    borderRadius: 8,
+    gap: 4,
   },
-  torchButtonActive: {
-    backgroundColor: '#FFD700',
+  cameraNote: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
-  torchButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFD700',
+  photoButton: {
+    backgroundColor: '#34C759',
+  },
+  videoButton: {
+    backgroundColor: '#007AFF',
+  },
+  stopButton: {
+    backgroundColor: '#FF3B30',
+  },
+  flashButton: {
+    backgroundColor: '#FF9500',
+  },
+  switchCameraButton: {
+    backgroundColor: '#5856D6',
+  },
+  cameraControlText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  statusIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  statusIconText: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  actionButtonContent: {
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
     marginTop: 8,
     marginBottom: 4,
+  },
+  actionButtonSubtext: {
+    fontSize: 12,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  actionButtonTextActive: {
+    color: '#fff',
   },
   torchButtonTextActive: {
     color: '#fff',
@@ -842,33 +1438,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 16,
-  },
-  safeRoutesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  safeRoutesContent: {
-    flex: 1,
-  },
-  safeRoutesText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  safeRoutesSubtext: {
-    fontSize: 12,
-    color: '#666',
   },
   quickActionButton: {
     flexDirection: 'row',
@@ -889,8 +1458,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginLeft: 12,
   },
-  
-  
+
   recentActivityContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -915,10 +1483,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  scrollableModalContent: {
+    maxHeight: height * 0.6,
+  },
   sosModalContent: {
     backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     margin: 20,
     width: width - 40,
     maxHeight: height * 0.8,
@@ -927,6 +1498,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  statusIconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+  },
+
   notifCloseBtn: {
     position: 'absolute',
     top: 0,
@@ -969,26 +1546,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 24,
   },
-  locationText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginTop: 12,
-    marginBottom: 4,
-  },
+
   locationSubtext: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
   },
   emergencyActionsContainer: {
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 8,
   },
   emergencyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     gap: 12,
   },
@@ -1005,46 +1576,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9500',
   },
   emergencyButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
-  bottomActionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  flashlightButton: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#FFD700',
-  },
-  flashlightButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFD700',
-  },
-  
   securityServicesContainer: {
     gap: 16,
     marginBottom: 24,
@@ -1089,7 +1624,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  // New styles for enhanced SOS
   silentActionsStatus: {
     marginBottom: 24,
   },
@@ -1110,13 +1644,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   nextStepsContainer: {
-    marginBottom: 24,
+    marginBottom: 12,
   },
   nextStepsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   activitySummaryContainer: {
     flexDirection: 'row',
@@ -1162,4 +1696,3 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-
