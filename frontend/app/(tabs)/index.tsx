@@ -595,7 +595,7 @@ const handleSOSPressOut = () => {
         {/* Header with Notifications Bell */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Good morning! 👋</Text>
+            <Text style={styles.greeting}>Welcome back! 👋</Text>
             <Text style={styles.subtitle}>Stay safe on campus</Text>
           </View>
 
