@@ -49,4 +49,3 @@ const styles = StyleSheet.create({
   callText: { color: "#fff", fontSize: 18, fontWeight: "800" },
 });
 
-

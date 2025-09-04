@@ -874,4 +874,3 @@ const styles = StyleSheet.create({
   },
 });
 
-

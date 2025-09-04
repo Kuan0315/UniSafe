@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useAuth } from "../../contexts/AuthContext"; // adjust path
 import { useRouter } from 'expo-router'; 
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
   View,
@@ -38,16 +39,16 @@ const mockTrustedCircle = [
 
 
 
-
 export default function ProfileScreen() {
   // Speak page title on load for accessibility
-  React.useEffect(() => {
-    speakPageTitle('Profile and Settings');
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      speakPageTitle('Profile and Settings');
+    }, [])
+  );
 
-  // ===== States =====
-  const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
+
   const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -59,39 +60,40 @@ export default function ProfileScreen() {
   const [locationSharing, setLocationSharing] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [selectedTheme, setSelectedTheme] = useState('Light');
-
+  
   // New contact/emergency form states
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRelationship, setNewContactRelationship] = useState('');
 
+  const [ttsEnabled, setTtsEnabled] = useState(true); // Default ON
+
+  const callContact = (phone: string) => {
+    const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
+    Linking.openURL(url || `tel:${phone}`).catch(() => Alert.alert("Cannot place call", "Check your device call permissions."));
+  };
+
+
   const { logout } = useAuth();
   const router = useRouter(); // Add this
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            await logout(); // clears SecureStore + sets user = null
-          },
+  Alert.alert(
+    "Logout",
+    "Are you sure you want to logout?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await logout(); // clears SecureStore + sets user = null
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
 
-  // ===== Call contact =====
-  const callContact = (phone: string) => {
-    const url = Platform.select({ ios: `telprompt:${phone}`, default: `tel:${phone}` });
-    Linking.openURL(url || `tel:${phone}`).catch(() => 
-      Alert.alert("Cannot place call", "Check your device call permissions.")
-    );
-  };
 
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim() || !newContactRelationship.trim()) {
@@ -108,6 +110,8 @@ export default function ProfileScreen() {
     setNewContactPhone('');
     setNewContactRelationship('');
   };
+
+
 
   const handleRemoveContact = (contactId: number) => {
     Alert.alert(
@@ -126,6 +130,8 @@ export default function ProfileScreen() {
       ]
     );
   };
+
+
 
   const handleChatbotQuery = () => {
     if (!chatbotQuery.trim()) {
@@ -168,7 +174,14 @@ export default function ProfileScreen() {
     setChatbotResponse('');
   };
 
-
+  const toggleTTS = () => {
+    setTtsEnabled((prev) => {
+      const newState = !prev;
+      setTTSEnabled(newState); // Tell SpeechService
+      speakButtonAction(newState ? 'Text-to-Speech enabled' : 'Text-to-Speech disabled');
+      return newState;
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -272,6 +285,22 @@ export default function ProfileScreen() {
             <Switch
               value={true}
               onValueChange={() => {}}
+              trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="volume-high" size={20} color="#666" />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Text-to-Speech</Text>
+                <Text style={styles.settingDescription}>Enable voice feedback throughout the app</Text>
+              </View>
+            </View>
+            <Switch
+              value={ttsEnabled}
+              onValueChange={toggleTTS}
               trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
               thumbColor="#fff"
             />
@@ -1061,5 +1090,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-
 
