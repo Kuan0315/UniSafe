@@ -93,8 +93,7 @@ const mockRecentReports: Report[] = [
     upvotes: 12,
     isUpvoted: false,
     media: [
-      { uri: 'https://picsum.photos/400/300', type: 'image' },
-      { uri: 'https://picsum.photos/400/301', type: 'image' }
+      { uri: 'https://cdn.shortpixel.ai/spai/q_lossy+ret_img+to_webp/https://www.blgwins.com/wp-content/uploads/2024/05/can-you-sue-your-boss-for-verbal-abuse.jpg', type: 'image' }
     ],
     comments: [
       {
@@ -129,7 +128,7 @@ const mockRecentReports: Report[] = [
     upvotes: 8,
     isUpvoted: false,
     media: [
-      { uri: 'https://picsum.photos/400/302', type: 'image' }
+      { uri: 'https://tse4.mm.bing.net/th/id/OIP.GHbi1-l_Vlcr1V62lawmLgHaE8?rs=1&pid=ImgDetMain&o=7&rm=3', type: 'image' }
     ],
     comments: [
       {
