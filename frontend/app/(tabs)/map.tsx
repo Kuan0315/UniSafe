@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
-import HelpButton from '../../components/HelpButton';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService, { University } from '../../services/GeofencingService';
@@ -220,11 +219,6 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Help Button */}
-      <HelpButton
-        userLocation={userLocation}
-        currentUniversity={currentUniversity}
-      />
 
       {/* Filter Bar */}
       <View style={styles.filterContainer}>
@@ -259,18 +253,19 @@ export default function MapScreen() {
       {/* Google Maps */}
       <View style={styles.mapContainer}>
         {userLocation ? (
-                     <GoogleMapsView
-             userLocation={{
-               latitude: userLocation.coords.latitude,
-               longitude: userLocation.coords.longitude
-             }}
-             incidents={filteredIncidents}
-             showSafeRoute={showSafeRoute}
-             currentUniversity={currentUniversity}
-             onMapPress={(latitude, longitude) => {
-               console.log('Map clicked at:', { latitude, longitude });
-             }}
-           />
+          <GoogleMapsView
+            userLocation={{
+              latitude: userLocation.coords.latitude,
+              longitude: userLocation.coords.longitude
+            }}
+            region={region}
+            incidents={filteredIncidents}
+            showSafeRoute={showSafeRoute}
+            currentUniversity={currentUniversity}
+            onMapPress={(latitude, longitude) => {
+              console.log('Map clicked at:', { latitude, longitude });
+            }}
+          />
         ) : (
           <View style={styles.mapPlaceholder}>
             <Ionicons name="map" size={64} color="#007AFF" />

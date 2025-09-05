@@ -7,6 +7,7 @@ const { width, height } = Dimensions.get('window');
 
 interface GoogleMapsViewProps {
   userLocation: { latitude: number; longitude: number } | null;
+  region?: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
   incidents: Array<{
     id: number;
     type: string;
@@ -32,9 +33,25 @@ export default function GoogleMapsView({
   incidents, 
   showSafeRoute, 
   currentUniversity,
-  onMapPress 
+  onMapPress,
+  region,
 }: GoogleMapsViewProps) {
   const webViewRef = useRef<WebView>(null);
+
+  useEffect(() => {
+    if (region && webViewRef.current) {
+      const jsCode = `
+        if (map) {
+          map.setCenter({ lat: ${region.latitude}, lng: ${region.longitude} });
+          map.setZoom(15);
+          if (userMarker) {
+            userMarker.setPosition({ lat: ${region.latitude}, lng: ${region.longitude} });
+          }
+        }
+      `;
+      webViewRef.current.injectJavaScript(jsCode);
+    }
+  }, [region]);
 
   // Generate Google Maps HTML with your API key
   const generateGoogleMapsHTML = () => {
