@@ -1,3 +1,6 @@
+TRACK -> Campus Management (Campus Safety App)
+Problem Statement -> Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.
+
 # UniSafe - Campus Safety Companion
 
 UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.
@@ -53,6 +56,7 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 - **Permissions**: Expo Location, Camera, and Notifications
 - **State Management**: React Hooks and Context API
 - **Styling**: React Native StyleSheet with modern design system
+- **Backend**: Node.js
 
 ## 📱 Installation & Setup
 
