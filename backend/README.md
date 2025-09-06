@@ -15,7 +15,7 @@ This is the backend server for the UniSave campus safety application, built with
 ## 📋 Prerequisites
 
 - Node.js (v16 or higher)
-- MongoDB (local or cloud instance)
+- MySQL (local or cloud instance)
 - SMTP email service (Gmail, SendGrid, etc.)
 
 ## 🛠️ Installation
@@ -40,10 +40,7 @@ This is the backend server for the UniSave campus safety application, built with
    ```
 
 4. **Configure environment variables:**
-   ```env
-   # Database Configuration
-   MONGO_URI=mongodb://localhost:27017/campus-safety
-   
+   ```env   
    # JWT Configuration
    JWT_SECRET=your-super-secret-jwt-key-here
    JWT_EXPIRE=7d
