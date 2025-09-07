@@ -6,6 +6,8 @@ Solution -> Build a one stop campus safety mobile application that helps student
 
 Presentation canva link -> https://www.canva.com/design/DAGyMk4JPC0/2upP7Xyy-PuQulRep9nk0w/edit?utm_content=DAGyMk4JPC0&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
+Youtube presentation link -> https://youtu.be/aCrNtWJechs
+
 # UniSafe - Campus Safety Companion
 
 UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.
