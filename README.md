@@ -16,10 +16,9 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 - **User Profile Management**: Personal information and preferences
 
 ### 🏠 Home Page
-- **SOS Button**: Triple-tap emergency activation with live location sharing
+- **SOS Button**: 3-secs-tap emergency activation with live location sharing
 - **Follow Me**: Real-time location tracking for trusted contacts
 - **Safety Alerts**: Quick access to recent campus incidents
-- **Safe Routes**: Navigation shortcuts to avoid dangerous areas
 - **Quick Actions**: Easy access to campus security and trusted circle
 
 ### 🗺️ Map & Navigation
@@ -28,6 +27,8 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 - **Category Filters**: Filter incidents by type (theft, harassment, accident, etc.)
 - **Safe Routes**: Navigation suggestions avoiding reported incident areas
 - **Interactive Markers**: Detailed incident information on tap
+- **Full Screen Mode**: Expand the map view to cover the entire screen for better visibility and easier navigation.
+- **Recenter function**: Quickly return the map’s focus to your current location with a single tap.
 
 ### 🔎 Reports & Community
 - **Search Functionality**: Find specific incidents or locations
@@ -47,9 +48,9 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 ### 👤 Profile & Settings
 - **Personal Information**: Name, email, student/staff ID
 - **Trusted Circle**: Manage family and friend contacts
-- **Privacy Controls**: Anonymous mode and location sharing preferences
+- **Privacy Controls**: Anonymous mode, location sharing and smart guardian alerts preferences
 - **Emergency Numbers**: Campus security, police, and medical contacts
-- **App Preferences**: Language, theme, and notification settings
+- **App Preferences**: Language, theme, notification settings, text-to-speech and auto-capture on SOS preference
 
 ## 🛠️ Technical Stack
 
@@ -136,13 +137,27 @@ UniSafe/frontend/
 │   │   ├── map.tsx        # Map screen
 │   │   ├── report.tsx     # Reports screen
 │   │   ├── profile.tsx    # Profile screen
-│   │   ├── sos.tsx        # SOS screen
 │   │   ├── guardian.tsx   # Guardian mode
-│   │   └── emergency.tsx  # Emergency calls
+│   │   ├── emergency.tsx  # Emergency calls
+│   │   └── _layout.tsx    # Navigation bar layout
 │   └── _layout.tsx        # Root layout
+├── components/             # Components
+│   ├── AppHeader.tsx
+│   ├── GoogleMapsView.tsx
+│   ├── LoadingScreen.tsx
+│   ├── TextInputWithVoice.tsx
+│   ├── UniversitySelector.tsx
+│   └── VoiceInputButton.tsx
 ├── services/               # Business logic services
+│   ├── GeofencingService.ts
+│   ├── guardianService.ts
+│   ├── LocationService.ts
+│   ├── malaysian_universities.ts
+│   ├── NavigationService.tsx
 │   ├── NotificationService.ts
-│   └── LocationService.ts
+│   ├── speech.ts
+│   ├── SpeechService.ts
+│   └── SpeechToTextService
 ├── assets/                 # Images, fonts, and static files
 └── package.json           # Dependencies and scripts
 ```
@@ -150,7 +165,7 @@ UniSafe/frontend/
 ## 🚨 Emergency Features
 
 ### SOS System
-- **Triple-tap Activation**: Prevents accidental emergency calls
+- **3-secs-tap Activation**: Prevents accidental emergency calls
 - **Live Location Sharing**: Immediate location broadcast to emergency contacts
 - **Emergency Services**: Direct connection to campus security and police
 - **Audible Alerts**: Sound notifications for emergency activation
