@@ -8,6 +8,8 @@ Presentation canva link -> https://www.canva.com/design/DAGyMk4JPC0/2upP7Xyy-PuQ
 
 Youtube presentation link -> https://youtu.be/aCrNtWJechs
 
+Demo video -> https://drive.google.com/file/d/1SVP0GNse8_tPDcw2o2KVaev3BUa2t3o9/view?usp=drive_link
+
 # UniSafe - Campus Safety Companion 
 
 UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.  
@@ -39,8 +41,8 @@ In future iterations, we plan to integrate AI-powered capabilities such as **CCT
    - Route History: Maintains encrypted log of shared routes for 24 hours before automatic deletion
 
 - **Safety Alerts**: 
-   -Proximity-Based Alerts: Prioritizes alerts based on user's current location
-   -Multi-type Categorization: Color-coded alert system (red for active incidents, yellow for warnings, blue for information)
+   - Proximity-Based Alerts: Prioritizes alerts based on user's current location
+   - Multi-type Categorization: Color-coded alert system (red for active incidents, yellow for warnings, blue for information)
 
 ### 🗺️ Map & Navigation
 - **Incident Mapping**: Visual display of reported incidents with categorized icons
