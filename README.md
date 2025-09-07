@@ -2,6 +2,8 @@ TRACK -> Campus Management (Campus Safety App)
 
 Problem Statement -> Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.
 
+Solution -> Build a one stop campus safety mobile application that helps students and staff create a safe study space that is responsive and meets the diverse needs of a campus community by ensuring the app is accessible to all.
+
 # UniSafe - Campus Safety Companion
 
 UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.
