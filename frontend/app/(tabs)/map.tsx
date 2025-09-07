@@ -18,6 +18,7 @@ import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService, { University } from '../../services/GeofencingService';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { openGoogleMaps } from '../../services/NavigationService';
+import UniversitySelector from '../../components/UniversitySelector';
 
 
 const { width, height } = Dimensions.get('window');
@@ -219,6 +220,11 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* University Selector */}
+      <UniversitySelector
+        onUniversityChange={setCurrentUniversity}
+        currentUniversity={currentUniversity}
+      />
 
       {/* Filter Bar */}
       <View style={styles.filterContainer}>
