@@ -18,11 +18,11 @@ import { Ionicons } from '@expo/vector-icons';
 // import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import TextInputWithVoice from '../../components/TextInputWithVoice';
-import { 
-  speakPageTitle, 
-  speakButtonAction, 
-  speakGuardianStatus, 
-  speakEmergencyAlert 
+import {
+  speakPageTitle,
+  speakButtonAction,
+  speakGuardianStatus,
+  speakEmergencyAlert
 } from '../../services/SpeechService';
 
 const { width, height } = Dimensions.get('window');
@@ -55,7 +55,7 @@ export default function GuardianScreen() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
-  
+
   // Mock trusted contacts
   const mockTrustedContacts = [
     { id: '1', name: 'Sarah Mom', phone: '+1 (555) 123-4567', relationship: 'Mother' },
@@ -105,7 +105,7 @@ export default function GuardianScreen() {
 
       const location = await Location.getCurrentPositionAsync({});
       setCurrentLocation(location);
-      
+
       // Mock route generation (replace with actual routing API)
       const mockRoute = [
         { latitude: location.coords.latitude, longitude: location.coords.longitude },
@@ -215,8 +215,8 @@ export default function GuardianScreen() {
   };
 
   const toggleContactSelection = (contactId: string) => {
-    setSelectedContacts(prev => 
-      prev.includes(contactId) 
+    setSelectedContacts(prev =>
+      prev.includes(contactId)
         ? prev.filter(id => id !== contactId)
         : [...prev, contactId]
     );
@@ -282,8 +282,8 @@ export default function GuardianScreen() {
                 <View style={styles.locationInfo}>
                   <Text style={styles.locationLabel}>Current Location:</Text>
                   <Text style={styles.locationCoordinates}>
-                    {currentLocation ? 
-                      `${currentLocation.coords.latitude.toFixed(6)}, ${currentLocation.coords.longitude.toFixed(6)}` : 
+                    {currentLocation ?
+                      `${currentLocation.coords.latitude.toFixed(6)}, ${currentLocation.coords.longitude.toFixed(6)}` :
                       'Getting location...'
                     }
                   </Text>
@@ -323,8 +323,8 @@ export default function GuardianScreen() {
             <Text style={styles.inactiveSubtitle}>
               Start a journey to activate live monitoring and safety features
             </Text>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.startButton}
               onPress={() => setShowStartModal(true)}
             >
@@ -335,7 +335,7 @@ export default function GuardianScreen() {
         )}
 
         {/* Settings Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => setShowSettingsModal(true)}
         >
@@ -362,13 +362,13 @@ export default function GuardianScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-                         <TextInputWithVoice
-               label="Destination *"
-               value={destination}
-               onChangeText={setDestination}
-               placeholder="Where are you going?"
-               prompt="destination"
-             />
+            <TextInputWithVoice
+              label="Destination *"
+              value={destination}
+              onChangeText={setDestination}
+              placeholder="Where are you going?"
+              prompt="destination"
+            />
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Select Trusted Contacts *</Text>
@@ -384,10 +384,10 @@ export default function GuardianScreen() {
                   ]}
                   onPress={() => toggleContactSelection(contact.id)}
                 >
-                  <Ionicons 
-                    name={selectedContacts.includes(contact.id) ? 'checkmark-circle' : 'ellipse-outline'} 
-                    size={24} 
-                    color={selectedContacts.includes(contact.id) ? '#007AFF' : '#ccc'} 
+                  <Ionicons
+                    name={selectedContacts.includes(contact.id) ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={24}
+                    color={selectedContacts.includes(contact.id) ? '#007AFF' : '#ccc'}
                   />
                   <View style={styles.contactOptionInfo}>
                     <Text style={styles.contactOptionName}>{contact.name}</Text>
@@ -418,24 +418,24 @@ export default function GuardianScreen() {
           </View>
 
           <View style={styles.modalContent}>
-                         <View style={styles.settingItem}>
-               <View style={styles.settingInfo}>
-                 <Text style={styles.settingLabel}>Safety Check-in Interval</Text>
-                 <Text style={styles.settingDescription}>
-                   How often to ask if you're okay during your journey
-                 </Text>
-               </View>
-               <TextInputWithVoice
-                 value={checkInInterval.toString()}
-                 onChangeText={(text) => setCheckInInterval(parseInt(text) || 5)}
-                 keyboardType="numeric"
-                 placeholder="5"
-                 prompt="check-in interval in minutes"
-                 style={{ flex: 1, marginRight: 8 }}
-                 inputStyle={{ width: 60, textAlign: 'center' }}
-               />
-               <Text style={styles.intervalUnit}>min</Text>
-             </View>
+            <View style={styles.settingItem}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingLabel}>Safety Check-in Interval</Text>
+                <Text style={styles.settingDescription}>
+                  How often to ask if you're okay during your journey
+                </Text>
+              </View>
+              <TextInputWithVoice
+                value={checkInInterval.toString()}
+                onChangeText={(text) => setCheckInInterval(parseInt(text) || 5)}
+                keyboardType="numeric"
+                placeholder="5"
+                prompt="check-in interval in minutes"
+                style={{ flex: 1, marginRight: 8 }}
+                inputStyle={{ width: 60, textAlign: 'center' }}
+              />
+              <Text style={styles.intervalUnit}>min</Text>
+            </View>
           </View>
         </SafeAreaView>
       </Modal>
@@ -448,7 +448,7 @@ export default function GuardianScreen() {
         onRequestClose={() => setShowCheckInModal(false)}
       >
         <View style={styles.checkInModalOverlay}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.checkInModalContent,
               { transform: [{ scale: pulseAnimation }] }
@@ -459,17 +459,17 @@ export default function GuardianScreen() {
             <Text style={styles.checkInModalText}>
               Are you okay on your journey?
             </Text>
-            
+
             <View style={styles.checkInButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.checkInButton, styles.yesButton]}
                 onPress={() => handleCheckInResponse('yes')}
               >
                 <Ionicons name="checkmark" size={24} color="#fff" />
                 <Text style={styles.checkInButtonText}>Yes, I'm Safe</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.checkInButton, styles.noButton]}
                 onPress={() => handleCheckInResponse('no')}
               >

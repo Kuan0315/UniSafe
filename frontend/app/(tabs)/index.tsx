@@ -166,17 +166,17 @@ export default function HomeScreen() {
       }
     })();
   }, []);
-  
+
   useEffect(() => {
-  return () => {
-    if (sosTimeoutRef.current) {
-      clearTimeout(sosTimeoutRef.current);
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-  };
-}, []);
+    return () => {
+      if (sosTimeoutRef.current) {
+        clearTimeout(sosTimeoutRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -229,87 +229,87 @@ export default function HomeScreen() {
     }
   };
   // Add this ref declaration at the top with your other refs
-const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-// Move the cleanup useEffect to the right position (after all the other useEffects)
-useEffect(() => {
-  return () => {
-    if (sosTimeoutRef.current) {
-      clearTimeout(sosTimeoutRef.current);
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-  };
-}, []);
-
-// Update your handleSOSPressIn function to fix the timing issue:
-const handleSOSPressIn = () => {
-  setCountdown(3);
-
-  // Clear any existing interval first
-  if (countdownIntervalRef.current) {
-    clearInterval(countdownIntervalRef.current);
-    countdownIntervalRef.current = null;
-  }
-
-  // Clear any existing timeout
-  if (sosTimeoutRef.current) {
-    clearTimeout(sosTimeoutRef.current);
-    sosTimeoutRef.current = null;
-  }
-
-  // Start the countdown interval
-  countdownIntervalRef.current = setInterval(() => {
-    setCountdown(prev => {
-      if (prev && prev > 1) {
-        return prev - 1;
-      } else {
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
-        return null;
+  // Move the cleanup useEffect to the right position (after all the other useEffects)
+  useEffect(() => {
+    return () => {
+      if (sosTimeoutRef.current) {
+        clearTimeout(sosTimeoutRef.current);
       }
-    });
-  }, 1000);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
 
-  // Start the SOS activation timeout
-  sosTimeoutRef.current = setTimeout(() => {
+  // Update your handleSOSPressIn function to fix the timing issue:
+  const handleSOSPressIn = () => {
+    setCountdown(3);
+
+    // Clear any existing interval first
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
-    setCountdown(null);
-    activateSOS();
-  }, 3000);
-};
 
-// Also make sure your activateSOS function properly triggers the modal:
-const activateSOS = async () => {
-  try {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    
-    // Set SOS as activated first
-    setIsSOSActivated(true);
-    setSosStartTime(new Date());
-    
-    // Then trigger the actions and show modal
-    await triggerSOSActions();
-  } catch (err) {
-    console.error("SOS activation error:", err);
-  }
-};
+    // Clear any existing timeout
+    if (sosTimeoutRef.current) {
+      clearTimeout(sosTimeoutRef.current);
+      sosTimeoutRef.current = null;
+    }
 
-const triggerSOSActions = async () => {
-  try {
-    await silentEmergencyActions();
-    setShowSOSModal(true); // This should now show the modal
-    console.log("🚨 SOS fully activated!");
-  } catch (error) {
-    console.error("Error in triggerSOSActions:", error);
-  }
-};
+    // Start the countdown interval
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev && prev > 1) {
+          return prev - 1;
+        } else {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          return null;
+        }
+      });
+    }, 1000);
+
+    // Start the SOS activation timeout
+    sosTimeoutRef.current = setTimeout(() => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      setCountdown(null);
+      activateSOS();
+    }, 3000);
+  };
+
+  // Also make sure your activateSOS function properly triggers the modal:
+  const activateSOS = async () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      // Set SOS as activated first
+      setIsSOSActivated(true);
+      setSosStartTime(new Date());
+
+      // Then trigger the actions and show modal
+      await triggerSOSActions();
+    } catch (err) {
+      console.error("SOS activation error:", err);
+    }
+  };
+
+  const triggerSOSActions = async () => {
+    try {
+      await silentEmergencyActions();
+      setShowSOSModal(true); // This should now show the modal
+      console.log("🚨 SOS fully activated!");
+    } catch (error) {
+      console.error("Error in triggerSOSActions:", error);
+    }
+  };
   // Replace your captureEmergencyMedia function with this:
   const captureEmergencyMedia = async () => {
     if (!hasCameraPermission || !autoCaptureSOS) {
@@ -445,23 +445,23 @@ const triggerSOSActions = async () => {
     }
   };
 
-// Update your handleSOSPressOut function:
-const handleSOSPressOut = () => {
-  // Clear the countdown interval
-  if (countdownIntervalRef.current) {
-    clearInterval(countdownIntervalRef.current);
-    countdownIntervalRef.current = null;
-  }
-  
-  // Clear the SOS activation timeout
-  if (sosTimeoutRef.current) {
-    clearTimeout(sosTimeoutRef.current);
-    sosTimeoutRef.current = null;
-  }
-  
-  // Reset the countdown
-  setCountdown(null);
-};
+  // Update your handleSOSPressOut function:
+  const handleSOSPressOut = () => {
+    // Clear the countdown interval
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    // Clear the SOS activation timeout
+    if (sosTimeoutRef.current) {
+      clearTimeout(sosTimeoutRef.current);
+      sosTimeoutRef.current = null;
+    }
+
+    // Reset the countdown
+    setCountdown(null);
+  };
 
   const silentEmergencyActions = async () => {
     try {
@@ -585,11 +585,14 @@ const handleSOSPressOut = () => {
 
       <CameraView
         ref={cameraRef}
-        style={{ width: 1, height: 1, position: "absolute", top: -1000 }}
+        style={{ width: 1, height: 1, position: "absolute" }}
         facing={cameraType}
         flash={(isTorchOn ? "torch" : "off") as FlashMode}
         ratio="16:9"
-        onCameraReady={() => setCameraReady(true)}
+        onCameraReady={() => {
+          setCameraReady(true);
+          console.log("Camera is ready");
+        }}
       />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header with Notifications Bell */}
@@ -643,68 +646,68 @@ const handleSOSPressOut = () => {
         </View>
 
         {/* SOS Button as Large Circle with Secondary Buttons Below */}
-<View style={styles.sosMainContainer}>
-  {/* SOS Button */}
-  <TouchableOpacity
-    style={[styles.sosCircleButton, countdown !== null && styles.sosCircleButtonActive]}
-    onPressIn={handleSOSPressIn}
-    onPressOut={handleSOSPressOut}
-    activeOpacity={0.8}
-    accessibilityLabel="SOS Emergency Button"
-    accessibilityHint="Press and hold for 3 seconds to activate emergency SOS"
-  >
-    <View style={styles.sosCircleButtonContent}>
-      <Ionicons name="alert-circle" size={40} color="#fff" />
-      <Text style={styles.sosCircleButtonText}>
-        {countdown !== null ? countdown : 'SOS'}
-      </Text>
-      <Text style={styles.sosCircleButtonSubtext}>
-        {countdown !== null ? 'Hold...' : 'Hold 3s'}
-      </Text>
-    </View>
-  </TouchableOpacity>
+        <View style={styles.sosMainContainer}>
+          {/* SOS Button */}
+          <TouchableOpacity
+            style={[styles.sosCircleButton, countdown !== null && styles.sosCircleButtonActive]}
+            onPressIn={handleSOSPressIn}
+            onPressOut={handleSOSPressOut}
+            activeOpacity={0.8}
+            accessibilityLabel="SOS Emergency Button"
+            accessibilityHint="Press and hold for 3 seconds to activate emergency SOS"
+          >
+            <View style={styles.sosCircleButtonContent}>
+              <Ionicons name="alert-circle" size={40} color="#fff" />
+              <Text style={styles.sosCircleButtonText}>
+                {countdown !== null ? countdown : 'SOS'}
+              </Text>
+              <Text style={styles.sosCircleButtonSubtext}>
+                {countdown !== null ? 'Hold...' : 'Hold 3s'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
-  {/* Secondary Buttons Below SOS */}
-  <View style={styles.secondaryButtonsContainer}>
-    {/* Follow Me Button */}
-    <TouchableOpacity
-      style={[styles.secondaryButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
-      onPress={handleFollowMe}
-      accessibilityLabel="Follow Me Button"
-      accessibilityHint="Share your location with trusted contacts"
-    >
-      <View style={styles.secondaryButtonContent}>
-        <Ionicons
-          name={isFollowing ? 'location' : 'location-outline'}
-          size={24}
-          color={isFollowing ? '#fff' : '#007AFF'}
-        />
-        <Text style={isFollowing ? styles.secondaryButtonText : styles.followMeText}>
-          {isFollowing ? 'Following' : 'Follow Me'}
-        </Text>
-      </View>
-    </TouchableOpacity>
+          {/* Secondary Buttons Below SOS */}
+          <View style={styles.secondaryButtonsContainer}>
+            {/* Follow Me Button */}
+            <TouchableOpacity
+              style={[styles.secondaryButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
+              onPress={handleFollowMe}
+              accessibilityLabel="Follow Me Button"
+              accessibilityHint="Share your location with trusted contacts"
+            >
+              <View style={styles.secondaryButtonContent}>
+                <Ionicons
+                  name={isFollowing ? 'location' : 'location-outline'}
+                  size={24}
+                  color={isFollowing ? '#fff' : '#007AFF'}
+                />
+                <Text style={isFollowing ? styles.secondaryButtonText : styles.followMeText}>
+                  {isFollowing ? 'Following' : 'Follow Me'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-    {/* Torchlight Button */}
-    <TouchableOpacity
-      style={[styles.secondaryButton, styles.torchButton, isTorchOn && styles.torchButtonActive]}
-      onPress={toggleTorch}
-      accessibilityLabel="Torchlight Button"
-      accessibilityHint="Turn on or off your device flashlight"
-    >
-      <View style={styles.secondaryButtonContent}>
-        <Ionicons
-          name={isTorchOn ? "flashlight" : "flashlight-outline"}
-          size={24}
-          color={isTorchOn ? "#fff" : "#FFD700"}
-        />
-        <Text style={isTorchOn ? styles.secondaryButtonText : styles.torchButtonText}>
-          {isTorchOn ? "ON" : "Torch"}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  </View>
-</View>
+            {/* Torchlight Button */}
+            <TouchableOpacity
+              style={[styles.secondaryButton, styles.torchButton, isTorchOn && styles.torchButtonActive]}
+              onPress={toggleTorch}
+              accessibilityLabel="Torchlight Button"
+              accessibilityHint="Turn on or off your device flashlight"
+            >
+              <View style={styles.secondaryButtonContent}>
+                <Ionicons
+                  name={isTorchOn ? "flashlight" : "flashlight-outline"}
+                  size={24}
+                  color={isTorchOn ? "#fff" : "#FFD700"}
+                />
+                <Text style={isTorchOn ? styles.secondaryButtonText : styles.torchButtonText}>
+                  {isTorchOn ? "ON" : "Torch"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
       {/* SOS Countdown overlay */}
@@ -1047,99 +1050,99 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   // Add these styles to your StyleSheet
-sosMainContainer: {
-  alignItems: 'center',
-  marginVertical: 24,
-  paddingHorizontal: 20,
-},
-sosCircleButton: {
-  width: 180,
-  height: 180,
-  borderRadius: 90,
-  backgroundColor: '#ff3b30',
-  justifyContent: 'center',
-  alignItems: 'center',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.3,
-  shadowRadius: 12,
-  elevation: 10,
-  marginBottom: 24,
-},
-sosCircleButtonActive: {
-  backgroundColor: '#ff6b35',
-  transform: [{ scale: 1.05 }],
-},
-sosCircleButtonContent: {
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-sosCircleButtonText: {
-  fontSize: 28,
-  fontWeight: 'bold',
-  color: '#fff',
-  marginTop: 8,
-  marginBottom: 4,
-},
-sosCircleButtonSubtext: {
-  fontSize: 14,
-  color: '#fff',
-  textAlign: 'center',
-  opacity: 0.9,
-},
-secondaryButtonsContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  width: '100%',
-  gap: 16,
-},
-secondaryButton: {
-  flex: 1,
-  backgroundColor: '#fff',
-  borderRadius: 16,
-  padding: 16,
-  alignItems: 'center',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.2,
-  shadowRadius: 6,
-  elevation: 4,
-},
-secondaryButtonContent: {
-  alignItems: 'center',
-},
-secondaryButtonText: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: '#fff',
-  marginTop: 8,
-},
-followMeButton: {
-  borderWidth: 2,
-  borderColor: '#007AFF',
-},
-followMeButtonActive: {
-  backgroundColor: '#007AFF',
-},
-followMeText: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#007AFF',
-  marginTop: 8,
-},
-torchButton: {
-  borderWidth: 2,
-  borderColor: '#FFD700',
-},
-torchButtonActive: {
-  backgroundColor: '#FFD700',
-},
-torchButtonText: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: '#FFD700',
-  marginTop: 8,
-},
+  sosMainContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+    paddingHorizontal: 20,
+  },
+  sosCircleButton: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+    marginBottom: 24,
+  },
+  sosCircleButtonActive: {
+    backgroundColor: '#ff6b35',
+    transform: [{ scale: 1.05 }],
+  },
+  sosCircleButtonContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosCircleButtonText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sosCircleButtonSubtext: {
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  secondaryButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 16,
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  secondaryButtonContent: {
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 8,
+  },
+  followMeButton: {
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  followMeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  followMeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginTop: 8,
+  },
+  torchButton: {
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  torchButtonActive: {
+    backgroundColor: '#FFD700',
+  },
+  torchButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFD700',
+    marginTop: 8,
+  },
   activityRingFill: {
     position: 'absolute',
     width: '100%',
