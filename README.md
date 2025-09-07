@@ -20,10 +20,23 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 - **User Profile Management**: Personal information and preferences
 
 ### 🏠 Home Page
-- **SOS Button**: 3-secs-tap emergency activation with live location sharing
+
+- **SOS Button**: The large red SOS button requires a deliberate 3-second press-and-hold action to prevent accidental activation. 
+   - Haptic Feedback: Vibration pulses provide tactile confirmation during countdown
+   - Captures photo and video evidence (if auto-capture enabled in settings)
+   - Records precise GPS coordinates with accuracy within 5 meters
+   - Distributes emergency alert to all pre-configured trusted contacts
+   - Post-Activation Modal: Provides emergency service contact buttons and additional   evidence capture tools
+
 - **Follow Me**: Real-time location tracking for trusted contacts
-- **Safety Alerts**: Quick access to recent campus incidents
-- **Quick Actions**: Easy access to campus security and trusted circle
+   - High-Frequency Updates: Location refreshes every 15 seconds during active sessions
+   - Battery-Optimized: Uses adaptive location accuracy balancing precision with power consumption
+   - Session Management: Automatic timeout after 2 hours of inactivity with manual override options
+   - Route History: Maintains encrypted log of shared routes for 24 hours before automatic deletion
+
+- **Safety Alerts**: 
+   -Proximity-Based Alerts: Prioritizes alerts based on user's current location
+   -Multi-type Categorization: Color-coded alert system (red for active incidents, yellow for warnings, blue for information)
 
 ### 🗺️ Map & Navigation
 - **Incident Mapping**: Visual display of reported incidents with categorized icons
@@ -55,6 +68,7 @@ UniSafe is a comprehensive mobile application designed to enhance campus safety 
 - **Privacy Controls**: Anonymous mode, location sharing and smart guardian alerts preferences
 - **Emergency Numbers**: Campus security, police, and medical contacts
 - **App Preferences**: Language, theme, notification settings, text-to-speech and auto-capture on SOS preference
+- **AI Chat Safety Assistant**: A built-in chatbot that gives instant safety tips, emergency steps, and mental health support 24/7.  
 
 ## 🛠️ Technical Stack
 
@@ -128,43 +142,6 @@ EXPO_PUBLIC_BACKEND_URL=your_backend_api_url
 2. Update the project ID in `NotificationService.ts`
 3. Test notifications on physical devices
 
-## 📱 App Structure
-
-```
-UniSafe/frontend/
-├── app/                    # Expo Router app directory
-│   ├── (auth)/            # Authentication screens
-│   │   ├── login.tsx      # Login screen
-│   │   └── signup.tsx     # Signup screen
-│   ├── (tabs)/            # Main app tabs
-│   │   ├── index.tsx      # Home screen
-│   │   ├── map.tsx        # Map screen
-│   │   ├── report.tsx     # Reports screen
-│   │   ├── profile.tsx    # Profile screen
-│   │   ├── guardian.tsx   # Guardian mode
-│   │   ├── emergency.tsx  # Emergency calls
-│   │   └── _layout.tsx    # Navigation bar layout
-│   └── _layout.tsx        # Root layout
-├── components/             # Components
-│   ├── AppHeader.tsx
-│   ├── GoogleMapsView.tsx
-│   ├── LoadingScreen.tsx
-│   ├── TextInputWithVoice.tsx
-│   ├── UniversitySelector.tsx
-│   └── VoiceInputButton.tsx
-├── services/               # Business logic services
-│   ├── GeofencingService.ts
-│   ├── guardianService.ts
-│   ├── LocationService.ts
-│   ├── malaysian_universities.ts
-│   ├── NavigationService.tsx
-│   ├── NotificationService.ts
-│   ├── speech.ts
-│   ├── SpeechService.ts
-│   └── SpeechToTextService
-├── assets/                 # Images, fonts, and static files
-└── package.json           # Dependencies and scripts
-```
 
 ## 🚨 Emergency Features
 
@@ -291,12 +268,13 @@ For support and questions:
 - Check the documentation wiki
 
 ## 🔮 Future Enhancements
-
-- **AI-powered Risk Assessment**: Machine learning for incident prediction
-- **Voice Commands**: Hands-free emergency activation
-- **Integration**: Campus security system integration
-- **Analytics**: Safety trend analysis and reporting
-- **Multi-language**: Internationalization support
+- **AI Camera Detection**: Smarter campuses with AI-powered CCTV analysis that instantly spots accidents, suspicious behavior, or unsafe environments and pushes live alerts to students and staff.  
+- **AI-powered Risk Assessment**: Transform raw incident data into predictive insights that help prevent accidents before they happen.  
+- **Voice Command SOS**: “Hey UniSafe, I need help!” — hands-free emergency activation designed for high-stress situations where every second counts.  
+- **Smart Campus Security Integration**: Seamless syncing with campus security systems, enabling guards to receive live feeds, track incidents in real time, and respond faster.  
+- **Augmented Reality Safe Zones**: AR overlays to guide users to the nearest safe spots during emergencies using just their phone camera.  
+- **Smart Wearable Compatibility**: Sync with smartwatches or fitness bands for quick SOS activation through a tap or pulse detection when the wearer is in distress.  
+- **Crowdsourced Guardian Network**: Allow nearby trusted peers to temporarily act as “digital guardians” when someone feels unsafe, creating a community-driven safety net.  
 
 ---
 
