@@ -8,9 +8,13 @@ Presentation canva link -> https://www.canva.com/design/DAGyMk4JPC0/2upP7Xyy-PuQ
 
 Youtube presentation link -> https://youtu.be/aCrNtWJechs
 
-# UniSafe - Campus Safety Companion
+# UniSafe - Campus Safety Companion 
 
-UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.
+UniSafe is a comprehensive mobile application designed to enhance campus safety through real-time incident reporting, location sharing, and emergency response features.  
+
+Our vision is to go beyond just reporting — UniSafe aims to **predict, prevent, and protect**.  
+In future iterations, we plan to integrate AI-powered capabilities such as **CCTV accident detection, predictive risk assessment, voice-activated SOS, and AR safe zone navigation**, transforming UniSafe into a true **smart campus safety ecosystem**.  
+
 
 ## 🚀 Features
 
