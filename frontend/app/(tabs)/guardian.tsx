@@ -15,7 +15,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import TextInputWithVoice from '../../components/TextInputWithVoice';
 import {
@@ -271,24 +271,39 @@ export default function GuardianScreen() {
               <Text style={styles.progressText}>{Math.round(getProgressPercentage())}% Complete</Text>
             </View>
 
-            {/* Map Placeholder */}
+            {/* Live Map */}
             <View style={styles.mapContainer}>
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="map" size={48} color="#ccc" />
-                <Text style={styles.mapPlaceholderText}>Guardian Tracking</Text>
-                <Text style={styles.mapPlaceholderSubtext}>
-                  Live location tracking active • Route to destination
-                </Text>
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationLabel}>Current Location:</Text>
-                  <Text style={styles.locationCoordinates}>
-                    {currentLocation ?
-                      `${currentLocation.coords.latitude.toFixed(6)}, ${currentLocation.coords.longitude.toFixed(6)}` :
-                      'Getting location...'
-                    }
-                  </Text>
-                </View>
-              </View>
+              {currentLocation && (
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: currentLocation.coords.latitude,
+                    longitude: currentLocation.coords.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  showsUserLocation
+                  followsUserLocation
+                >
+                  {/* Current location marker */}
+                  <Marker
+                    coordinate={{
+                      latitude: currentLocation.coords.latitude,
+                      longitude: currentLocation.coords.longitude,
+                    }}
+                    title="You"
+                  />
+
+                  {/* Route polyline */}
+                  {routeCoordinates.length > 1 && (
+                    <Polyline
+                      coordinates={routeCoordinates}
+                      strokeColor="#007AFF"
+                      strokeWidth={4}
+                    />
+                  )}
+                </MapView>
+              )}
             </View>
 
             {/* Trusted Contacts Status */}
