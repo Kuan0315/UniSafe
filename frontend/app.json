@@ -38,9 +38,11 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "INTERNET"
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.yourcompany.unisafe"
     },
@@ -55,7 +57,18 @@
           "icon": "./assets/images/logo.png",
           "color": "#FF0000"
         }
-      ]
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
+          "isAccessMediaLocationEnabled": true,
+          "granularPermissions": ["audio", "photo", "video"]
+        }
+      ],
+      "expo-audio",
+      "expo-video"
     ],
     "extra": {
       "BACKEND_URL": "http://localhost:5000"
