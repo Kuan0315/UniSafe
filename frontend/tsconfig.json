@@ -4,14 +4,14 @@
     "strict": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "skipLibCheck": true      // <--- ignore type errors in node_modules
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "services/guardianService.js"
-, "app/(tabs)/TrustedContactsScreen"  ]
+    "services/guardianService.js",
+   "app/(tabs)/TrustedContactsScreen"  ],
+  "exclude": ["node_modules"]
 }
