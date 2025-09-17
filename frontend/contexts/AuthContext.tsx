@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
+  isSecurity: boolean; // convenience flag
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,11 +51,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // TODO: Replace with your actual API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // For now allow choosing security role via special email suffix for demo
+      const role: User['role'] = credentials.email.includes('+security') ? 'security' : 'student';
       const mockUser: User = {
         id: '1',
         email: credentials.email,
-        name: 'John Doe', // This would come from your API
-        role: 'student', // This would come from your API
+        name: 'John Doe',
+        role,
       };
 
       setUser(mockUser);
@@ -103,7 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, signup }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, signup, isSecurity: !!(user && (user.role === 'security' || user.role === 'admin')) }}>
       {children}
     </AuthContext.Provider>
   );

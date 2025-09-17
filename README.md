@@ -32,7 +32,7 @@ In future iterations, we plan to integrate AI-powered capabilities such as **CCT
    - Captures photo and video evidence (if auto-capture enabled in settings)
    - Records precise GPS coordinates with accuracy within 5 meters
    - Distributes emergency alert to all pre-configured trusted contacts
-   - Post-Activation Modal: Provides emergency service contact buttons and additional   evidence capture tools
+   - Post-Activation Modal: Provides emergency service contact buttons and additional evidence capture tools
 
 - **Follow Me**: Real-time location tracking for trusted contacts
    - High-Frequency Updates: Location refreshes every 15 seconds during active sessions
@@ -41,8 +41,8 @@ In future iterations, we plan to integrate AI-powered capabilities such as **CCT
    - Route History: Maintains encrypted log of shared routes for 24 hours before automatic deletion
 
 - **Safety Alerts**: 
-   - Proximity-Based Alerts: Prioritizes alerts based on user's current location
-   - Multi-type Categorization: Color-coded alert system (red for active incidents, yellow for warnings, blue for information)
+   -Proximity-Based Alerts: Prioritizes alerts based on user's current location
+   -Multi-type Categorization: Color-coded alert system (red for active incidents, yellow for warnings, blue for information)
 
 ### 🗺️ Map & Navigation
 - **Incident Mapping**: Visual display of reported incidents with categorized icons
