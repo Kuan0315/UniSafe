@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LocationObject } from 'expo-location';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { canSaveToGallery } from '../../services/SOSService';
 
@@ -25,18 +25,10 @@ interface SOSModalProps {
   currentLocation: LocationObject | null;
   locationAddress: string;
   autoCaptureSOS: boolean;
-  takePicture: () => void;
-  toggleRecording: () => void;
-  isRecording: boolean;
-  toggleFlash: () => void;
-  cameraFlash: 'on' | 'off';
-  toggleCameraType: () => void;
   requestLocationPermission: () => void;
   handleEmergencyCall: (type: string) => void;
   handleCancelSOS: () => void;
-  isTorchOn: boolean;
-  toggleTorch: () => void;
-  onPhotoCaptured?: (uri: string) => void; // new callback to update parent state
+  onMediaUpdated?: () => void; // callback to notify parent when media may have been updated
 }
 
 export default function SOSModal({
@@ -50,46 +42,97 @@ export default function SOSModal({
   requestLocationPermission,
   handleEmergencyCall,
   handleCancelSOS,
-  onPhotoCaptured,
+  onMediaUpdated,
 }: SOSModalProps) {
   const [mediaSaveError, setMediaSaveError] = useState<string | null>(null);
   const [showMediaError, setShowMediaError] = useState(false);
-  const [showInlineCamera, setShowInlineCamera] = useState(false);
-  const cameraRef = useRef<CameraView | null>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
+  const [mediaCaptureType, setMediaCaptureType] = useState<'photo' | 'video' | null>(null);
+  const [isCapturingMedia, setIsCapturingMedia] = useState(false);
 
   const openCamera = async (type: 'photo' | 'video') => {
-    // Only handle photo for inline camera for now
-    if (type === 'photo') {
-      // If we don't have permission, request it first
-      if (!permission || !permission.granted) {
-        const result = await requestPermission();
-        if (!result.granted) {
-          setMediaSaveError('Camera permission denied.');
-          setShowMediaError(true);
-          setTimeout(() => setShowMediaError(false), 5000);
-          return;
-        }
-      }
-      setShowInlineCamera(true);
-    } else {
-      // For video we still fall back to external intent (future inline implementation)
-      try {
-        if (Platform.OS === 'ios') {
-          Linking.openURL('photos-redirect://');
-        } else {
+    // Using external intent approach for both photo and video for consistent gallery saving
+    try {
+      setMediaCaptureType(type); // Track what type of media is being captured
+      setIsCapturingMedia(true); // Set loading state
+      console.log(`Opening system ${type} camera app - will save directly to gallery`);
+      
+      if (Platform.OS === 'ios') {
+        // On iOS, use the appropriate URL scheme
+        Linking.openURL('photos-redirect://');  // iOS doesn't have separate photo/video URLs
+        
+        // Set a timeout to refresh/check media after returning from camera
+        setTimeout(() => {
+          console.log('Returned from iOS system camera app');
+          if (onMediaUpdated) {
+            onMediaUpdated();
+            console.log('Parent notified of potential media update');
+          }
+          Alert.alert(
+            `${type === 'photo' ? 'Photo' : 'Video'} Captured`,
+            `Emergency ${type} has been saved.`
+          );
+        }, 1500); // delay to allow system to process saved media
+        
+      } else {
+        // On Android, use IntentLauncher for BOTH photo and video
+        // This ensures both use native camera apps that save to gallery automatically
+        try {
+          // Use the appropriate intent action based on media type
+          const intentAction = type === 'photo' 
+            ? 'android.media.action.IMAGE_CAPTURE'
+            : 'android.media.action.VIDEO_CAPTURE';
+          
+          console.log(`Launching Android ${intentAction}`);
+          await IntentLauncher.startActivityAsync(intentAction);
+          console.log('Intent completed, returned to app');
+          
+          // Set a timeout to refresh/check media after returning from camera
+          setTimeout(() => {
+            console.log('Processing after returning from system camera app');
+            if (onMediaUpdated) {
+              onMediaUpdated();
+              console.log('Parent notified of potential media update');
+            }
+            
+            // Show success message
+            Alert.alert(
+              `${type === 'photo' ? 'Photo' : 'Video'} Captured`,
+              `Emergency ${type} has been saved to your gallery.`
+            );
+          }, 1500); // delay to allow system to process saved media
+          
+        } catch (error) {
+          console.error('Intent launch error:', error);
+          // Fallback to content URI if intent fails
           try {
-            await IntentLauncher.startActivityAsync('android.media.action.VIDEO_CAPTURE');
-          } catch (error) {
             Linking.openURL('content://media/internal/images/media');
+            setTimeout(() => {
+              if (onMediaUpdated) onMediaUpdated();
+            }, 1500);
+          } catch (linkError) {
+            console.error('Linking fallback error:', linkError);
+            throw new Error('Failed to launch camera: ' + error);
           }
         }
-      } catch (error) {
-        setMediaSaveError('Failed to open video camera. Please check permissions.');
-        setShowMediaError(true);
-        setTimeout(() => setShowMediaError(false), 5000);
       }
+      
+      // Reset states after handling is complete
+      setTimeout(() => {
+        setMediaCaptureType(null);
+        setIsCapturingMedia(false);
+      }, 2000);
+      
+      // Reset states
+      setMediaCaptureType(null);
+      setIsCapturingMedia(false);
+      
+    } catch (error) {
+      console.error(`Error opening ${type} camera:`, error);
+      setMediaSaveError(`Failed to open ${type} camera. Please check permissions.`);
+      setShowMediaError(true);
+      setTimeout(() => setShowMediaError(false), 5000);
+      setMediaCaptureType(null); // Reset on error
+      setIsCapturingMedia(false); // Reset loading state
     }
   };
 
@@ -98,79 +141,11 @@ export default function SOSModal({
     openCamera('video');
   };
 
-  const handleCapturePhoto = async () => {
-    if (!cameraRef.current) return;
-    try {
-      setIsCapturingPhoto(true);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7, skipProcessing: true });
-      let finalUri = photo.uri;
-      try {
-        const mediaPerm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
-        if (mediaPerm.status === 'granted') {
-          const asset = await MediaLibrary.createAssetAsync(photo.uri);
-            finalUri = asset.uri;
-        } else {
-          console.log('Media library permission denied – temp URI only.');
-        }
-      } catch (e: any) {
-        if (e.message?.includes('Expo Go')) {
-          console.warn('Cannot save photo to gallery in Expo Go.');
-        } else {
-          console.error('Gallery save error:', e);
-        }
-      }
-      // Inform parent if callback provided
-      onPhotoCaptured?.(finalUri);
-      setShowInlineCamera(false);
-      setMediaSaveError(null);
-      Alert.alert('Photo Captured', canSaveToGallery ? 'Emergency photo captured.' : 'Emergency photo captured (not saved to gallery in Expo Go).');
-    } catch (error: any) {
-      console.error('Inline camera capture error:', error);
-      setMediaSaveError('Failed to capture photo.');
-      setShowMediaError(true);
-      setTimeout(() => setShowMediaError(false), 5000);
-    } finally {
-      setIsCapturingPhoto(false);
-    }
-  };
-
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.sosModalOverlay}>
         <View style={styles.sosModalContent}>
-          {/* Inline Camera Overlay */}
-          {showInlineCamera && (
-            <View style={styles.inlineCameraContainer}>
-              {!permission?.granted ? (
-                <View style={styles.inlineCameraPermission}>
-                  <Text style={styles.inlineCameraPermissionText}>Camera permission required</Text>
-                  <TouchableOpacity style={styles.inlineCameraPermissionButton} onPress={requestPermission}>
-                    <Text style={styles.inlineCameraPermissionButtonText}>Grant Permission</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.inlineCameraCloseButton} onPress={() => setShowInlineCamera(false)}>
-                    <Ionicons name="close" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  <CameraView
-                    ref={cameraRef}
-                    style={styles.cameraView}
-                    facing="back"
-                  />
-                  <View style={styles.cameraControls}>
-                    <TouchableOpacity style={styles.capturePhotoButton} onPress={handleCapturePhoto} disabled={isCapturingPhoto}>
-                      <Ionicons name={isCapturingPhoto ? 'hourglass' : 'camera'} size={34} color="#fff" />
-                      <Text style={styles.capturePhotoButtonText}>{isCapturingPhoto ? 'Capturing...' : 'Capture'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.closeCameraButton} onPress={() => setShowInlineCamera(false)}>
-                      <Ionicons name="close" size={28} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
-          )}
+          {/* External camera is now used for both photo and video */}
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             {/* Media Save Error Banner */}
             {showMediaError && (
@@ -259,19 +234,41 @@ export default function SOSModal({
               
               <View style={styles.captureButtons}>
                 <TouchableOpacity
-                  style={[styles.captureButton, styles.photoButton]}
-                  onPress={() => openCamera('photo')}
+                  style={[
+                    styles.captureButton, 
+                    styles.photoButton,
+                    isCapturingMedia && mediaCaptureType === 'photo' && styles.captureButtonDisabled
+                  ]}
+                  onPress={() => !isCapturingMedia && openCamera('photo')}
+                  disabled={isCapturingMedia}
                 >
-                  <Ionicons name="camera" size={28} color="#fff" />
-                  <Text style={styles.captureButtonText}>Open Camera</Text>
+                  {isCapturingMedia && mediaCaptureType === 'photo' ? (
+                    <Text style={styles.captureButtonText}>Opening Camera...</Text>
+                  ) : (
+                    <>
+                      <Ionicons name="camera" size={28} color="#fff" />
+                      <Text style={styles.captureButtonText}>Open Camera</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.captureButton, styles.videoButton]}
-                  onPress={openVideoCamera}
+                  style={[
+                    styles.captureButton, 
+                    styles.videoButton,
+                    isCapturingMedia && mediaCaptureType === 'video' && styles.captureButtonDisabled
+                  ]}
+                  onPress={() => !isCapturingMedia && openVideoCamera()}
+                  disabled={isCapturingMedia}
                 >
-                  <Ionicons name="videocam" size={28} color="#fff" />
-                  <Text style={styles.captureButtonText}>Record Video</Text>
+                  {isCapturingMedia && mediaCaptureType === 'video' ? (
+                    <Text style={styles.captureButtonText}>Opening Video Camera...</Text>
+                  ) : (
+                    <>
+                      <Ionicons name="videocam" size={28} color="#fff" />
+                      <Text style={styles.captureButtonText}>Record Video</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
               
@@ -335,84 +332,6 @@ export default function SOSModal({
 }
 
 const styles = StyleSheet.create({
-  inlineCameraContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000',
-    zIndex: 50,
-    borderRadius: 20,
-    overflow: 'hidden'
-  },
-  inlineCameraPermission: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  inlineCameraPermissionText: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center'
-  },
-  inlineCameraPermissionButton: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  inlineCameraPermissionButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16
-  },
-  inlineCameraCloseButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 8,
-    borderRadius: 20,
-  },
-  cameraView: {
-    flex: 1,
-  },
-  cameraControls: {
-    position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 40,
-  },
-  capturePhotoButton: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  capturePhotoButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  closeCameraButton: {
-    position: 'absolute',
-    top: 40,
-    right: 30,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 10,
-    borderRadius: 30,
-  },
   sosModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -585,6 +504,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginLeft: 8,
+  },
+  captureButtonDisabled: {
+    opacity: 0.6,
   },
   emergencyContainer: {
     backgroundColor: '#fff1f0',

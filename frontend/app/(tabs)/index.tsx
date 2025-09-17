@@ -457,13 +457,16 @@ const takePicture = async () => {
         currentLocation={currentLocation}
         locationAddress={locationAddress}
         autoCaptureSOS={autoCaptureSOS}
-        takePicture={takePicture}
-        toggleRecording={toggleRecording}
-        isRecording={isRecording}
-        toggleFlash={toggleFlash}
-        cameraFlash={cameraFlash}
-        toggleCameraType={toggleCameraType}
         requestLocationPermission={requestLocationPermission}
+        onMediaUpdated={() => {
+          // When media is updated through external camera apps
+          console.log('Media updated callback received');
+          // In a real app, we would query the gallery for new photos or refresh UI
+          // For testing, show a message
+          setTimeout(() => {
+            Alert.alert('Media Update', 'New emergency media has been captured');
+          }, 500);
+        }}
         handleEmergencyCall={(type) => {
           const phoneNumbers = {
             'police': '911',
@@ -484,9 +487,6 @@ const takePicture = async () => {
           );
         }}
         handleCancelSOS={handleCancelSOS}
-        isTorchOn={isTorchOn}
-        toggleTorch={() => setIsTorchOn(!isTorchOn)}
-        onPhotoCaptured={(uri) => setCapturedMedia((prev) => ({ ...prev, photo: uri }))}
       />
 
       {/* Notifications Modal */}
