@@ -12,9 +12,8 @@ function LayoutContent() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Keep index as your auth entry point */}
-      <Stack.Screen name="index" />
-      {/* Only keep (tabs) if you still have app/(tabs)/_layout.tsx */}
+      {/* Keep login as your auth entry point */}
+      <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

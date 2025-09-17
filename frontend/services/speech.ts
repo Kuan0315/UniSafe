@@ -1,44 +1,51 @@
 // services/speech.ts
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as ExpoAudio from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
+import { RecordingPresets } from 'expo-audio';
 
-export const startRecording = async (): Promise<Audio.Recording> => {
+export const startRecording = async () => {
   try {
     console.log('Requesting permissions..');
-    const { status } = await Audio.requestPermissionsAsync();
+    const { status } = await ExpoAudio.AudioModule.requestRecordingPermissionsAsync();
     
     if (status !== 'granted') {
       throw new Error('Audio permission not granted');
     }
     
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
+    await ExpoAudio.setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
     });
     
     console.log('Starting recording..');
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
+    // In the new API, we need to create a recorder differently
+    // The best approach is to refactor the app to use the useAudioRecorder hook directly in components
+    // For this service function, we'll create a temporary recorder
+    const recorder = ExpoAudio.AudioModule.createAudioRecorder(ExpoAudio.RecordingPresets.HIGH_QUALITY);
     
-    return recording;
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    
+    return recorder;
   } catch (err) {
     console.error('Failed to start recording', err);
     throw err;
   }
 };
 
-export const stopRecording = async (recording: Audio.Recording | null): Promise<string | null> => {
+export const stopRecording = async (recorder: any): Promise<string | null> => {
   try {
-    if (!recording) return null;
+    if (!recorder) return null;
     
     console.log('Stopping recording..');
-    await recording.stopAndUnloadAsync();
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
+    await recorder.stop();
+    
+    await ExpoAudio.setAudioModeAsync({
+      allowsRecording: false,
     });
     
-    const uri = recording.getURI();
+    // In the new API, the uri is a property of the recorder
+    const uri = recorder.uri;
     console.log('Recording stopped and stored at', uri);
     
     return uri;
