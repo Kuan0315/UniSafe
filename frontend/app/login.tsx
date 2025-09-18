@@ -18,7 +18,7 @@ import {
 
 export default function Index() {
   const router = useRouter();
-  const [role, setRole] = useState<"student" | "staff">("student");
+  const [role, setRole] = useState<"student" | "staff" | "guardian">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +60,12 @@ export default function Index() {
       setIsSubmitting(true);
       // TODO: call backend with { role, email, password }
       await new Promise((r) => setTimeout(r, 800));
-      router.replace("/(tabs)");
+
+      if (role === "guardian") {
+        router.replace("/(guardianTabs)/guardianMode"); // direct to guardian tab
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e) {
       Alert.alert("Login failed", "Please try again.");
     } finally {
@@ -108,6 +113,14 @@ export default function Index() {
                 accessibilityRole="button"
               >
                 <Text style={[styles.roleText, role === "staff" && styles.roleTextSelected]}>Staff</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.roleBtn, role === "guardian" && styles.roleSelected]} 
+                onPress={() => setRole("guardian")}
+                accessibilityLabel="Select guardian role"
+                accessibilityRole="button"
+              >
+                <Text style={[styles.roleText, role === "guardian" && styles.roleTextSelected]}>Guardian</Text>
               </TouchableOpacity>
             </View>
 

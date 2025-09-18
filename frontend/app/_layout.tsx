@@ -17,6 +17,9 @@ function LayoutContent() {
       <Stack.Screen name="login" />
       {/* Main app tabs */}
       <Stack.Screen name="(tabs)" />
+
+      {/* Guardian tabs */}
+      <Stack.Screen name="(guardianTabs)" />
     </Stack>
   );
 }
