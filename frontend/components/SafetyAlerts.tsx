@@ -24,14 +24,24 @@ export default function SafetyAlerts({ alerts, onViewAll }: SafetyAlertsProps) {
         </TouchableOpacity>
       </View>
       {alerts.slice(0, 2).map((alert: Alert) => (
-        <View key={alert.id} style={styles.alertItem}>
-          <Ionicons
-            name={alert.type === 'warning' ? 'warning' : 'information-circle'}
-            size={20}
-            color={alert.type === 'warning' ? '#ff6b35' : '#007AFF'}
-          />
-          <Text style={styles.alertMessage}>{alert.message}</Text>
-          <Text style={styles.alertTime}>{alert.time}</Text>
+        <View 
+          key={alert.id} 
+          style={[
+            styles.alertItem, 
+            { borderLeftColor: alert.type === 'warning' ? '#ff6b35' : '#007AFF' }
+          ]}
+        >
+          <View style={styles.alertIconContainer}>
+            <Ionicons
+              name={alert.type === 'warning' ? 'warning' : 'information-circle'}
+              size={24}
+              color={alert.type === 'warning' ? '#ff6b35' : '#007AFF'}
+            />
+          </View>
+          <View style={styles.alertContent}>
+            <Text style={styles.alertMessage}>{alert.message}</Text>
+            <Text style={styles.alertTime}>{alert.time}</Text>
+          </View>
         </View>
       ))}
     </View>
@@ -64,20 +74,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF', // Default color, we'll handle warning color with inline styles
+  },
+  alertIconContainer: {
+    marginRight: 12,
+  },
+  alertContent: {
+    flex: 1,
   },
   alertMessage: {
-    flex: 1,
     fontSize: 14,
+    fontWeight: '500',
     color: '#1a1a1a',
-    marginLeft: 12,
-    marginRight: 8,
+    marginBottom: 4,
   },
   alertTime: {
     fontSize: 12,

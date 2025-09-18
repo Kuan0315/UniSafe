@@ -12,14 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LocationObject } from 'expo-location';
-import * as IntentLauncher from 'expo-intent-launcher';
-import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
-import { canSaveToGallery } from '../../services/SOSService';
+import { capturePhoto, captureVideo } from '../../services/SimpleCaptureService';
 
 interface SOSModalProps {
   visible: boolean;
   onClose: () => void;
+  onMinimize?: () => void; // New prop for minimizing SOS modal
   sosStartTime: Date | null;
   capturedMedia: { photo?: string; video?: string };
   currentLocation: LocationObject | null;
@@ -27,13 +25,16 @@ interface SOSModalProps {
   autoCaptureSOS: boolean;
   requestLocationPermission: () => void;
   handleEmergencyCall: (type: string) => void;
-  handleCancelSOS: () => void;
+  handleCancelSOS?: () => void;
   onMediaUpdated?: () => void; // callback to notify parent when media may have been updated
+  speakNotification?: (text: string) => void;
+  takePicture?: () => Promise<void>;
 }
 
 export default function SOSModal({
   visible,
   onClose,
+  onMinimize,
   sosStartTime,
   capturedMedia,
   currentLocation,
@@ -50,95 +51,66 @@ export default function SOSModal({
   const [isCapturingMedia, setIsCapturingMedia] = useState(false);
 
   const openCamera = async (type: 'photo' | 'video') => {
-    // Using external intent approach for both photo and video for consistent gallery saving
     try {
       setMediaCaptureType(type); // Track what type of media is being captured
       setIsCapturingMedia(true); // Set loading state
-      console.log(`Opening system ${type} camera app - will save directly to gallery`);
+      console.log(`📸 Opening in-app ${type} camera...`);
       
-      if (Platform.OS === 'ios') {
-        // On iOS, use the appropriate URL scheme
-        Linking.openURL('photos-redirect://');  // iOS doesn't have separate photo/video URLs
-        
-        // Set a timeout to refresh/check media after returning from camera
-        setTimeout(() => {
-          console.log('Returned from iOS system camera app');
-          if (onMediaUpdated) {
-            onMediaUpdated();
-            console.log('Parent notified of potential media update');
-          }
-          Alert.alert(
-            `${type === 'photo' ? 'Photo' : 'Video'} Captured`,
-            `Emergency ${type} has been saved.`
-          );
-        }, 1500); // delay to allow system to process saved media
-        
+      // Use our simplified capture methods that don't rely on MediaLibrary
+      let uri: string | null = null;
+      
+      if (type === 'photo') {
+        uri = await capturePhoto();
       } else {
-        // On Android, use IntentLauncher for BOTH photo and video
-        // This ensures both use native camera apps that save to gallery automatically
-        try {
-          // Use the appropriate intent action based on media type
-          const intentAction = type === 'photo' 
-            ? 'android.media.action.IMAGE_CAPTURE'
-            : 'android.media.action.VIDEO_CAPTURE';
-          
-          console.log(`Launching Android ${intentAction}`);
-          await IntentLauncher.startActivityAsync(intentAction);
-          console.log('Intent completed, returned to app');
-          
-          // Set a timeout to refresh/check media after returning from camera
-          setTimeout(() => {
-            console.log('Processing after returning from system camera app');
-            if (onMediaUpdated) {
-              onMediaUpdated();
-              console.log('Parent notified of potential media update');
-            }
-            
-            // Show success message
-            Alert.alert(
-              `${type === 'photo' ? 'Photo' : 'Video'} Captured`,
-              `Emergency ${type} has been saved to your gallery.`
-            );
-          }, 1500); // delay to allow system to process saved media
-          
-        } catch (error) {
-          console.error('Intent launch error:', error);
-          // Fallback to content URI if intent fails
-          try {
-            Linking.openURL('content://media/internal/images/media');
-            setTimeout(() => {
-              if (onMediaUpdated) onMediaUpdated();
-            }, 1500);
-          } catch (linkError) {
-            console.error('Linking fallback error:', linkError);
-            throw new Error('Failed to launch camera: ' + error);
-          }
-        }
+        uri = await captureVideo();
       }
       
-      // Reset states after handling is complete
-      setTimeout(() => {
-        setMediaCaptureType(null);
-        setIsCapturingMedia(false);
-      }, 2000);
+      if (!uri) {
+        console.log(`${type} capture was canceled or failed`);
+        return;
+      }
       
-      // Reset states
-      setMediaCaptureType(null);
-      setIsCapturingMedia(false);
+      console.log(`📸 Emergency ${type} captured:`, uri);
+      
+      // Notify parent component about the captured media
+      if (onMediaUpdated) {
+        onMediaUpdated();
+        console.log('Parent notified of media capture');
+      }
       
     } catch (error) {
       console.error(`Error opening ${type} camera:`, error);
-      setMediaSaveError(`Failed to open ${type} camera. Please check permissions.`);
+      setMediaSaveError(`Failed to open ${type} camera. Please try again.`);
       setShowMediaError(true);
       setTimeout(() => setShowMediaError(false), 5000);
-      setMediaCaptureType(null); // Reset on error
-      setIsCapturingMedia(false); // Reset loading state
+    } finally {
+      // Reset states
+      setMediaCaptureType(null);
+      setIsCapturingMedia(false);
     }
   };
 
   const openVideoCamera = async () => {
     // Delegate to openCamera with video type for consistency
     openCamera('video');
+  };
+
+  const confirmCancelSOS = () => {
+    Alert.alert(
+      "Cancel SOS Emergency",
+      "Are you sure you want to end the emergency mode? This will stop all emergency notifications.",
+      [
+        {
+          text: "Keep Active",
+          style: "cancel"
+        },
+        {
+          text: "End Emergency",
+          style: "destructive",
+          onPress: handleCancelSOS
+        }
+      ]
+    );
   };
 
   return (
@@ -162,6 +134,16 @@ export default function SOSModal({
 
             {/* Header */}
             <View style={styles.sosModalHeader}>
+              {onMinimize && (
+                <TouchableOpacity 
+                  style={styles.backButton}
+                  onPress={onMinimize}
+                  accessibilityLabel="Minimize SOS modal"
+                  accessibilityHint="Keep SOS active but return to main app"
+                >
+                  <Ionicons name="chevron-back" size={24} color="#007AFF" />
+                </TouchableOpacity>
+              )}
               <Ionicons name="alert-circle" size={40} color="#FF3B30" />
               <Text style={styles.sosModalTitle}>🚨 SOS ACTIVATED</Text>
               <Text style={styles.sosModalSubtitle}>Emergency data sent to contacts</Text>
@@ -172,17 +154,13 @@ export default function SOSModal({
 
             {/* Location Display */}
             <View style={styles.locationContainer}>
-              <Ionicons name="location" size={28} color="#FF3B30" />
+              <Ionicons name="location" size={24} color="#FF3B30" />
               <View style={styles.locationTextContainer}>
-                <Text style={styles.locationText}>YOUR LOCATION:</Text>
+                <Text style={styles.locationText}>LOCATION SHARED:</Text>
                 {currentLocation ? (
                   <>
                     <Text style={styles.locationAddress}>{locationAddress || "Getting address..."}</Text>
-                    <Text style={styles.locationCoords}>
-                      Lat: {currentLocation.coords.latitude.toFixed(6)}, 
-                      Long: {currentLocation.coords.longitude.toFixed(6)}
-                    </Text>
-                    <Text style={styles.locationShared}>📍 Location shared with emergency contacts</Text>
+                    <Text style={styles.locationShared}>📍 Sent to emergency contacts</Text>
                   </>
                 ) : (
                   <TouchableOpacity 
@@ -203,8 +181,8 @@ export default function SOSModal({
                 <Ionicons name="camera" size={24} color="#333" />
                 <Text style={styles.captureHeaderTitle}>
                   {capturedMedia?.photo || capturedMedia?.video ? 
-                    "📸 Evidence Captured" : 
-                    "📸 EMERGENCY EVIDENCE CAPTURE"}
+                    "EVIDENCE CAPTURED" : 
+                    "EMERGENCY EVIDENCE CAPTURE"}
                 </Text>
               </View>
               
@@ -228,8 +206,8 @@ export default function SOSModal({
               
               <Text style={styles.captureInstructions}>
                 {autoCaptureSOS 
-                  ? "Auto-capture complete. You can also capture additional evidence using your phone's camera:" 
-                  : "Capture evidence of your emergency situation using your phone's camera:"}
+                  ? "Capture additional evidence if needed:" 
+                  : "Capture evidence of your emergency:"}
               </Text>
               
               <View style={styles.captureButtons}>
@@ -243,11 +221,11 @@ export default function SOSModal({
                   disabled={isCapturingMedia}
                 >
                   {isCapturingMedia && mediaCaptureType === 'photo' ? (
-                    <Text style={styles.captureButtonText}>Opening Camera...</Text>
+                    <Text style={styles.captureButtonText}>Opening...</Text>
                   ) : (
                     <>
-                      <Ionicons name="camera" size={28} color="#fff" />
-                      <Text style={styles.captureButtonText}>Open Camera</Text>
+                      <Ionicons name="camera" size={18} color="#fff" />
+                      <Text style={styles.captureButtonText}>Photo</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -262,18 +240,20 @@ export default function SOSModal({
                   disabled={isCapturingMedia}
                 >
                   {isCapturingMedia && mediaCaptureType === 'video' ? (
-                    <Text style={styles.captureButtonText}>Opening Video Camera...</Text>
+                    <Text style={styles.captureButtonText}>Opening...</Text>
                   ) : (
                     <>
-                      <Ionicons name="videocam" size={28} color="#fff" />
-                      <Text style={styles.captureButtonText}>Record Video</Text>
+                      <Ionicons name="videocam" size={18} color="#fff" />
+                      <Text style={styles.captureButtonText}>Video</Text>
                     </>
                   )}
                 </TouchableOpacity>
               </View>
               
               <Text style={styles.noteText}>
-                Note: This will open your phone's camera app. The media will be saved to your device's gallery.
+                {(global as any).ExpoGo ? 
+                  'Gallery saving not available in Expo Go.' : 
+                  'Media will be saved to your gallery.'}
               </Text>
             </View>
 
@@ -289,16 +269,16 @@ export default function SOSModal({
                   style={[styles.emergencyButton, styles.policeButton]}
                   onPress={() => handleEmergencyCall('police')}
                 >
-                  <Ionicons name="car" size={24} color="#fff" />
+                  <Ionicons name="car" size={20} color="#fff" />
                   <Text style={styles.emergencyButtonText}>Police</Text>
-                  <Text style={styles.emergencyButtonSubtext}>999</Text>
+                  <Text style={styles.emergencyButtonSubtext}>911</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.emergencyButton, styles.campusButton]}
                   onPress={() => handleEmergencyCall('campus')}
                 >
-                  <Ionicons name="shield-checkmark" size={24} color="#fff" />
+                  <Ionicons name="shield-checkmark" size={20} color="#fff" />
                   <Text style={styles.emergencyButtonText}>Campus</Text>
                   <Text style={styles.emergencyButtonSubtext}>Security</Text>
                 </TouchableOpacity>
@@ -307,9 +287,9 @@ export default function SOSModal({
                   style={[styles.emergencyButton, styles.hospitalButton]}
                   onPress={() => handleEmergencyCall('hospital')}
                 >
-                  <Ionicons name="medical" size={24} color="#fff" />
+                  <Ionicons name="medical" size={20} color="#fff" />
                   <Text style={styles.emergencyButtonText}>Medical</Text>
-                  <Text style={styles.emergencyButtonSubtext}>Emergency</Text>
+                  <Text style={styles.emergencyButtonSubtext}>Help</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -318,11 +298,35 @@ export default function SOSModal({
           {/* Bottom Action Buttons */}
           <View style={styles.bottomActionsContainer}>
             <TouchableOpacity
-              style={styles.cancelSOSButton}
-              onPress={handleCancelSOS}
+              style={styles.mistakeButton}
+              onPress={() => {
+                Alert.alert(
+                  "Cancel SOS",
+                  "Did you activate SOS by mistake?",
+                  [
+                    {
+                      text: "No, Keep Active",
+                      style: "cancel"
+                    },
+                    {
+                      text: "Yes, Cancel SOS",
+                      style: "destructive",
+                      onPress: handleCancelSOS
+                    }
+                  ]
+                );
+              }}
             >
-              <Ionicons name="close-circle" size={22} color="#FF3B30" />
-              <Text style={styles.cancelSOSButtonText}>End Emergency Mode</Text>
+              <Ionicons name="alert-circle-outline" size={16} color="#FF8C00" />
+              <Text style={styles.mistakeButtonText}>By Mistake?</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.cancelSOSButton}
+              onPress={confirmCancelSOS}
+            >
+              <Ionicons name="close-circle" size={18} color="#FF3B30" />
+              <Text style={styles.cancelSOSButtonText}>End Emergency</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -364,6 +368,27 @@ const styles = StyleSheet.create({
   sosModalHeader: {
     alignItems: 'center',
     marginBottom: 24,
+    position: 'relative',
+  },
+  backButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f8ff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   sosModalTitle: {
     fontSize: 24,
@@ -385,30 +410,24 @@ const styles = StyleSheet.create({
   locationContainer: {
     backgroundColor: '#e8f5e9',
     borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    padding: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
   locationTextContainer: {
-    marginLeft: 12,
+    marginLeft: 8,
     flex: 1,
   },
   locationText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
   },
   locationAddress: {
-    fontSize: 14,
-    color: '#007AFF',
-    marginTop: 4,
-  },
-  locationCoords: {
     fontSize: 13,
-    color: '#333',
+    color: '#007AFF',
     marginTop: 2,
-    fontFamily: 'monospace',
   },
   locationShared: {
     fontSize: 12,
@@ -431,67 +450,69 @@ const styles = StyleSheet.create({
   captureContainer: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e1e5e9',
   },
   captureHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   captureHeaderTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   captureStatus: {
-    marginBottom: 12,
+    marginBottom: 8,
     backgroundColor: '#e8f5e9',
-    padding: 10,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 6,
   },
   captureStatusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   captureStatusText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#2e7d32',
-    marginLeft: 6,
+    marginLeft: 4,
     fontWeight: '500',
   },
   captureInstructions: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 12,
+    marginBottom: 6,
     fontStyle: 'italic',
   },
   noteText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#888',
-    marginTop: 12,
+    marginTop: 6,
     fontStyle: 'italic',
     textAlign: 'center',
   },
   captureButtons: {
-    flexDirection: 'column',
-    gap: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   captureButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 14,
-    borderRadius: 10,
+    padding: 8,
+    borderRadius: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 1,
+    elevation: 1,
+    flex: 1,
   },
   photoButton: {
     backgroundColor: '#007AFF',
@@ -500,10 +521,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
   },
   captureButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
-    marginLeft: 8,
+    marginLeft: 4,
   },
   captureButtonDisabled: {
     opacity: 0.6,
@@ -539,14 +560,14 @@ const styles = StyleSheet.create({
   emergencyButton: {
     flex: 1,
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    marginHorizontal: 4,
+    padding: 8, // Reduced padding
+    borderRadius: 8, // Smaller radius
+    marginHorizontal: 3, // Smaller margin
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 }, // Smaller shadow
     shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowRadius: 2, // Smaller shadow radius
+    elevation: 2, // Smaller elevation
   },
   policeButton: {
     backgroundColor: '#FF3B30',
@@ -558,20 +579,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#34C759',
   },
   emergencyButtonText: {
-    fontSize: 16,
+    fontSize: 13, // Smaller font
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 6,
+    marginTop: 4, // Smaller margin
   },
   emergencyButtonSubtext: {
-    fontSize: 12,
+    fontSize: 10, // Smaller font
     color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 2,
+    marginTop: 1, // Smaller margin
   },
   bottomActionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     marginTop: 16,
+  },
+  mistakeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#FF8C00',
+    padding: 8,
+    borderRadius: 6,
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  mistakeButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF8C00',
+    marginLeft: 3,
   },
   cancelSOSButton: {
     flexDirection: 'row',
@@ -580,8 +623,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 2,
     borderColor: '#FF3B30',
-    padding: 14,
-    borderRadius: 10,
+    padding: 8,
+    borderRadius: 8,
     flex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -590,9 +633,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cancelSOSButtonText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#FF3B30',
-    marginLeft: 8,
+    marginLeft: 4,
   },
 });

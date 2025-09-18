@@ -13,15 +13,37 @@ interface Notification {
 interface NotificationsModalProps {
   visible: boolean;
   onClose: () => void;
-  notifications: Notification[];
-  speakNotification: (text: string) => void;
+  notifications?: Notification[];
+  speakNotification?: (text: string) => void;
 }
 
 export default function NotificationsModal({
   visible,
   onClose,
-  notifications,
-  speakNotification,
+  notifications = [
+    {
+      id: '1',
+      title: 'Campus Safety Alert',
+      description: 'Suspicious activity reported near the library.',
+      time: '10 mins ago',
+      read: false
+    },
+    {
+      id: '2',
+      title: 'Weather Alert',
+      description: 'Heavy rain expected this evening. Take precautions.',
+      time: '1 hour ago',
+      read: false
+    },
+    {
+      id: '3',
+      title: 'Event Reminder',
+      description: 'Safety workshop tomorrow at 2 PM in Main Hall.',
+      time: '3 hours ago',
+      read: true
+    }
+  ],
+  speakNotification = (text: string) => console.log('Speaking:', text),
 }: NotificationsModalProps) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>

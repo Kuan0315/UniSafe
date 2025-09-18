@@ -80,17 +80,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {isStaff && (
-        <Tabs.Screen
-          name="staff"
-          options={{
-            title: "Staff",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="briefcase-outline" color={color} size={size} />
-            ),
-          }}
-        />
-      )}
     </Tabs>
   );
 }

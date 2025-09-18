@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
+import { safeCheckMediaPermissions, safeRequestMediaPermissions } from '../../services/MediaService';
 
 export default function usePermissions() {
   const [permissions, setPermissions] = useState({
@@ -17,24 +18,33 @@ export default function usePermissions() {
       const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
       const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
       
-      let mediaStatus = 'denied';
+      // Use our safe permission checking for media library
+      let hasMediaPermission = false;
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync(false, ['audio', 'photo', 'video']);
-        mediaStatus = status;
-      } catch (error: any) {
-        if (error.message?.includes('Expo Go can no longer provide full access')) {
-          console.warn('Media library not available in Expo Go');
-          mediaStatus = 'denied'; // Set as denied in Expo Go
+        // Don't request media library permissions in Expo Go
+        const isExpoGo = !!(global as any).ExpoGo;
+        if (!isExpoGo) {
+          // First check if permissions already granted
+          hasMediaPermission = await safeCheckMediaPermissions();
+          
+          // Request permissions if not granted
+          if (!hasMediaPermission) {
+            hasMediaPermission = await safeRequestMediaPermissions();
+          }
         } else {
-          console.error('Error requesting media library permissions:', error);
+          console.warn('Media library not available in Expo Go');
+          hasMediaPermission = false; // Set as denied in Expo Go
         }
+      } catch (error: any) {
+        console.error('Error handling media library permissions:', error);
+        hasMediaPermission = false;
       }
 
       setPermissions({
         location: locationStatus === 'granted',
         camera: cameraStatus === 'granted',
         microphone: micStatus === 'granted',
-        mediaLibrary: mediaStatus === 'granted',
+        mediaLibrary: hasMediaPermission,
       });
     })();
   }, []);

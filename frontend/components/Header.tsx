@@ -3,35 +3,52 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 type HeaderProps = {
+  title?: string;
+  subtitle?: string;
   unreadCount: number;  // must be a number
   onNotificationsPress: () => void; // a function with no args, no return
+  onActivityPress?: () => void;
 };
 
-export default function Header({ unreadCount, onNotificationsPress }: HeaderProps) {
+export default function Header({ 
+  title = "Welcome back! 👋", 
+  subtitle = "Stay safe on campus", 
+  unreadCount, 
+  onNotificationsPress,
+  onActivityPress 
+}: HeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <Text style={styles.greeting}>Welcome back! 👋</Text>
-        <Text style={styles.subtitle}>Stay safe on campus</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.activityRingButton}
-        onPress={onNotificationsPress}
-        accessibilityLabel="Notifications"
-        accessibilityHint="View your notifications"
-      >
-        <View style={styles.bellContainer}>
-          <Ionicons name="notifications-outline" size={28} color="#007AFF" />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount}</Text>
+        <View style={styles.welcomeTextContainer}>
+          <Text style={styles.greeting}>{title}</Text>
+          <View style={styles.subtitleContainer}>
+            <View style={styles.safetyBadge}>
+              <Ionicons name="shield-checkmark" size={14} color="#4CAF50" style={styles.safetyIcon} />
+              <Text style={styles.subtitle}>{subtitle}</Text>
             </View>
-          )}
+          </View>
         </View>
-      </TouchableOpacity>
+      </View>
+        <TouchableOpacity
+          style={styles.activityRingButton}
+          onPress={onNotificationsPress}
+          accessibilityLabel="Notifications"
+          accessibilityHint="View your notifications"
+        >
+          <View style={styles.bellContainer}>
+            <Ionicons name="notifications-outline" size={28} color="#007AFF" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -44,29 +61,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 10,
+    paddingLeft: 5,
+    paddingRight: 20,
+    paddingVertical: 16,
+    paddingTop: 16,
+    marginTop: 0,
+    backgroundColor: 'transparent',
+  },
+  welcomeTextContainer: {
+    flex: 1,
+    marginLeft: 0,
+  },
+  subtitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  safetyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  safetyIcon: {
+    marginRight: 6,
   },
   headerLeft: {
     flex: 1,
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 25,
+    fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   bellContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   activityRingButton: {
     padding: 10,
