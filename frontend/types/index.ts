@@ -10,6 +10,7 @@ export interface User {
 export interface LoginCredentials {
   email: string;
   password: string;
+  role?: 'student' | 'staff' | 'security' | 'admin';
 }
 
 export interface SignupCredentials {

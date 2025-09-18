@@ -5,17 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 
 export default function TabsLayout() {
   const { user } = useAuth();
-  const isStaff = !!user && (user.role === 'security' || user.role === 'admin' || user.role === 'staff');
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // If staff user and not already on staff page after login, redirect
-  if (isStaff && pathname?.startsWith('/(tabs)') && !pathname.includes('/staff')) {
-    // push only once to avoid loops
-    setTimeout(() => {
-      try { router.replace('/(tabs)/staff'); } catch {}
-    }, 0);
-  }
+  
   return (
     <Tabs
       screenOptions={{

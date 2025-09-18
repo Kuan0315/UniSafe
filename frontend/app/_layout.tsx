@@ -20,6 +20,9 @@ function LayoutContent() {
 
       {/* Guardian tabs */}
       <Stack.Screen name="(guardianTabs)" />
+
+      {/* Staff tabs */}
+      <Stack.Screen name="staff" />
     </Stack>
   );
 }

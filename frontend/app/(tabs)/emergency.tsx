@@ -3,7 +3,8 @@ import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View, Scr
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import StandardHeader from '../../components/StandardHeader';
 
 function confirmAndCall(phone: string, contactName: string) {
   Alert.alert(
@@ -35,20 +36,14 @@ export default function EmergencyCallScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header with blue gradient */}
-      <LinearGradient
-        colors={['#2563eb', '#1d4ed8']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerIconContainer}>
-          <Ionicons name="alert-circle" size={36} color="#fff" />
-        </View>
-        <Text style={styles.headerTitle}>Emergency Contacts</Text>
-        <Text style={styles.headerSubtitle}>Quickly reach campus & public safety services</Text>
-      </LinearGradient>
+    <SafeAreaView style={styles.container}>
+      <StandardHeader 
+        title="Emergency Contacts" 
+        subtitle="Quickly reach campus & public safety services"
+        showBackButton={false}
+      />
+      
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
 
       {/* Info Banner */}
       <View style={styles.infoBanner}>
@@ -123,53 +118,22 @@ export default function EmergencyCallScreen() {
           In case of emergency, stay calm and provide your location clearly to the operator.
         </Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: "#f9fafb" 
+    backgroundColor: "#F2F2F7" 
+  },
+  content: {
+    flex: 1,
   },
   contentContainer: {
     padding: 16,
     paddingBottom: 30,
-  },
-  // Header - made smaller
-  header: {
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  headerIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  headerTitle: { 
-    fontSize: 22, 
-    fontWeight: "800", 
-    color: "#fff", 
-    marginBottom: 4,
-    textAlign: 'center'
-  },
-  headerSubtitle: { 
-    fontSize: 14, 
-    color: "#e0f2fe", 
-    textAlign: 'center',
-    paddingHorizontal: 10,
   },
 
   // Info Banner

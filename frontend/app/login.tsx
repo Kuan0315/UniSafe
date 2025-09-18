@@ -16,8 +16,11 @@ import {
   SafeAreaView 
 } from "react-native";
 
+import { useAuth } from "../contexts/AuthContext";
+
 export default function Index() {
   const router = useRouter();
+  const { login } = useAuth();
   const [role, setRole] = useState<"student" | "staff" | "guardian">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,16 +61,19 @@ export default function Index() {
     }
     try {
       setIsSubmitting(true);
-      // TODO: call backend with { role, email, password }
-      await new Promise((r) => setTimeout(r, 800));
+      
+      // Use AuthContext login with role
+      await login({ email, password, role: role as any });
 
       if (role === "guardian") {
-        router.replace("/(guardianTabs)/guardianMode"); // direct to guardian tab
+        router.replace("/(guardianTabs)/guardianMode");
+      } else if (role === "staff") {
+        router.replace("/staff/sos-monitoring"); // Redirect staff to staff layout
       } else {
         router.replace("/(tabs)");
       }
-    } catch (e) {
-      Alert.alert("Login failed", "Please try again.");
+    } catch (e: any) {
+      Alert.alert("Login failed", e.message || "Please try again.");
     } finally {
       setIsSubmitting(false);
     }
