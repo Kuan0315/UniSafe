@@ -51,13 +51,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // TODO: Replace with your actual API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // For now allow choosing security role via special email suffix for demo
-      const role: User['role'] = credentials.email.includes('+security') ? 'security' : 'student';
+      // Use the role from credentials, or determine from email for demo purposes
+      let userRole: User['role'] = credentials.role || 'student';
+      
+      // For demo purposes, detect role from email if not provided
+      if (!credentials.role) {
+        if (credentials.email.includes('+security')) userRole = 'security';
+        else if (credentials.email.includes('+staff')) userRole = 'staff';
+        else if (credentials.email.includes('+admin')) userRole = 'admin';
+      }
+      
       const mockUser: User = {
         id: '1',
         email: credentials.email,
         name: 'John Doe',
-        role,
+        role: userRole,
       };
 
       setUser(mockUser);
