@@ -19,13 +19,16 @@ interface SafetyAlert {
   id: string;
   title: string;
   message: string;
-  type: 'emergency' | 'warning' | 'info' | 'maintenance';
-  priority: 'high' | 'medium' | 'low';
+  type: 'critical' | 'warning' | 'info';
+  priority: 'critical' | 'warning' | 'info';
+  category: string;
   targetAudience: 'all' | 'students' | 'staff' | 'visitors';
   createdBy: string;
   createdAt: Date;
   expiresAt?: Date;
+  timeLimit?: number; // Time limit in hours
   isActive: boolean;
+  isAutoDeactivated: boolean;
   sendPushNotification: boolean;
   sendEmail: boolean;
   sendSMS: boolean;
@@ -40,9 +43,11 @@ export default function SafetyAlerts() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState<SafetyAlert['type']>('info');
-  const [priority, setPriority] = useState<SafetyAlert['priority']>('medium');
+  const [priority, setPriority] = useState<SafetyAlert['priority']>('info');
+  const [category, setCategory] = useState('');
   const [targetAudience, setTargetAudience] = useState<SafetyAlert['targetAudience']>('all');
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [timeLimit, setTimeLimit] = useState<number | undefined>(24); // Default 24 hours
   const [sendPushNotification, setSendPushNotification] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [sendSMS, setSendSMS] = useState(false);
@@ -59,12 +64,15 @@ export default function SafetyAlerts() {
           id: '1',
           title: 'Emergency: Campus Lockdown',
           message: 'Due to a security incident, all campus buildings are in lockdown. Please remain in your current location and await further instructions. Do not leave buildings until the all-clear is given.',
-          type: 'emergency',
-          priority: 'high',
+          type: 'critical',
+          priority: 'critical',
+          category: 'security',
           targetAudience: 'all',
           createdBy: 'Security Office',
           createdAt: new Date(Date.now() - 3600000),
           isActive: true,
+          timeLimit: undefined,
+          isAutoDeactivated: false,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: true,
@@ -74,12 +82,15 @@ export default function SafetyAlerts() {
           title: 'Weather Warning: Heavy Rain Expected',
           message: 'Heavy rainfall is expected from 2 PM to 6 PM today. Please exercise caution when walking on campus, especially near construction areas. Shuttle services may be delayed.',
           type: 'warning',
-          priority: 'medium',
+          priority: 'warning',
+          category: 'weather',
           targetAudience: 'all',
           createdBy: 'Campus Operations',
           createdAt: new Date(Date.now() - 7200000),
           expiresAt: new Date(Date.now() + 14400000), // 4 hours from now
           isActive: true,
+          timeLimit: 4,
+          isAutoDeactivated: true,
           sendPushNotification: true,
           sendEmail: false,
           sendSMS: false,
@@ -88,13 +99,16 @@ export default function SafetyAlerts() {
           id: '3',
           title: 'Maintenance: Parking Lot B Closure',
           message: 'Parking Lot B will be closed for maintenance from March 15-17. Alternative parking is available in Lots A and C. We apologize for any inconvenience.',
-          type: 'maintenance',
-          priority: 'low',
+          type: 'info',
+          priority: 'info',
+          category: 'maintenance',
           targetAudience: 'all',
           createdBy: 'Facilities Management',
           createdAt: new Date(Date.now() - 86400000),
           expiresAt: new Date(Date.now() + 172800000), // 2 days from now
           isActive: true,
+          timeLimit: 48,
+          isAutoDeactivated: true,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
@@ -104,11 +118,14 @@ export default function SafetyAlerts() {
           title: 'COVID-19 Update: Mask Guidelines',
           message: 'Effective immediately, masks are recommended but not required in outdoor campus areas. Masks are still required in all indoor spaces including classrooms, libraries, and dining halls.',
           type: 'info',
-          priority: 'medium',
+          priority: 'info',
+          category: 'health',
           targetAudience: 'all',
           createdBy: 'Health Services',
           createdAt: new Date(Date.now() - 172800000),
           isActive: false,
+          timeLimit: undefined,
+          isAutoDeactivated: false,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
@@ -146,7 +163,7 @@ export default function SafetyAlerts() {
     setTitle('');
     setMessage('');
     setType('info');
-    setPriority('medium');
+    setPriority('info');
     setTargetAudience('all');
     setExpiresAt(null);
     setSendPushNotification(true);
@@ -167,11 +184,14 @@ export default function SafetyAlerts() {
         message: message.trim(),
         type,
         priority,
+        category,
         targetAudience,
         createdBy: 'Current Staff Member', // Replace with actual user
         createdAt: editingAlert?.createdAt || new Date(),
         expiresAt: expiresAt || undefined,
         isActive: true,
+        timeLimit,
+        isAutoDeactivated: timeLimit !== null && timeLimit !== undefined,
         sendPushNotification,
         sendEmail,
         sendSMS,
@@ -237,20 +257,18 @@ export default function SafetyAlerts() {
 
   const getTypeColor = (alertType: string) => {
     switch (alertType) {
-      case 'emergency': return '#FF3B30';
+      case 'critical': return '#FF3B30';
       case 'warning': return '#FF9500';
       case 'info': return '#007AFF';
-      case 'maintenance': return '#8E8E93';
       default: return '#007AFF';
     }
   };
 
   const getTypeIcon = (alertType: string) => {
     switch (alertType) {
-      case 'emergency': return 'warning';
+      case 'critical': return 'warning';
       case 'warning': return 'alert-circle';
       case 'info': return 'information-circle';
-      case 'maintenance': return 'construct';
       default: return 'information-circle';
     }
   };
@@ -278,25 +296,25 @@ export default function SafetyAlerts() {
       title: 'Weather Alert',
       message: 'Weather conditions may affect campus operations. Please check local weather reports and exercise caution.',
       type: 'warning' as const,
-      priority: 'medium' as const,
+      priority: 'warning' as const,
     },
     {
       title: 'Emergency Drill',
       message: 'A scheduled emergency drill will take place today. Please participate and follow evacuation procedures.',
       type: 'info' as const,
-      priority: 'medium' as const,
+      priority: 'info' as const,
     },
     {
       title: 'Maintenance Notice',
       message: 'Scheduled maintenance will affect [LOCATION] from [START TIME] to [END TIME]. Please plan accordingly.',
-      type: 'maintenance' as const,
-      priority: 'low' as const,
+      type: 'info' as const,
+      priority: 'info' as const,
     },
     {
       title: 'Security Alert',
       message: 'Please be aware of suspicious activity in the area. Report any concerns to campus security immediately.',
-      type: 'warning' as const,
-      priority: 'high' as const,
+      type: 'critical' as const,
+      priority: 'critical' as const,
     },
   ];
 
@@ -319,7 +337,7 @@ export default function SafetyAlerts() {
           <Text style={styles.statLabel}>Active Alerts</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{alerts.filter(a => a.priority === 'high').length}</Text>
+          <Text style={styles.statNumber}>{alerts.filter(a => a.priority === 'critical').length}</Text>
           <Text style={styles.statLabel}>High Priority</Text>
         </View>
         <View style={styles.statCard}>
@@ -522,7 +540,7 @@ export default function SafetyAlerts() {
 
                 <Text style={styles.inputLabel}>Type</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsContainer}>
-                  {(['emergency', 'warning', 'info', 'maintenance'] as const).map((option) => (
+                  {(['critical', 'warning', 'info'] as const).map((option) => (
                     <TouchableOpacity
                       key={option}
                       style={[
@@ -544,7 +562,7 @@ export default function SafetyAlerts() {
 
                 <Text style={styles.inputLabel}>Priority</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsContainer}>
-                  {(['high', 'medium', 'low'] as const).map((option) => (
+                  {(['critical', 'warning', 'info'] as const).map((option) => (
                     <TouchableOpacity
                       key={option}
                       style={[
@@ -583,6 +601,38 @@ export default function SafetyAlerts() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+
+                <Text style={styles.inputLabel}>Category</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter category (e.g., security, weather, maintenance)"
+                  value={category}
+                  onChangeText={setCategory}
+                />
+
+                <Text style={styles.inputLabel}>Time Limit (Auto-Deactivation)</Text>
+                <View style={styles.timeLimitContainer}>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1, marginRight: 10 }]}
+                    placeholder="Hours (optional)"
+                    value={timeLimit?.toString() || ''}
+                    onChangeText={(text) => {
+                      const hours = parseInt(text);
+                      setTimeLimit(isNaN(hours) ? undefined : hours);
+                      if (!isNaN(hours)) {
+                        const expiry = new Date();
+                        expiry.setHours(expiry.getHours() + hours);
+                        setExpiresAt(expiry);
+                      } else {
+                        setExpiresAt(null);
+                      }
+                    }}
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.timeLimitLabel}>
+                    {timeLimit ? `Expires in ${timeLimit} hours` : 'No expiration'}
+                  </Text>
+                </View>
 
                 <Text style={styles.inputLabel}>Delivery Methods</Text>
                 <View style={styles.switchContainer}>
@@ -963,5 +1013,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  timeLimitContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  timeLimitLabel: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontStyle: 'italic',
   },
 });
