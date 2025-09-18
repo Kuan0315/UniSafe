@@ -1,6 +1,7 @@
 // app/_layout.tsx
 import { Stack } from "expo-router";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { SOSProvider } from "../contexts/SOSContext";
 import LoadingScreen from "../components/LoadingScreen";
 
 function LayoutContent() {
@@ -12,11 +13,9 @@ function LayoutContent() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Keep login as your auth entry point */}
+      {/* Authentication screens */}
       <Stack.Screen name="login" />
-      {/* Keep login as your auth entry point */}
-      <Stack.Screen name="login" />
-      {/* Only keep (tabs) if you still have app/(tabs)/_layout.tsx */}
+      {/* Main app tabs */}
       <Stack.Screen name="(tabs)" />
     </Stack>
   );
@@ -25,7 +24,9 @@ function LayoutContent() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <LayoutContent />
+      <SOSProvider>
+        <LayoutContent />
+      </SOSProvider>
     </AuthProvider>
   );
 }

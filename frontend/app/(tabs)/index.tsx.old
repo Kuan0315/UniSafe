@@ -10,13 +10,11 @@ import {
   Image,
   Animated,
   Easing,
-  Platform,
-  StatusBar
+  Platform
 } from 'react-native';
-import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import Header from '../../components/Header';
 import SafetyAlerts from '../../components/SafetyAlerts';
 import SOSModal from '../../components/Modals/SOSModal';
@@ -27,7 +25,6 @@ import usePermissions from '../hooks/usePermissions';
 import useLocation from '../hooks/useLocation';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { triggerSOSActions, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery } from '../../services/SOSService';
-import { useSOSContext } from '../../contexts/SOSContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Location from 'expo-location';
@@ -36,35 +33,19 @@ import * as ImagePicker from 'expo-image-picker';
 import { capturePhoto, captureVideo } from '../../services/SimpleCaptureService';
 import * as FileSystem from 'expo-file-system';
 import { Camera } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
-// Import torch safely with fallback
-let Torch: any = null;
-try {
-  Torch = require('expo-torch');
-} catch (error) {
-  console.log('Expo Torch module not available, using fallback');
-}
 
 function HomeScreen() {
-  const { 
-    isSOSActive, 
-    setIsSOSActive, 
-    sosStartTime, 
-    setSosStartTime, 
-    showSOSModal, 
-    setShowSOSModal,
-    setOnSOSIndicatorPress 
-  } = useSOSContext();
-  
   const [sosPressCount, setSosPressCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
+  const [showSOSModal, setShowSOSModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isSOSActivated, setIsSOSActivated] = useState(false);
   const [capturedMedia, setCapturedMedia] = useState<{ photo?: string; video?: string }>({});
+  const [sosStartTime, setSosStartTime] = useState<Date | null>(null);
   const [autoCaptureSOS, setAutoCaptureSOS] = useState(true); // Enable auto-capture by default
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
@@ -78,92 +59,9 @@ function HomeScreen() {
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
   const [cameraFlash, setCameraFlash] = useState<'on' | 'off'>('off');
 
-  // Animation for SOS button pulse effect
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  // Add a countdown animation ref
-  const countdownPulseAnim = useRef(new Animated.Value(1)).current;
-  // Pulse animation for floating SOS indicator
-  const pulseAnimation = useRef(new Animated.Value(1)).current;
-  
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        })
-      ])
-    ).start();
-  }, []);
-  
-  // Start a more intense pulse animation when countdown is active
-  useEffect(() => {
-    if (countdown !== null) {
-      // Faster, more urgent pulsing during countdown
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(countdownPulseAnim, {
-            toValue: 1.15,
-            duration: 500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(countdownPulseAnim, {
-            toValue: 1,
-            duration: 500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          })
-        ])
-      ).start();
-    } else {
-      // Reset animation when countdown is cancelled
-      countdownPulseAnim.setValue(1);
-    }
-  }, [countdown]);
-
-  // Pulse animation for floating SOS indicator
-  useEffect(() => {
-    if (isSOSActive) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnimation, {
-            toValue: 0.7,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnimation, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          })
-        ])
-      ).start();
-    } else {
-      pulseAnimation.setValue(1);
-    }
-  }, [isSOSActive]);
-
   useEffect(() => {
     speakPageTitle('Home');
   }, []);
-
-  // Set up the callback for SOS indicator press in header
-  useEffect(() => {
-    setOnSOSIndicatorPress(() => () => {
-      setShowSOSModal(true);
-    });
-  }, [setOnSOSIndicatorPress, setShowSOSModal]);
 
   // Load the auto-capture setting from AsyncStorage
   useEffect(() => {
@@ -202,15 +100,8 @@ function HomeScreen() {
 
   const handleCancelSOS = () => {
     setIsSOSActivated(false);
-    setIsSOSActive(false);
     setShowSOSModal(false);
-    setSosStartTime(null);
     console.log('SOS canceled');
-  };
-  
-  const handleMinimizeSOS = () => {
-    setShowSOSModal(false);
-    console.log('SOS minimized - continuing in background');
   };
   
   // Function to manually take a photo during SOS
@@ -277,28 +168,21 @@ function HomeScreen() {
         setHasCameraPermission(newStatus === 'granted');
       }
       
+      // Toggle flashlight state
       const newTorchState = !isTorchOn;
       
-      // If we have the Torch module (on real device)
-      if (Torch?.default?.toggleTorchAsync) {
-        await Torch.default.toggleTorchAsync(newTorchState);
-      } 
-      // Fallback for Expo Go or when module not available
-      else if (Platform.OS !== 'web') {
-        console.log('Using camera torch fallback for Expo Go');
-        // We'll just update the UI state since we can't actually toggle the torch in Expo Go
-        Alert.alert(
-          newTorchState ? 'Torch Activated' : 'Torch Deactivated', 
-          'Note: In Expo Go, the torch is simulated. Install on a real device for full functionality.',
-          [{ text: 'OK' }]
-        );
-      }
-      
-      // Update UI state
+      // Update state
       setIsTorchOn(newTorchState);
       
       // Provide feedback
       speakButtonAction(newTorchState ? 'Torch activated' : 'Torch deactivated');
+      
+      // Show informative alert about development build requirement
+      Alert.alert(
+        newTorchState ? 'Torch Activated' : 'Torch Deactivated',
+        'Note: The actual flashlight requires a development build to function. This is a simulated response in Expo Go.',
+        [{ text: 'OK' }]
+      );
       
     } catch (error) {
       console.error('Error toggling torch:', error);
@@ -333,7 +217,6 @@ function HomeScreen() {
       setShowSOSModal(true);
       setSosStartTime(new Date());
       setIsSOSActivated(true);
-      setIsSOSActive(true);
 
       // Speak emergency message for accessibility
       speakButtonAction('Emergency SOS activated. Sending your location to trusted contacts.');
@@ -406,33 +289,12 @@ function HomeScreen() {
   };
 
   const handleSOSPressIn = () => {
-    // Start with countdown at 3
     setCountdown(3);
-    
-    // Provide haptic feedback when countdown starts
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    } catch (e) {
-      console.log('Haptics not available');
-    }
-    
-    // Initial voice feedback
-    speakButtonAction('Hold for SOS. Counting down from 3.');
 
-    // Start the countdown interval with sound feedback
+    // Start the countdown interval
     countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev && prev > 1) {
-          // Provide haptic feedback for each countdown step
-          try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          } catch (e) {
-            console.log('Haptics not available');
-          }
-          
-          // Announce each number in the countdown
-          speakButtonAction(`${prev - 1}`);
-          
           return prev - 1;
         } else {
           clearInterval(countdownIntervalRef.current!);
@@ -447,32 +309,11 @@ function HomeScreen() {
       clearInterval(countdownIntervalRef.current!);
       countdownIntervalRef.current = null;
       setCountdown(null);
-      
-      // Final haptic feedback when countdown completes
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (e) {
-        console.log('Haptics not available');
-      }
-      
       activateSOS(); // Ensure this function is called
     }, 3000);
   };
 
   const handleSOSPressOut = () => {
-    // Only provide feedback if the countdown was actually in progress
-    if (countdown !== null) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch (e) {
-        console.log('Haptics not available');
-      }
-      
-      // Provide auditory feedback that SOS was canceled
-      speakButtonAction('SOS canceled');
-    }
-    
-    // Clear all timers and reset countdown
     clearInterval(countdownIntervalRef.current!);
     countdownIntervalRef.current = null;
     clearTimeout(sosTimeoutRef.current!);
@@ -480,81 +321,102 @@ function HomeScreen() {
     setCountdown(null);
   };
 
+  // Animation for SOS button pulse effect
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, []);
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <LinearGradient
         colors={['#f8f9fa', '#e9f0f8']}
         style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header with welcome message and notification/activity icons */}
-          <Header 
-            title="Welcome" 
-            subtitle="Stay safe on campus"
-            unreadCount={unreadCount}
-            onActivityPress={() => setShowActivityModal(true)}
-            onNotificationsPress={() => {
-              setShowNotificationsModal(true);
-              setUnreadCount(0);
-            }}
-          />
-
-          {/* Compact Safety alerts section */}
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <Header unreadCount={unreadCount} onNotificationsPress={() => setShowNotificationsModal(true)} />
+          
+          {/* Safety Alerts with improved UI */}
           <View style={styles.alertsContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Safety Alerts</Text>
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => {
-                  router.push('/alerts');
-                }}
-              >
+            <View style={styles.alertsHeader}>
+              <Text style={styles.alertsTitle}>Safety Alerts</Text>
+              <TouchableOpacity onPress={() => console.log('View all alerts')}>
                 <Text style={styles.viewAllText}>View All</Text>
-                <Ionicons name="chevron-forward" size={16} color="#007AFF" />
               </TouchableOpacity>
             </View>
             
-            {/* Critical Alert Summary */}
-            <View style={styles.compactAlertCard}>
-              <View style={styles.compactAlertRow}>
-                <View style={[styles.compactAlertIcon, styles.compactAlertIconCritical]}>
-                  <Ionicons name="alert-circle" size={18} color="#fff" />
-                </View>
-                <View style={styles.compactAlertContent}>
-                  <Text style={styles.compactAlertTitle}>Suspicious activity near Library</Text>
-                  <Text style={styles.compactAlertMeta}>5 mins ago • 200m away</Text>
-                </View>
-                <View style={styles.compactPriorityBadge}>
-                  <Text style={styles.compactPriorityText}>!</Text>
-                </View>
+            <View style={styles.alertCard}>
+              <View style={styles.alertIconContainer}>
+                <Ionicons name="warning" size={20} color="#fff" />
               </View>
+              <View style={styles.alertContent}>
+                <Text style={styles.alertMessage}>Incident near Faculty of Engineering</Text>
+                <Text style={styles.alertTime}>5 mins ago</Text>
+              </View>
+            </View>
+            
+            <View style={[styles.alertCard, styles.alertCardInfo]}>
+              <View style={[styles.alertIconContainer, styles.alertIconInfo]}>
+                <Ionicons name="information-circle" size={20} color="#fff" />
+              </View>
+              <View style={styles.alertContent}>
+                <Text style={styles.alertMessage}>Campus security patrol in Science Building area</Text>
+                <Text style={styles.alertTime}>15 mins ago</Text>
+              </View>
+            </View>
+          </View>
+          
+          {/* Quick Actions */}
+          <View style={styles.quickActionsContainer}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActionButtons}>
+              <TouchableOpacity style={styles.quickActionButton}>
+                <View style={[styles.quickActionIcon, {backgroundColor: '#4CAF50'}]}>
+                  <Ionicons name="shield-checkmark" size={20} color="#fff" />
+                </View>
+                <Text style={styles.quickActionText}>Safety Check</Text>
+              </TouchableOpacity>
               
-              <View style={styles.compactAlertRow}>
-                <View style={[styles.compactAlertIcon, styles.compactAlertIconWarning]}>
-                  <Ionicons name="warning" size={18} color="#fff" />
+              <TouchableOpacity style={styles.quickActionButton}>
+                <View style={[styles.quickActionIcon, {backgroundColor: '#2196F3'}]}>
+                  <Ionicons name="map" size={20} color="#fff" />
                 </View>
-                <View style={styles.compactAlertContent}>
-                  <Text style={styles.compactAlertTitle}>Heavy rain warning</Text>
-                  <Text style={styles.compactAlertMeta}>12 mins ago • Campus-wide</Text>
-                </View>
-                <View style={[styles.compactPriorityBadge, styles.compactPriorityBadgeWarning]}>
-                  <Text style={styles.compactPriorityText}>⚠</Text>
-                </View>
-              </View>
+                <Text style={styles.quickActionText}>Safe Routes</Text>
+              </TouchableOpacity>
               
-              <View style={styles.alertSummary}>
-                <Text style={styles.alertSummaryText}>+1 more alert</Text>
-                <View style={styles.alertStatusDots}>
-                  <View style={[styles.statusDot, styles.statusDotCritical]} />
-                  <View style={[styles.statusDot, styles.statusDotWarning]} />
-                  <View style={[styles.statusDot, styles.statusDotInfo]} />
+              <TouchableOpacity style={styles.quickActionButton}>
+                <View style={[styles.quickActionIcon, {backgroundColor: '#9C27B0'}]}>
+                  <Ionicons name="people" size={20} color="#fff" />
                 </View>
-              </View>
+                <Text style={styles.quickActionText}>Trusted Circle</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.quickActionButton}>
+                <View style={[styles.quickActionIcon, {backgroundColor: '#FF9800'}]}>
+                  <Ionicons name="document-text" size={20} color="#fff" />
+                </View>
+                <Text style={styles.quickActionText}>Report</Text>
+              </TouchableOpacity>
             </View>
           </View>
           
@@ -563,8 +425,7 @@ function HomeScreen() {
             {/* Pulsing SOS Button */}
             <Animated.View style={[
               styles.sosCircleButtonOuterRing,
-              countdown !== null && styles.sosCircleButtonUrgent,
-              { transform: [{ scale: countdown !== null ? countdownPulseAnim : pulseAnim }] }
+              { transform: [{ scale: pulseAnim }] }
             ]}>
               <TouchableOpacity
                 style={[styles.sosCircleButton, countdown !== null && styles.sosCircleButtonActive]}
@@ -575,18 +436,13 @@ function HomeScreen() {
                 accessibilityHint="Press and hold for 3 seconds to activate emergency SOS"
               >
                 <View style={styles.sosCircleButtonContent}>
-                  {countdown === null ? (
-                    <>
-                      <Ionicons name="alert-circle" size={40} color="#fff" />
-                      <Text style={styles.sosCircleButtonText}>SOS</Text>
-                      <Text style={styles.sosCircleButtonSubtext}>Hold 3s</Text>
-                    </>
-                  ) : (
-                    <View style={styles.countdownContainer}>
-                      <Text style={styles.countdownText}>{countdown}</Text>
-                      <Text style={styles.sosCircleButtonSubtext}>Keep holding...</Text>
-                    </View>
-                  )}
+                  <Ionicons name="alert-circle" size={40} color="#fff" />
+                  <Text style={styles.sosCircleButtonText}>
+                    {countdown !== null ? countdown : 'SOS'}
+                  </Text>
+                  <Text style={styles.sosCircleButtonSubtext}>
+                    {countdown !== null ? 'Hold...' : 'Hold 3s'}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -603,7 +459,7 @@ function HomeScreen() {
                 <View style={styles.secondaryButtonContent}>
                   <Ionicons
                     name={isFollowing ? 'location' : 'location-outline'}
-                    size={20}
+                    size={24}
                     color={isFollowing ? '#fff' : '#007AFF'}
                   />
                   <Text style={isFollowing ? styles.secondaryButtonTextActive : styles.secondaryButtonText}>
@@ -622,7 +478,7 @@ function HomeScreen() {
                 <View style={styles.secondaryButtonContent}>
                   <Ionicons
                     name={isTorchOn ? "flashlight" : "flashlight-outline"}
-                    size={20}
+                    size={24}
                     color={isTorchOn ? "#fff" : "#FFD700"}
                   />
                   <Text style={isTorchOn ? styles.secondaryButtonTextLight : styles.torchButtonText}>
@@ -632,15 +488,25 @@ function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          
+          {/* Campus Safety Tips */}
+          <View style={styles.safetyTipsContainer}>
+            <Text style={styles.sectionTitle}>Campus Safety Tips</Text>
+            <View style={styles.tipCard}>
+              <Ionicons name="bulb" size={24} color="#FF9800" style={styles.tipIcon} />
+              <Text style={styles.tipText}>
+                Stay in well-lit areas when walking at night and consider using the buddy system.
+              </Text>
+            </View>
+          </View>
+          
         </ScrollView>
       </LinearGradient>
       
       {/* SOS Modal */}
       <SOSModal
         visible={showSOSModal}
-        onClose={handleCancelSOS}
-        onMinimize={handleMinimizeSOS}
-        handleCancelSOS={handleCancelSOS}
+        onClose={() => setShowSOSModal(false)}
         sosStartTime={sosStartTime}
         capturedMedia={capturedMedia}
         currentLocation={currentLocation}
@@ -656,43 +522,155 @@ function HomeScreen() {
         handleEmergencyCall={(type) => {
           const phoneNumbers = {
             'police': '911',
-            'campus': '123-456-7890',
-            'hospital': '911',
+            'campus': '555-CAMPUS',
+            'hospital': '555-HOSPITAL'
           };
+          const phoneNumber = phoneNumbers[type as keyof typeof phoneNumbers];
           
-          const number = phoneNumbers[type as keyof typeof phoneNumbers];
-          const contactName = type === 'police' ? 'Police' : type === 'campus' ? 'Campus Security' : 'Hospital';
-          
-          if (number) {
-            Linking.openURL(`tel:${number}`)
-              .then(() => {
-                speakButtonAction(`Calling ${contactName}`);
-              })
-              .catch((err) => {
-                speakButtonAction('Cannot place call. Check your device call permissions.');
-                console.error('Error placing phone call:', err);
-              });
-          }
+          Alert.alert(
+            `Call ${type.charAt(0).toUpperCase() + type.slice(1)} Emergency`,
+            `Are you sure you want to call ${phoneNumber}?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Call Now', 
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const phoneUrl = `tel:${phoneNumber}`;
+                    const canOpen = await Linking.canOpenURL(phoneUrl);
+                    if (canOpen) {
+                      await Linking.openURL(phoneUrl);
+                    } else {
+                      Alert.alert('Error', `Your device cannot make phone calls to ${phoneNumber}`);
+                    }
+                  } catch (error) {
+                    console.error('Error making emergency call:', error);
+                    Alert.alert('Call Failed', `Failed to call ${phoneNumber}. Please dial manually.`);
+                  }
+                }
+              }
+            ]
+          );
         }}
-        speakNotification={(text) => speakButtonAction(text)}
-        takePicture={takePicture}
+        handleCancelSOS={handleCancelSOS}
       />
-      
+
+      {/* Notifications Modal */}
+      <NotificationsModal
+        visible={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        notifications={[
+          { id: 'n1', title: 'Trusted Friend Request accepted', description: 'Emma accepted your request.', time: '2:45 PM', read: false },
+          { id: 'n2', title: 'Guardian session ended', description: 'Your route to Library completed.', time: '1:10 PM', read: true },
+          { id: 'n3', title: 'Safety Alert', description: 'Patrol near Science Building.', time: '12:30 PM', read: false },
+        ]}
+        speakNotification={(text) => speakButtonAction(text)}
+      />
+
       {/* Activity Modal */}
       <ActivityModal
         visible={showActivityModal}
         onClose={() => setShowActivityModal(false)}
         recentActivities={[
-          { id: 1, label: 'Campus alert received', count: 1, type: 'alert' },
-          { id: 2, label: 'Location shared', count: 3, type: 'location' },
-          { id: 3, label: 'Safe arrival confirmed', count: 2, type: 'confirm' },
+          { id: 1, type: 'guardian', count: 3, label: 'Guardian Sessions' },
+          { id: 2, type: 'location', count: 12, label: 'Location Shares' },
+          { id: 3, type: 'reports', count: 2, label: 'Reports Filed' },
+          { id: 4, type: 'checkin', count: 8, label: 'Safety Check-ins' },
         ]}
       />
-      
+    </SafeAreaView>
+
+      {/* SOS Modal */}
+      <SOSModal
+        visible={showSOSModal}
+        onClose={() => setShowSOSModal(false)}
+        sosStartTime={sosStartTime}
+        capturedMedia={capturedMedia}
+        currentLocation={currentLocation}
+        locationAddress={locationAddress}
+        autoCaptureSOS={autoCaptureSOS}
+        requestLocationPermission={requestLocationPermission}
+        onMediaUpdated={() => {
+          // When media is updated through external camera apps
+          console.log('Media updated callback received');
+          // In a real app, we would query the gallery for new photos or refresh UI
+          // For testing, show a message
+          setTimeout(() => {
+            Alert.alert('Media Update', 'New emergency media has been captured');
+          }, 500);
+        }}
+        handleEmergencyCall={(type) => {
+          const phoneNumbers = {
+            'police': '911',
+            'campus': '555-CAMPUS',
+            'hospital': '555-HOSPITAL'
+          };
+          const phoneNumber = phoneNumbers[type as keyof typeof phoneNumbers];
+          
+          // Ask for confirmation before making the call
+          Alert.alert(
+            `Call ${type.charAt(0).toUpperCase() + type.slice(1)} Emergency`,
+            `Are you sure you want to call ${phoneNumber}?`,
+            [
+              { 
+                text: 'Cancel', 
+                style: 'cancel' 
+              },
+              { 
+                text: 'Call Now', 
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    // Format the phone number for the dialer
+                    const phoneUrl = `tel:${phoneNumber}`;
+                    
+                    // Check if the device can handle telephone links
+                    const canOpen = await Linking.canOpenURL(phoneUrl);
+                    
+                    if (canOpen) {
+                      // Open the phone dialer with the number
+                      await Linking.openURL(phoneUrl);
+                    } else {
+                      Alert.alert('Error', `Your device cannot make phone calls to ${phoneNumber}`);
+                    }
+                  } catch (error) {
+                    console.error('Error making emergency call:', error);
+                    Alert.alert(
+                      'Call Failed', 
+                      `Failed to call ${phoneNumber}. Please dial manually.`
+                    );
+                  }
+                }
+              }
+            ]
+          );
+        }}
+        handleCancelSOS={handleCancelSOS}
+      />
+
       {/* Notifications Modal */}
       <NotificationsModal
         visible={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
+        notifications={[
+          { id: 'n1', title: 'Trusted Friend Request accepted', description: 'Emma accepted your request.', time: '2:45 PM', read: false },
+          { id: 'n2', title: 'Guardian session ended', description: 'Your route to Library completed.', time: '1:10 PM', read: true },
+          { id: 'n3', title: 'Safety Alert', description: 'Patrol near Science Building.', time: '12:30 PM', read: false },
+        ]}
+        speakNotification={(text) => speakButtonAction(text)}
+      />
+
+      {/* Activity Modal */}
+      <ActivityModal
+        visible={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        recentActivities={[
+          { id: 1, type: 'guardian', count: 3, label: 'Guardian Sessions' },
+          { id: 2, type: 'location', count: 12, label: 'Location Shares' },
+          { id: 3, type: 'reports', count: 2, label: 'Reports Filed' },
+          { id: 4, type: 'checkin', count: 8, label: 'Safety Check-ins' },
+        ]}
       />
     </SafeAreaView>
   );
@@ -702,85 +680,100 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    paddingTop: 0,
-    paddingBottom: 0,
   },
   container: {
     flex: 1,
-    paddingBottom: 0,
-    position: 'relative',
   },
   scrollView: {
     flex: 1,
-    marginTop: 0,
   },
-  scrollViewContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 0,
-  },
+  // Alerts Section
   alertsContainer: {
-    marginBottom: 6,
+    marginHorizontal: 20,
+    marginTop: 5,
+    marginBottom: 20,
   },
-  sectionHeader: {
+  alertsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  alertBadge: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  alertBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  sectionTitle: {
+  alertsTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#343a40',
-    marginBottom: 0,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   alertCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  alertCardCritical: {
-    borderLeftWidth: 5,
-    borderLeftColor: '#FF3B30',
-    backgroundColor: '#fff5f5',
-  },
-  alertCardWarning: {
-    borderLeftWidth: 5,
-    borderLeftColor: '#FF9500',
-    backgroundColor: '#fffbf0',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff6b35',
   },
   alertCardInfo: {
-    borderLeftWidth: 5,
     borderLeftColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
-  },
-  alertLeftSection: {
-    alignItems: 'center',
-    marginRight: 16,
   },
   alertIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ff6b35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  alertIconInfo: {
+    backgroundColor: '#007AFF',
+  },
+  alertContent: {
+    flex: 1,
+  },
+  alertMessage: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  alertTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  
+  // Quick Actions
+  quickActionsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  quickActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  quickActionButton: {
+    alignItems: 'center',
+    width: '22%',
+  },
+  quickActionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -788,242 +781,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  alertIconCritical: {
-    backgroundColor: '#FF3B30',
-  },
-  alertIconWarning: {
-    backgroundColor: '#FF9500',
-  },
-  alertIconInfo: {
-    backgroundColor: '#007AFF',
-  },
-  priorityIndicator: {
-    alignItems: 'center',
-  },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  priorityDotCritical: {
-    backgroundColor: '#FF3B30',
-  },
-  priorityDotWarning: {
-    backgroundColor: '#FF9500',
-  },
-  priorityDotInfo: {
-    backgroundColor: '#007AFF',
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertHeader: {
-    marginBottom: 8,
-  },
-  alertTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  alertCategory: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8e8e93',
-    letterSpacing: 0.5,
-  },
-  priorityBadge: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  priorityBadgeWarning: {
-    backgroundColor: '#FF9500',
-  },
-  priorityBadgeInfo: {
-    backgroundColor: '#007AFF',
-  },
-  priorityText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  alertMessage: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    lineHeight: 20,
-  },
-  alertFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  alertTime: {
-    fontSize: 13,
-    color: '#8e8e93',
-    fontWeight: '500',
-  },
-  alertDistance: {
-    fontSize: 13,
-    color: '#8e8e93',
-    fontWeight: '500',
-  },
-  alertActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  // Compact Alert Styles
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f8ff',
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-    marginRight: 4,
-  },
-  compactAlertCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  compactAlertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
-  },
-  compactAlertIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  compactAlertIconCritical: {
-    backgroundColor: '#FF3B30',
-  },
-  compactAlertIconWarning: {
-    backgroundColor: '#FF9500',
-  },
-  compactAlertContent: {
-    flex: 1,
-  },
-  compactAlertTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 2,
-  },
-  compactAlertMeta: {
+  quickActionText: {
     fontSize: 12,
-    color: '#8e8e93',
-    fontWeight: '500',
+    color: '#555',
+    textAlign: 'center',
   },
-  compactPriorityBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF3B30',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  compactPriorityBadgeWarning: {
-    backgroundColor: '#FF9500',
-  },
-  compactPriorityText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  alertSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f5f5f5',
-  },
-  alertSummaryText: {
-    fontSize: 13,
-    color: '#8e8e93',
-    fontWeight: '500',
-  },
-  alertStatusDots: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusDotCritical: {
-    backgroundColor: '#FF3B30',
-  },
-  statusDotWarning: {
-    backgroundColor: '#FF9500',
-  },
-  statusDotInfo: {
-    backgroundColor: '#007AFF',
-  },
+  
+  // SOS Section
   sosMainContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
-    marginBottom: 20,
+    marginVertical: 24,
+    paddingHorizontal: 20,
   },
   sosCircleButtonOuterRing: {
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.2)',
+    marginBottom: 24,
+  },
+  sosCircleButton: {
     width: 180,
     height: 180,
     borderRadius: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
-    marginBottom: 20,
-  },
-  sosCircleButton: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#dc3545',
+    backgroundColor: '#ff3b30',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 10,
   },
   sosCircleButtonActive: {
-    backgroundColor: '#cc0000',
-  },
-  sosCircleButtonUrgent: {
-    borderWidth: 3,
-    borderColor: '#ff0000',
-    shadowColor: '#ff0000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 10,
+    backgroundColor: '#ff6b35',
+    transform: [{ scale: 1.05 }],
   },
   sosCircleButtonContent: {
     alignItems: 'center',
@@ -1047,21 +841,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     gap: 16,
-    marginBottom: 0,
-    paddingBottom: 0,
-    marginTop: 0,
   },
   secondaryButton: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   secondaryButtonContent: {
     alignItems: 'center',
@@ -1074,10 +865,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
   },
   followMeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
-    marginTop: 6,
+    marginTop: 8,
   },
   torchButton: {
     borderWidth: 2,
@@ -1087,16 +878,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFD700',
   },
   torchButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFD700',
-    marginTop: 6,
-  },
-  secondaryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
-    marginTop: 6,
+    color: '#FFD700',
+    marginTop: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 8,
   },
   secondaryButtonTextLight: {
     fontSize: 16,
@@ -1108,22 +899,34 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-  // Countdown styles
-  countdownContainer: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+  
+  // Safety Tips
+  safetyTipsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
   },
-  countdownText: {
-    fontSize: 60,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 5,
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tipIcon: {
+    marginRight: 14,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
 });
 
-// Export the HomeScreen component as the default export
-export { HomeScreen as default };
+// Make sure the default export is recognized by Expo Router
+export default HomeScreen;

@@ -12,10 +12,18 @@ interface Activity {
 interface ActivityModalProps {
   visible: boolean;
   onClose: () => void;
-  recentActivities: Activity[];
+  recentActivities?: Activity[];
 }
 
-export default function ActivityModal({ visible, onClose, recentActivities }: ActivityModalProps) {
+export default function ActivityModal({ 
+  visible, 
+  onClose, 
+  recentActivities = [
+    { id: 1, label: 'Campus alert received', count: 1, type: 'alert' },
+    { id: 2, label: 'Location shared', count: 3, type: 'location' },
+    { id: 3, label: 'Safe arrival confirmed', count: 2, type: 'confirm' },
+  ] 
+}: ActivityModalProps) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.sosModalOverlay}>
