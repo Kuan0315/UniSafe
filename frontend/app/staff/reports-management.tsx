@@ -11,10 +11,13 @@ import {
   RefreshControl,
   Dimensions,
   FlatList,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Video, ResizeMode } from 'expo-av';
 import StandardHeader from '../../components/StandardHeader';
 
 const { width } = Dimensions.get('window');
@@ -30,6 +33,13 @@ interface Report {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   details: any;
   evidence: string[];
+  evidenceMedia?: Array<{
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    thumbnail?: string;
+    filename: string;
+  }>;
   coordinatesLat?: number;
   coordinatesLng?: number;
   anonymous: boolean;
@@ -83,10 +93,33 @@ export default function ReportsManagement() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Media viewer states
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState('');
+  
+  // Additional modal states
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [assignStaffModalVisible, setAssignStaffModalVisible] = useState(false);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [resolutionModalVisible, setResolutionModalVisible] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [resolutionText, setResolutionText] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<string>('');
 
   const reportTypes = ['All', 'Theft', 'Harassment', 'Accident', 'Suspicious Activity', 'Fire', 'Medical Emergency', 'Other'];
   const statusOptions = ['All', 'Pending', 'Under Review', 'In Progress', 'Resolved', 'Closed'];
   const priorityOptions = ['All', 'Low', 'Medium', 'High', 'Critical'];
+
+  // Mock staff data
+  const staffMembers = [
+    { id: 5678, name: 'Officer Smith', department: 'Security' },
+    { id: 6789, name: 'Nurse Johnson', department: 'Health Services' },
+    { id: 7890, name: 'Dr. Wilson', department: 'Administration' },
+    { id: 8901, name: 'Counselor Davis', department: 'Student Services' },
+    { id: 9012, name: 'Officer Brown', department: 'Security' },
+  ];
 
   useEffect(() => {
     loadReports();
@@ -111,7 +144,28 @@ export default function ReportsManagement() {
           status: 'Under Review',
           priority: 'High',
           details: { timeOfIncident: '2024-03-15 14:30' },
-          evidence: ['security_footage_1.mp4', 'photo_evidence_1.jpg'],
+          evidence: [],
+          evidenceMedia: [
+            {
+              id: '1',
+              type: 'image',
+              url: 'https://picsum.photos/400/300?random=1',
+              filename: 'photo_evidence_1.jpg'
+            },
+            {
+              id: '2',
+              type: 'video',
+              url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_640x360_1mb.mp4',
+              thumbnail: 'https://picsum.photos/400/300?random=2',
+              filename: 'security_footage_1.mp4'
+            },
+            {
+              id: '3',
+              type: 'image',
+              url: 'https://picsum.photos/400/300?random=3',
+              filename: 'area_photo.jpg'
+            }
+          ],
           coordinatesLat: 3.1390,
           coordinatesLng: 101.6869,
           anonymous: false,
@@ -178,7 +232,7 @@ export default function ReportsManagement() {
           status: 'In Progress',
           priority: 'Medium',
           details: { timeOfIncident: '2024-03-16 09:45' },
-          evidence: ['witness_statement_1.pdf'],
+          evidence: [],
           coordinatesLat: 3.1385,
           coordinatesLng: 101.6880,
           anonymous: true,
@@ -206,7 +260,7 @@ export default function ReportsManagement() {
           status: 'Pending',
           priority: 'High',
           details: { timeOfIncident: '2024-03-16 20:30' },
-          evidence: ['witness_statements.pdf'],
+          evidence: [],
           coordinatesLat: 3.1400,
           coordinatesLng: 101.6865,
           anonymous: false,
@@ -330,8 +384,175 @@ export default function ReportsManagement() {
     setSelectedReport(null);
   };
 
+  const openImageViewer = (imageUrl: string) => {
+    setSelectedImageUrl(imageUrl);
+    setImageViewerVisible(true);
+  };
+
+  const closeImageViewer = () => {
+    setImageViewerVisible(false);
+    setSelectedImageUrl('');
+  };
+
   const onRefresh = () => {
     loadReports();
+  };
+
+  const submitNote = async () => {
+    if (selectedReport && noteText.trim()) {
+      await addFollowUpNote(selectedReport.id, noteText.trim());
+      setNoteModalVisible(false);
+      setNoteText('');
+    }
+  };
+
+  // Handle adding note
+  const handleAddNote = (report: Report) => {
+    setSelectedReport(report);
+    setNoteModalVisible(true);
+    setNoteText('');
+  };
+
+  // Handle staff assignment
+  const handleAssignStaff = (report: Report) => {
+    setSelectedReport(report);
+    setAssignStaffModalVisible(true);
+  };
+
+  const assignStaffToReport = async (staffId: number) => {
+    if (selectedReport) {
+      try {
+        // TODO: Replace with actual API call
+        const updatedReports = reports.map(report => 
+          report.id === selectedReport.id 
+            ? { ...report, followUpAssignedTo: staffId, updatedAt: new Date() }
+            : report
+        );
+        setReports(updatedReports);
+        
+        // Update selected report if it's currently displayed
+        if (selectedReport) {
+          setSelectedReport({ ...selectedReport, followUpAssignedTo: staffId, updatedAt: new Date() });
+        }
+        
+        setAssignStaffModalVisible(false);
+        Alert.alert('Success', 'Staff member assigned successfully');
+      } catch (error) {
+        console.error('Error assigning staff:', error);
+        Alert.alert('Error', 'Failed to assign staff member');
+      }
+    }
+  };
+
+  // Handle status change
+  const handleStatusChange = (report: Report) => {
+    setSelectedReport(report);
+    setStatusModalVisible(true);
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    if (selectedReport) {
+      if (newStatus === 'Resolved') {
+        // Show resolution text input modal
+        setPendingStatus(newStatus);
+        setStatusModalVisible(false);
+        setResolutionModalVisible(true);
+        setResolutionText('');
+      } else {
+        await updateReportStatus(selectedReport.id, newStatus);
+        setStatusModalVisible(false);
+      }
+    }
+  };
+
+  const submitResolution = async () => {
+    if (selectedReport && pendingStatus && resolutionText.trim()) {
+      await updateReportStatus(selectedReport.id, pendingStatus, resolutionText.trim());
+      setResolutionModalVisible(false);
+      setResolutionText('');
+      setPendingStatus('');
+    } else {
+      Alert.alert('Required', 'Please provide resolution details before marking the report as resolved.');
+    }
+  };
+
+  // Update report status
+  const updateReportStatus = async (reportId: string, newStatus: string, resolution?: string) => {
+    try {
+      // TODO: Replace with actual API call
+      const updatedReports = reports.map(report => 
+        report.id === reportId 
+          ? { 
+              ...report, 
+              status: newStatus as any, 
+              updatedAt: new Date(),
+              ...(resolution && newStatus === 'Resolved' && {
+                followUpResolution: resolution,
+                followUpResolutionDate: new Date(),
+                closedAt: new Date()
+              })
+            }
+          : report
+      );
+      setReports(updatedReports);
+      
+      // Update selected report if it's currently displayed
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport({ 
+          ...selectedReport, 
+          status: newStatus as any, 
+          updatedAt: new Date(),
+          ...(resolution && newStatus === 'Resolved' && {
+            followUpResolution: resolution,
+            followUpResolutionDate: new Date(),
+            closedAt: new Date()
+          })
+        });
+      }
+      
+      Alert.alert('Success', newStatus === 'Resolved' ? 'Report resolved successfully' : 'Report status updated successfully');
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      Alert.alert('Error', 'Failed to update report status');
+    }
+  };
+
+  // Add follow-up note
+  const addFollowUpNote = async (reportId: string, note: string) => {
+    try {
+      // TODO: Replace with actual API call
+      const newNote = {
+        note,
+        addedBy: 1, // Current user ID
+        addedByName: 'Current User', // Current user name
+        addedAt: new Date(),
+      };
+
+      const updatedReports = reports.map(report => 
+        report.id === reportId 
+          ? { 
+              ...report, 
+              followUpNotes: [...report.followUpNotes, newNote],
+              updatedAt: new Date()
+            }
+          : report
+      );
+      setReports(updatedReports);
+      
+      // Update selected report if it's currently displayed
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport({ 
+          ...selectedReport, 
+          followUpNotes: [...selectedReport.followUpNotes, newNote],
+          updatedAt: new Date()
+        });
+      }
+      
+      Alert.alert('Success', 'Follow-up note added successfully');
+    } catch (error) {
+      console.error('Error adding follow-up note:', error);
+      Alert.alert('Error', 'Failed to add follow-up note');
+    }
   };
 
   return (
@@ -667,17 +888,40 @@ export default function ReportsManagement() {
               )}
 
               {/* Evidence */}
-              {selectedReport.evidence && selectedReport.evidence.length > 0 && (
+              {selectedReport.evidenceMedia && selectedReport.evidenceMedia.length > 0 && (
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>Evidence</Text>
-                  <View style={styles.evidenceContainer}>
-                    {selectedReport.evidence.map((evidence, index) => (
-                      <TouchableOpacity key={index} style={styles.evidenceItem}>
-                        <Ionicons name="document-attach" size={16} color="#007AFF" />
-                        <Text style={styles.evidenceText}>{evidence}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScrollView}>
+                    {selectedReport.evidenceMedia.map((mediaItem, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.mediaContainer}
+                        onPress={() => openImageViewer(mediaItem.url)}
+                      >
+                        {mediaItem.type === 'image' ? (
+                          <Image
+                            source={{ uri: mediaItem.url }}
+                            style={styles.mediaImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.videoThumbnailContainer}>
+                            <Image
+                              source={{ uri: mediaItem.thumbnail || 'https://picsum.photos/120/90?random=video' }}
+                              style={styles.mediaImage}
+                              resizeMode="cover"
+                            />
+                            <View style={styles.videoPlayIcon}>
+                              <Ionicons name="play-circle" size={32} color="#fff" />
+                            </View>
+                          </View>
+                        )}
+                        <View style={styles.mediaOverlay}>
+                          <Text style={styles.mediaTypeText}>{mediaItem.type.toUpperCase()}</Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
-                  </View>
+                  </ScrollView>
                 </View>
               )}
 
@@ -714,136 +958,203 @@ export default function ReportsManagement() {
 
               {/* Action Buttons */}
               <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity style={styles.actionButton} onPress={() => handleStatusChange(selectedReport)}>
+                <TouchableOpacity style={styles.actionButtonFull} onPress={() => handleStatusChange(selectedReport)}>
                   <Ionicons name="refresh" size={20} color="#007AFF" />
                   <Text style={styles.actionButtonText}>Update Status</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.actionButton} onPress={() => handleAddNote(selectedReport)}>
+                <TouchableOpacity style={styles.actionButtonFull} onPress={() => handleAddNote(selectedReport)}>
                   <Ionicons name="add-circle" size={20} color="#007AFF" />
                   <Text style={styles.actionButtonText}>Add Note</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.actionButton} onPress={() => handleAssignStaff(selectedReport)}>
-                  <Ionicons name="person-add" size={20} color="#007AFF" />
-                  <Text style={styles.actionButtonText}>Assign Staff</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Media Viewer Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={imageViewerVisible}
+        onRequestClose={closeImageViewer}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerCloseButton}
+            onPress={closeImageViewer}
+          >
+            <Ionicons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+          
+          <View style={styles.imageViewerContainer}>
+            {selectedImageUrl.includes('.mp4') || selectedImageUrl.includes('video') || selectedImageUrl.includes('SampleVideo') ? (
+              <Video
+                source={{ uri: selectedImageUrl }}
+                style={styles.fullScreenImage}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay={false}
+              />
+            ) : (
+              <Image
+                source={{ uri: selectedImageUrl }}
+                style={styles.fullScreenImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Note Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={noteModalVisible}
+        onRequestClose={() => setNoteModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setNoteModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Add Follow-up Note</Text>
+            <TouchableOpacity onPress={submitNote} style={styles.modalSaveButton}>
+              <Text style={styles.modalSaveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.noteInputContainer}>
+            <TextInput
+              style={styles.noteTextInput}
+              multiline
+              numberOfLines={10}
+              placeholder="Enter your follow-up note here..."
+              value={noteText}
+              onChangeText={setNoteText}
+              textAlignVertical="top"
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Assign Staff Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={assignStaffModalVisible}
+        onRequestClose={() => setAssignStaffModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setAssignStaffModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Assign Staff</Text>
+            <View style={styles.modalHeaderSpacer} />
+          </View>
+
+          <ScrollView style={styles.staffListContainer}>
+            {staffMembers.map((staff) => (
+              <TouchableOpacity
+                key={staff.id}
+                style={[
+                  styles.staffItem,
+                  selectedReport?.followUpAssignedTo === staff.id && styles.staffItemSelected
+                ]}
+                onPress={() => assignStaffToReport(staff.id)}
+              >
+                <View style={styles.staffInfo}>
+                  <Ionicons name="person-circle" size={32} color="#007AFF" />
+                  <View style={styles.staffDetails}>
+                    <Text style={styles.staffName}>{staff.name}</Text>
+                    <Text style={styles.staffDepartment}>{staff.department}</Text>
+                  </View>
+                </View>
+                {selectedReport?.followUpAssignedTo === staff.id && (
+                  <Ionicons name="checkmark" size={24} color="#34C759" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Update Status Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={statusModalVisible}
+        onRequestClose={() => setStatusModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setStatusModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Update Status</Text>
+            <View style={styles.modalHeaderSpacer} />
+          </View>
+
+          <ScrollView style={styles.statusListContainer}>
+            {statusOptions.filter(status => status !== 'All').map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.statusItem,
+                  selectedReport?.status === status && styles.statusItemSelected
+                ]}
+                onPress={() => updateStatus(status)}
+              >
+                <View style={styles.statusInfo}>
+                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
+                  <Text style={styles.statusText}>{status}</Text>
+                </View>
+                {selectedReport?.status === status && (
+                  <Ionicons name="checkmark" size={24} color={getStatusColor(status)} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Resolution Modal */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={resolutionModalVisible}
+        onRequestClose={() => setResolutionModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setResolutionModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Resolution Details</Text>
+            <TouchableOpacity onPress={submitResolution} style={styles.modalSaveButton}>
+              <Text style={styles.modalSaveText}>Resolve</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.resolutionInputContainer}>
+            <Text style={styles.resolutionLabel}>Please provide resolution details:</Text>
+            <TextInput
+              style={styles.resolutionTextInput}
+              multiline
+              numberOfLines={8}
+              placeholder="Describe how this report was resolved, actions taken, and any follow-up requirements..."
+              value={resolutionText}
+              onChangeText={setResolutionText}
+              textAlignVertical="top"
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
-
-  // Handle status change
-  const handleStatusChange = (report: Report) => {
-    Alert.alert(
-      'Update Status',
-      'Select new status for this report:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Pending', onPress: () => updateReportStatus(report.id, 'Pending') },
-        { text: 'Under Review', onPress: () => updateReportStatus(report.id, 'Under Review') },
-        { text: 'In Progress', onPress: () => updateReportStatus(report.id, 'In Progress') },
-        { text: 'Resolved', onPress: () => updateReportStatus(report.id, 'Resolved') },
-        { text: 'Closed', onPress: () => updateReportStatus(report.id, 'Closed') },
-      ]
-    );
-  };
-
-  // Handle adding note
-  const handleAddNote = (report: Report) => {
-    Alert.prompt(
-      'Add Follow-up Note',
-      'Enter your note:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Add', 
-          onPress: (note?: string) => {
-            if (note && note.trim()) {
-              addFollowUpNote(report.id, note.trim());
-            }
-          }
-        },
-      ],
-      'plain-text'
-    );
-  };
-
-  // Handle staff assignment
-  const handleAssignStaff = (report: Report) => {
-    Alert.alert(
-      'Assign Staff',
-      'This feature will allow you to assign staff members to handle this report.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'OK' },
-      ]
-    );
-  };
-
-  // Update report status
-  const updateReportStatus = async (reportId: string, newStatus: string) => {
-    try {
-      // TODO: Replace with actual API call
-      const updatedReports = reports.map(report => 
-        report.id === reportId 
-          ? { ...report, status: newStatus as any, updatedAt: new Date() }
-          : report
-      );
-      setReports(updatedReports);
-      
-      // Update selected report if it's currently displayed
-      if (selectedReport && selectedReport.id === reportId) {
-        setSelectedReport({ ...selectedReport, status: newStatus as any, updatedAt: new Date() });
-      }
-      
-      Alert.alert('Success', 'Report status updated successfully');
-    } catch (error) {
-      console.error('Error updating report status:', error);
-      Alert.alert('Error', 'Failed to update report status');
-    }
-  };
-
-  // Add follow-up note
-  const addFollowUpNote = async (reportId: string, note: string) => {
-    try {
-      // TODO: Replace with actual API call
-      const newNote = {
-        note,
-        addedBy: 1, // Current user ID
-        addedByName: 'Current User', // Current user name
-        addedAt: new Date(),
-      };
-
-      const updatedReports = reports.map(report => 
-        report.id === reportId 
-          ? { 
-              ...report, 
-              followUpNotes: [...report.followUpNotes, newNote],
-              updatedAt: new Date()
-            }
-          : report
-      );
-      setReports(updatedReports);
-      
-      // Update selected report if it's currently displayed
-      if (selectedReport && selectedReport.id === reportId) {
-        setSelectedReport({ 
-          ...selectedReport, 
-          followUpNotes: [...selectedReport.followUpNotes, newNote],
-          updatedAt: new Date()
-        });
-      }
-      
-      Alert.alert('Success', 'Follow-up note added successfully');
-    } catch (error) {
-      console.error('Error adding follow-up note:', error);
-      Alert.alert('Error', 'Failed to add follow-up note');
-    }
-  };
 }
 
 const styles = StyleSheet.create({
@@ -1218,10 +1529,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   actionButtonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     marginTop: 16,
     marginBottom: 32,
+    paddingHorizontal: 0,
   },
   actionButton: {
     flexDirection: 'row',
@@ -1235,10 +1546,204 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
     minWidth: 120,
   },
+  actionButtonFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    width: '100%',
+  },
   actionButtonText: {
     fontSize: 14,
     color: '#007AFF',
     fontWeight: '600',
     marginLeft: 8,
+  },
+  // Media styles
+  mediaScrollView: {
+    marginBottom: 12,
+  },
+  mediaContainer: {
+    position: 'relative',
+    marginRight: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mediaImage: {
+    width: 120,
+    height: 90,
+    backgroundColor: '#F2F2F7',
+  },
+  mediaOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    padding: 4,
+  },
+  mediaTypeText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  // Video styles
+  videoThumbnailContainer: {
+    position: 'relative',
+  },
+  videoPlayIcon: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -16,
+    marginLeft: -16,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 16,
+  },
+  // Image Viewer styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  imageViewerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.8,
+  },
+  // Note Modal styles
+  modalSaveButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noteInputContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  noteTextInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  // Staff Assignment Modal styles
+  staffListContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  staffItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  staffItemSelected: {
+    borderColor: '#34C759',
+    backgroundColor: '#F0FDF4',
+  },
+  staffInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  staffDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  staffName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  staffDepartment: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  // Status Update Modal styles
+  statusListContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  statusItemSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F9FF',
+  },
+  statusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  // Resolution Modal styles
+  resolutionInputContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  resolutionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  resolutionTextInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    minHeight: 200,
   },
 });
