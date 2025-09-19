@@ -2,6 +2,7 @@
 import { Stack } from "expo-router";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { SOSProvider } from "../contexts/SOSContext";
+import { AlarmProvider } from "../contexts/AlarmContext";
 import LoadingScreen from "../components/LoadingScreen";
 
 function LayoutContent() {
@@ -33,7 +34,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <SOSProvider>
-        <LayoutContent />
+        <AlarmProvider>
+          <LayoutContent />
+        </AlarmProvider>
       </SOSProvider>
     </AuthProvider>
   );

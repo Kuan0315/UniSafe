@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSOSContext } from "../contexts/SOSContext";
+import { useAlarmContext } from "../contexts/AlarmContext";
 
 type AppHeaderProps = {
   title?: string;
@@ -9,6 +10,7 @@ type AppHeaderProps = {
 
 export default function AppHeader({ title }: AppHeaderProps) {
   const { isSOSActive, onSOSIndicatorPress } = useSOSContext();
+  const { isAlarmPlaying, currentAlarmType, onAlarmIndicatorPress } = useAlarmContext();
   
   return (
     <View style={styles.container}>
@@ -22,19 +24,42 @@ export default function AppHeader({ title }: AppHeaderProps) {
           <Text style={styles.appName}>UniSafe</Text>
         </View>
         
-        {/* SOS Active Indicator */}
-        {isSOSActive && (
-          <TouchableOpacity 
-            style={styles.sosIndicator}
-            onPress={onSOSIndicatorPress}
-            activeOpacity={0.8}
-          >
-            <View style={styles.sosIndicatorContent}>
-              <View style={styles.sosStatusDot} />
-              <Text style={styles.sosStatusText}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+        <View style={styles.rightSection}>
+          {/* SOS Active Indicator */}
+          {isSOSActive && (
+            <TouchableOpacity 
+              style={styles.sosIndicator}
+              onPress={onSOSIndicatorPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.sosIndicatorContent}>
+                <View style={styles.sosStatusDot} />
+                <Text style={styles.sosStatusText}>SOS</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          
+          {/* Alarm Active Indicator */}
+          {isAlarmPlaying && (
+            <TouchableOpacity 
+              style={styles.alarmIndicator}
+              onPress={onAlarmIndicatorPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.alarmIndicatorContent}>
+                <Ionicons 
+                  name={currentAlarmType === 'fake-call' ? 'call' : 'notifications'} 
+                  size={12} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.alarmStatusText}>
+                  {currentAlarmType === 'fake-call' ? 'CALL' : 'RING'}
+                </Text>
+                <Ionicons name="stop" size={10} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       {title ? (
         <View style={styles.titleBar}>
@@ -97,6 +122,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   sosStatusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  alarmIndicator: {
+    backgroundColor: '#FF9500',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    elevation: 2,
+    shadowColor: '#FF9500',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  alarmIndicatorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  alarmStatusText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
