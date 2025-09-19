@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
 import StandardHeader from '../../components/StandardHeader';
+import * as DocumentPicker from 'expo-document-picker';
 
 const { width } = Dimensions.get('window');
 
@@ -44,6 +45,8 @@ interface Report {
   coordinatesLng?: number;
   anonymous: boolean;
   contactPreference: 'Email' | 'Phone' | 'None';
+  contactEmail?: string;
+  contactPhone?: string;
   emergencyServicesCalled?: boolean;
   emergencyServicesInvolved?: string[];
   emergencyServicesReferenceNumber?: string;
@@ -53,9 +56,23 @@ interface Report {
     addedBy: number;
     addedAt: Date;
     addedByName: string;
+    attachments?: Array<{
+      id: string;
+      name: string;
+      uri: string;
+      type: string;
+      size: number;
+    }>;
   }>;
   followUpResolution?: string;
   followUpResolutionDate?: Date;
+  followUpResolutionAttachments?: Array<{
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+    size: number;
+  }>;
   createdAt: Date;
   updatedAt: Date;
   closedAt?: Date;
@@ -107,6 +124,22 @@ export default function ReportsManagement() {
   const [resolutionText, setResolutionText] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string>('');
+  
+  // File attachment states
+  const [noteAttachments, setNoteAttachments] = useState<Array<{
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+    size: number;
+  }>>([]);
+  const [resolutionAttachments, setResolutionAttachments] = useState<Array<{
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+    size: number;
+  }>>([]);
 
   const reportTypes = ['All', 'Theft', 'Harassment', 'Accident', 'Suspicious Activity', 'Fire', 'Medical Emergency', 'Other'];
   const statusOptions = ['All', 'Pending', 'Under Review', 'In Progress', 'Resolved', 'Closed'];
@@ -170,6 +203,7 @@ export default function ReportsManagement() {
           coordinatesLng: 101.6869,
           anonymous: false,
           contactPreference: 'Email',
+          contactEmail: 'john.doe@university.edu',
           emergencyServicesCalled: false,
           followUpAssignedTo: 5678,
           followUpNotes: [
@@ -198,6 +232,7 @@ export default function ReportsManagement() {
           coordinatesLng: 101.6875,
           anonymous: false,
           contactPreference: 'Phone',
+          contactPhone: '+1 (555) 123-4567',
           emergencyServicesCalled: true,
           emergencyServicesInvolved: ['Ambulance', 'Campus Health Center'],
           emergencyServicesReferenceNumber: 'AMB-2024-0314-001',
@@ -265,6 +300,7 @@ export default function ReportsManagement() {
           coordinatesLng: 101.6865,
           anonymous: false,
           contactPreference: 'Email',
+          contactEmail: 'sarah.johnson@university.edu',
           emergencyServicesCalled: false,
           followUpAssignedTo: null,
           followUpNotes: [],
@@ -398,11 +434,88 @@ export default function ReportsManagement() {
     loadReports();
   };
 
+  // File picker functions
+  const pickDocumentForNote = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (!result.canceled && result.assets) {
+        const newAttachments = result.assets.map(asset => ({
+          id: Date.now().toString() + Math.random(),
+          name: asset.name,
+          uri: asset.uri,
+          type: asset.mimeType || 'application/octet-stream',
+          size: asset.size || 0,
+        }));
+        setNoteAttachments(prev => [...prev, ...newAttachments]);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      Alert.alert('Error', 'Failed to pick document');
+    }
+  };
+
+  const pickDocumentForResolution = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (!result.canceled && result.assets) {
+        const newAttachments = result.assets.map(asset => ({
+          id: Date.now().toString() + Math.random(),
+          name: asset.name,
+          uri: asset.uri,
+          type: asset.mimeType || 'application/octet-stream',
+          size: asset.size || 0,
+        }));
+        setResolutionAttachments(prev => [...prev, ...newAttachments]);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      Alert.alert('Error', 'Failed to pick document');
+    }
+  };
+
+  const removeNoteAttachment = (attachmentId: string) => {
+    setNoteAttachments(prev => prev.filter(att => att.id !== attachmentId));
+  };
+
+  const removeResolutionAttachment = (attachmentId: string) => {
+    setResolutionAttachments(prev => prev.filter(att => att.id !== attachmentId));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.includes('image')) return 'image';
+    if (type.includes('video')) return 'videocam';
+    if (type.includes('audio')) return 'musical-notes';
+    if (type.includes('pdf')) return 'document-text';
+    if (type.includes('word') || type.includes('doc')) return 'document';
+    if (type.includes('excel') || type.includes('sheet')) return 'grid';
+    if (type.includes('powerpoint') || type.includes('presentation')) return 'easel';
+    return 'document-attach';
+  };
+
   const submitNote = async () => {
     if (selectedReport && noteText.trim()) {
-      await addFollowUpNote(selectedReport.id, noteText.trim());
+      await addFollowUpNote(selectedReport.id, noteText.trim(), noteAttachments);
       setNoteModalVisible(false);
       setNoteText('');
+      setNoteAttachments([]);
     }
   };
 
@@ -411,6 +524,7 @@ export default function ReportsManagement() {
     setSelectedReport(report);
     setNoteModalVisible(true);
     setNoteText('');
+    setNoteAttachments([]);
   };
 
   // Handle staff assignment
@@ -458,6 +572,7 @@ export default function ReportsManagement() {
         setStatusModalVisible(false);
         setResolutionModalVisible(true);
         setResolutionText('');
+        setResolutionAttachments([]);
       } else {
         await updateReportStatus(selectedReport.id, newStatus);
         setStatusModalVisible(false);
@@ -467,9 +582,10 @@ export default function ReportsManagement() {
 
   const submitResolution = async () => {
     if (selectedReport && pendingStatus && resolutionText.trim()) {
-      await updateReportStatus(selectedReport.id, pendingStatus, resolutionText.trim());
+      await updateReportStatus(selectedReport.id, pendingStatus, resolutionText.trim(), resolutionAttachments);
       setResolutionModalVisible(false);
       setResolutionText('');
+      setResolutionAttachments([]);
       setPendingStatus('');
     } else {
       Alert.alert('Required', 'Please provide resolution details before marking the report as resolved.');
@@ -477,7 +593,13 @@ export default function ReportsManagement() {
   };
 
   // Update report status
-  const updateReportStatus = async (reportId: string, newStatus: string, resolution?: string) => {
+  const updateReportStatus = async (reportId: string, newStatus: string, resolution?: string, resolutionAttachments?: Array<{
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+    size: number;
+  }>) => {
     try {
       // TODO: Replace with actual API call
       const updatedReports = reports.map(report => 
@@ -489,7 +611,8 @@ export default function ReportsManagement() {
               ...(resolution && newStatus === 'Resolved' && {
                 followUpResolution: resolution,
                 followUpResolutionDate: new Date(),
-                closedAt: new Date()
+                closedAt: new Date(),
+                followUpResolutionAttachments: resolutionAttachments || []
               })
             }
           : report
@@ -505,7 +628,8 @@ export default function ReportsManagement() {
           ...(resolution && newStatus === 'Resolved' && {
             followUpResolution: resolution,
             followUpResolutionDate: new Date(),
-            closedAt: new Date()
+            closedAt: new Date(),
+            followUpResolutionAttachments: resolutionAttachments || []
           })
         });
       }
@@ -518,7 +642,13 @@ export default function ReportsManagement() {
   };
 
   // Add follow-up note
-  const addFollowUpNote = async (reportId: string, note: string) => {
+  const addFollowUpNote = async (reportId: string, note: string, attachments?: Array<{
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+    size: number;
+  }>) => {
     try {
       // TODO: Replace with actual API call
       const newNote = {
@@ -526,6 +656,7 @@ export default function ReportsManagement() {
         addedBy: 1, // Current user ID
         addedByName: 'Current User', // Current user name
         addedAt: new Date(),
+        attachments: attachments || [],
       };
 
       const updatedReports = reports.map(report => 
@@ -852,8 +983,35 @@ export default function ReportsManagement() {
                     </Text>
                   </View>
                   <View style={styles.reporterInfoRow}>
-                    <Text style={styles.modalLabel}>Contact Preference:</Text>
-                    <Text style={styles.modalValue}>{selectedReport.contactPreference}</Text>
+                    <Text style={styles.modalLabel}>Contact Information:</Text>
+                    {selectedReport.anonymous ? (
+                      <Text style={styles.modalValue}>Anonymous</Text>
+                    ) : (
+                      <View style={styles.contactValueContainer}>
+                        {selectedReport.contactPreference === 'Email' && (
+                          <View style={styles.contactItem}>
+                            <Ionicons name="mail" size={16} color="#007AFF" style={styles.contactIcon} />
+                            <Text style={styles.contactText} numberOfLines={2}>
+                              {selectedReport.contactEmail || 'Email not provided'}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedReport.contactPreference === 'Phone' && (
+                          <View style={styles.contactItem}>
+                            <Ionicons name="call" size={16} color="#34C759" style={styles.contactIcon} />
+                            <Text style={styles.contactText} numberOfLines={1}>
+                              {selectedReport.contactPhone || 'Phone not provided'}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedReport.contactPreference === 'None' && (
+                          <View style={styles.contactItem}>
+                            <Ionicons name="ban" size={16} color="#8E8E93" style={styles.contactIcon} />
+                            <Text style={styles.contactText}>No contact preferred</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                   <View style={styles.reporterInfoRow}>
                     <Text style={styles.modalLabel}>Report Time:</Text>
@@ -861,31 +1019,6 @@ export default function ReportsManagement() {
                   </View>
                 </View>
               </View>
-
-              {/* Emergency Services */}
-              {selectedReport.emergencyServicesCalled && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Emergency Services</Text>
-                  <View style={styles.emergencyServicesContainer}>
-                    <View style={styles.reporterInfoRow}>
-                      <Text style={styles.modalLabel}>Services Called:</Text>
-                      <Text style={styles.modalValue}>Yes</Text>
-                    </View>
-                    {selectedReport.emergencyServicesInvolved && selectedReport.emergencyServicesInvolved.length > 0 && (
-                      <View style={styles.reporterInfoRow}>
-                        <Text style={styles.modalLabel}>Services Involved:</Text>
-                        <Text style={styles.modalValue}>{selectedReport.emergencyServicesInvolved.join(', ')}</Text>
-                      </View>
-                    )}
-                    {selectedReport.emergencyServicesReferenceNumber && (
-                      <View style={styles.reporterInfoRow}>
-                        <Text style={styles.modalLabel}>Reference Number:</Text>
-                        <Text style={styles.modalValue}>{selectedReport.emergencyServicesReferenceNumber}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              )}
 
               {/* Evidence */}
               {selectedReport.evidenceMedia && selectedReport.evidenceMedia.length > 0 && (
@@ -936,6 +1069,35 @@ export default function ReportsManagement() {
                         <Text style={styles.noteDate}>{formatDate(note.addedAt)}</Text>
                       </View>
                       <Text style={styles.noteText}>{note.note}</Text>
+                      
+                      {/* Note Attachments */}
+                      {note.attachments && note.attachments.length > 0 && (
+                        <View style={styles.noteAttachmentsContainer}>
+                          <Text style={styles.noteAttachmentsTitle}>Attachments:</Text>
+                          {note.attachments.map((attachment) => (
+                            <TouchableOpacity 
+                              key={attachment.id} 
+                              style={styles.noteAttachmentItem}
+                              onPress={() => {
+                                // TODO: Open attachment
+                                Alert.alert('Info', `Opening ${attachment.name}`);
+                              }}
+                            >
+                              <Ionicons 
+                                name={getFileIcon(attachment.type)} 
+                                size={16} 
+                                color="#007AFF" 
+                              />
+                              <Text style={styles.noteAttachmentName}>
+                                {attachment.name}
+                              </Text>
+                              <Text style={styles.noteAttachmentSize}>
+                                ({formatFileSize(attachment.size)})
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   ))
                 ) : (
@@ -952,6 +1114,35 @@ export default function ReportsManagement() {
                     <Text style={styles.resolutionDate}>
                       Resolved on: {formatDate(selectedReport.followUpResolutionDate)}
                     </Text>
+                  )}
+                  
+                  {/* Resolution Attachments */}
+                  {selectedReport.followUpResolutionAttachments && selectedReport.followUpResolutionAttachments.length > 0 && (
+                    <View style={styles.noteAttachmentsContainer}>
+                      <Text style={styles.noteAttachmentsTitle}>Supporting Documents:</Text>
+                      {selectedReport.followUpResolutionAttachments.map((attachment) => (
+                        <TouchableOpacity 
+                          key={attachment.id} 
+                          style={styles.noteAttachmentItem}
+                          onPress={() => {
+                            // TODO: Open attachment
+                            Alert.alert('Info', `Opening ${attachment.name}`);
+                          }}
+                        >
+                          <Ionicons 
+                            name={getFileIcon(attachment.type)} 
+                            size={16} 
+                            color="#007AFF" 
+                          />
+                          <Text style={styles.noteAttachmentName}>
+                            {attachment.name}
+                          </Text>
+                          <Text style={styles.noteAttachmentSize}>
+                            ({formatFileSize(attachment.size)})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   )}
                 </View>
               )}
@@ -1026,17 +1217,61 @@ export default function ReportsManagement() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.noteInputContainer}>
+          <ScrollView style={styles.noteInputContainer}>
             <TextInput
               style={styles.noteTextInput}
               multiline
-              numberOfLines={10}
+              numberOfLines={6}
               placeholder="Enter your follow-up note here..."
               value={noteText}
               onChangeText={setNoteText}
               textAlignVertical="top"
             />
-          </View>
+            
+            {/* File Attachments Section */}
+            <View style={styles.attachmentSection}>
+              <View style={styles.attachmentHeader}>
+                <Text style={styles.attachmentTitle}>Attachments</Text>
+                <TouchableOpacity
+                  style={styles.addAttachmentButton}
+                  onPress={pickDocumentForNote}
+                >
+                  <Ionicons name="attach" size={16} color="#007AFF" />
+                  <Text style={styles.addAttachmentText}>Add File</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {noteAttachments.length > 0 && (
+                <View style={styles.attachmentList}>
+                  {noteAttachments.map((attachment) => (
+                    <View key={attachment.id} style={styles.attachmentItem}>
+                      <View style={styles.attachmentInfo}>
+                        <Ionicons 
+                          name={getFileIcon(attachment.type)} 
+                          size={20} 
+                          color="#007AFF" 
+                        />
+                        <View style={styles.attachmentDetails}>
+                          <Text style={styles.attachmentName} numberOfLines={1}>
+                            {attachment.name}
+                          </Text>
+                          <Text style={styles.attachmentSize}>
+                            {formatFileSize(attachment.size)}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeAttachmentButton}
+                        onPress={() => removeNoteAttachment(attachment.id)}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
 
@@ -1139,18 +1374,62 @@ export default function ReportsManagement() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.resolutionInputContainer}>
+          <ScrollView style={styles.resolutionInputContainer}>
             <Text style={styles.resolutionLabel}>Please provide resolution details:</Text>
             <TextInput
-              style={styles.resolutionTextInput}
+              style={[styles.resolutionTextInput, { minHeight: 120 }]}
               multiline
-              numberOfLines={8}
+              numberOfLines={6}
               placeholder="Describe how this report was resolved, actions taken, and any follow-up requirements..."
               value={resolutionText}
               onChangeText={setResolutionText}
               textAlignVertical="top"
             />
-          </View>
+            
+            {/* File Attachments Section */}
+            <View style={styles.attachmentSection}>
+              <View style={styles.attachmentHeader}>
+                <Text style={styles.attachmentTitle}>Supporting Documents</Text>
+                <TouchableOpacity
+                  style={styles.addAttachmentButton}
+                  onPress={pickDocumentForResolution}
+                >
+                  <Ionicons name="attach" size={16} color="#007AFF" />
+                  <Text style={styles.addAttachmentText}>Add File</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {resolutionAttachments.length > 0 && (
+                <View style={styles.attachmentList}>
+                  {resolutionAttachments.map((attachment) => (
+                    <View key={attachment.id} style={styles.attachmentItem}>
+                      <View style={styles.attachmentInfo}>
+                        <Ionicons 
+                          name={getFileIcon(attachment.type)} 
+                          size={20} 
+                          color="#007AFF" 
+                        />
+                        <View style={styles.attachmentDetails}>
+                          <Text style={styles.attachmentName} numberOfLines={1}>
+                            {attachment.name}
+                          </Text>
+                          <Text style={styles.attachmentSize}>
+                            {formatFileSize(attachment.size)}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeAttachmentButton}
+                        onPress={() => removeResolutionAttachment(attachment.id)}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -1166,28 +1445,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statsContainer: {
-    padding: 16,
+    padding: 12,
   },
   statsRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 6,
+    borderRadius: 8,
+    padding: 10,
+    marginHorizontal: 4,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#000000',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#8E8E93',
     textAlign: 'center',
   },
@@ -1745,5 +2024,139 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#FFFFFF',
     minHeight: 200,
+  },
+  // File attachment styles
+  attachmentSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    paddingTop: 16,
+  },
+  attachmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  attachmentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  addAttachmentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  addAttachmentText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  attachmentList: {
+    gap: 8,
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+  },
+  attachmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  attachmentDetails: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  attachmentName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  attachmentSize: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  removeAttachmentButton: {
+    padding: 4,
+  },
+  // Note attachment display styles
+  noteAttachmentsContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+  },
+  noteAttachmentsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+  },
+  noteAttachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  noteAttachmentName: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginLeft: 6,
+    flex: 1,
+  },
+  noteAttachmentSize: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginLeft: 4,
+  },
+  contactInfoContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  modalValueContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  contactValueContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+    maxWidth: '70%',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    maxWidth: '100%',
+    flexShrink: 1,
+  },
+  contactIcon: {
+    marginTop: 2,
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  contactText: {
+    fontSize: 14,
+    color: '#1D1D1F',
+    fontWeight: '400',
+    flex: 1,
+    textAlign: 'right',
+    lineHeight: 18,
   },
 });

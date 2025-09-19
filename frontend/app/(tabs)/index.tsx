@@ -45,6 +45,160 @@ try {
   console.log('Expo Torch module not available, using fallback');
 }
 
+// Safety Alerts Component with Priority Support
+interface SafetyAlert {
+  id: string;
+  title: string;
+  message: string;
+  type: 'critical' | 'warning' | 'info';
+  priority: 'high' | 'medium' | 'low';
+  createdAt: Date;
+  isActive: boolean;
+}
+
+const SafetyAlertsSection = () => {
+  const [alerts, setAlerts] = useState<SafetyAlert[]>([]);
+
+  useEffect(() => {
+    loadAlerts();
+  }, []);
+
+  const loadAlerts = () => {
+    // Mock alerts - In real app, this would fetch from API
+    const mockAlerts: SafetyAlert[] = [
+      {
+        id: '1',
+        title: 'Campus Lockdown',
+        message: 'Security incident in progress. Remain in current location.',
+        type: 'critical',
+        priority: 'high',
+        createdAt: new Date(Date.now() - 300000), // 5 mins ago
+        isActive: true,
+      },
+      {
+        id: '2',
+        title: 'Heavy Rain Warning',
+        message: 'Heavy rainfall expected. Exercise caution near construction areas.',
+        type: 'warning',
+        priority: 'medium',
+        createdAt: new Date(Date.now() - 720000), // 12 mins ago
+        isActive: true,
+      },
+      {
+        id: '3',
+        title: 'Parking Closure',
+        message: 'Parking Lot B closed for maintenance until 6 PM.',
+        type: 'info',
+        priority: 'low',
+        createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+        isActive: true,
+      },
+    ];
+
+    // Sort by priority: high -> medium -> low, then by creation time (newest first)
+    const sortedAlerts = mockAlerts
+      .filter(alert => alert.isActive)
+      .sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+
+    setAlerts(sortedAlerts);
+  };
+
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case 'critical': return 'alert-circle';
+      case 'warning': return 'warning';
+      case 'info': return 'information-circle';
+      default: return 'information-circle';
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high': return '🔴';
+      case 'medium': return '🟡';
+      case 'low': return '🟢';
+      default: return '🟢';
+    }
+  };
+
+  const formatTimeAgo = (date: Date) => {
+    const diffMs = Date.now() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    return `${diffHours}h ago`;
+  };
+
+  const visibleAlerts = alerts.slice(0, 2);
+  const remainingCount = Math.max(0, alerts.length - 2);
+
+  return (
+    <View style={styles.alertsContainer}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Safety Alerts</Text>
+        <TouchableOpacity 
+          style={styles.viewAllButton}
+          onPress={() => {
+            router.push('/alerts');
+          }}
+        >
+          <Text style={styles.viewAllText}>View All</Text>
+          <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.compactAlertCard}>
+        {visibleAlerts.map((alert) => (
+          <View key={alert.id} style={styles.compactAlertRow}>
+            <View style={[
+              styles.compactAlertIcon, 
+              alert.type === 'critical' ? styles.compactAlertIconCritical :
+              alert.type === 'warning' ? styles.compactAlertIconWarning : 
+              styles.compactAlertIconInfo
+            ]}>
+              <Ionicons name={getAlertIcon(alert.type)} size={18} color="#fff" />
+            </View>
+            <View style={styles.compactAlertContent}>
+              <Text style={styles.compactAlertTitle}>{alert.title}</Text>
+              <Text style={styles.compactAlertMeta}>{formatTimeAgo(alert.createdAt)} • Campus-wide</Text>
+            </View>
+            <View style={[
+              styles.compactPriorityBadge,
+              alert.priority === 'medium' ? styles.compactPriorityBadgeWarning :
+              alert.priority === 'low' ? styles.compactPriorityBadgeInfo : {}
+            ]}>
+              <Text style={styles.compactPriorityText}>{getPriorityBadge(alert.priority)}</Text>
+            </View>
+          </View>
+        ))}
+        
+        {remainingCount > 0 && (
+          <View style={styles.alertSummary}>
+            <Text style={styles.alertSummaryText}>+{remainingCount} more alert{remainingCount > 1 ? 's' : ''}</Text>
+            <View style={styles.alertStatusDots}>
+              {alerts.slice(2, 5).map((alert, index) => (
+                <View key={index} style={[
+                  styles.statusDot,
+                  alert.priority === 'high' ? styles.statusDotCritical :
+                  alert.priority === 'medium' ? styles.statusDotWarning :
+                  styles.statusDotInfo
+                ]} />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
 function HomeScreen() {
   const { 
     isSOSActive, 
@@ -505,58 +659,7 @@ function HomeScreen() {
           />
 
           {/* Compact Safety alerts section */}
-          <View style={styles.alertsContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Safety Alerts</Text>
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => {
-                  router.push('/alerts');
-                }}
-              >
-                <Text style={styles.viewAllText}>View All</Text>
-                <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Critical Alert Summary */}
-            <View style={styles.compactAlertCard}>
-              <View style={styles.compactAlertRow}>
-                <View style={[styles.compactAlertIcon, styles.compactAlertIconCritical]}>
-                  <Ionicons name="alert-circle" size={18} color="#fff" />
-                </View>
-                <View style={styles.compactAlertContent}>
-                  <Text style={styles.compactAlertTitle}>Suspicious activity near Library</Text>
-                  <Text style={styles.compactAlertMeta}>5 mins ago • 200m away</Text>
-                </View>
-                <View style={styles.compactPriorityBadge}>
-                  <Text style={styles.compactPriorityText}>!</Text>
-                </View>
-              </View>
-              
-              <View style={styles.compactAlertRow}>
-                <View style={[styles.compactAlertIcon, styles.compactAlertIconWarning]}>
-                  <Ionicons name="warning" size={18} color="#fff" />
-                </View>
-                <View style={styles.compactAlertContent}>
-                  <Text style={styles.compactAlertTitle}>Heavy rain warning</Text>
-                  <Text style={styles.compactAlertMeta}>12 mins ago • Campus-wide</Text>
-                </View>
-                <View style={[styles.compactPriorityBadge, styles.compactPriorityBadgeWarning]}>
-                  <Text style={styles.compactPriorityText}>⚠</Text>
-                </View>
-              </View>
-              
-              <View style={styles.alertSummary}>
-                <Text style={styles.alertSummaryText}>+1 more alert</Text>
-                <View style={styles.alertStatusDots}>
-                  <View style={[styles.statusDot, styles.statusDotCritical]} />
-                  <View style={[styles.statusDot, styles.statusDotWarning]} />
-                  <View style={[styles.statusDot, styles.statusDotInfo]} />
-                </View>
-              </View>
-            </View>
-          </View>
+          <SafetyAlertsSection />
           
           {/* Enhanced SOS Button Section */}
           <View style={styles.sosMainContainer}>
@@ -924,6 +1027,9 @@ const styles = StyleSheet.create({
   compactAlertIconWarning: {
     backgroundColor: '#FF9500',
   },
+  compactAlertIconInfo: {
+    backgroundColor: '#007AFF',
+  },
   compactAlertContent: {
     flex: 1,
   },
@@ -948,6 +1054,9 @@ const styles = StyleSheet.create({
   },
   compactPriorityBadgeWarning: {
     backgroundColor: '#FF9500',
+  },
+  compactPriorityBadgeInfo: {
+    backgroundColor: '#007AFF',
   },
   compactPriorityText: {
     fontSize: 12,
