@@ -9,10 +9,13 @@ import {
   Linking,
   Alert,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LocationObject } from 'expo-location';
 import { capturePhoto, captureVideo } from '../../services/SimpleCaptureService';
+import EmergencyChatScreen from '../EmergencyChatScreen';
 
 interface SOSModalProps {
   visible: boolean;
@@ -26,6 +29,8 @@ interface SOSModalProps {
   requestLocationPermission: () => void;
   handleEmergencyCall: (type: string) => void;
   handleCancelSOS?: () => void;
+  handleEndEmergency?: () => void;
+  handleMistakeActivation?: () => void;
   onMediaUpdated?: () => void; // callback to notify parent when media may have been updated
   speakNotification?: (text: string) => void;
   takePicture?: () => Promise<void>;
@@ -43,12 +48,17 @@ export default function SOSModal({
   requestLocationPermission,
   handleEmergencyCall,
   handleCancelSOS,
+  handleEndEmergency,
+  handleMistakeActivation,
   onMediaUpdated,
 }: SOSModalProps) {
   const [mediaSaveError, setMediaSaveError] = useState<string | null>(null);
   const [showMediaError, setShowMediaError] = useState(false);
   const [mediaCaptureType, setMediaCaptureType] = useState<'photo' | 'video' | null>(null);
   const [isCapturingMedia, setIsCapturingMedia] = useState(false);
+  
+  // Emergency chat screen state
+  const [showChatScreen, setShowChatScreen] = useState(false);
 
   const openCamera = async (type: 'photo' | 'video') => {
     try {
@@ -107,7 +117,7 @@ export default function SOSModal({
         {
           text: "End Emergency",
           style: "destructive",
-          onPress: handleCancelSOS
+          onPress: handleEndEmergency || handleCancelSOS
         }
       ]
     );
@@ -115,7 +125,10 @@ export default function SOSModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.sosModalOverlay}>
+      <KeyboardAvoidingView 
+        style={styles.sosModalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.sosModalContent}>
           {/* External camera is now used for both photo and video */}
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
@@ -257,6 +270,23 @@ export default function SOSModal({
               </Text>
             </View>
 
+            {/* Text Communication with Campus Security */}
+            <View style={styles.communicationContainer}>
+              <View style={styles.communicationHeader}>
+                <Ionicons name="chatbubbles" size={24} color="#007AFF" />
+                <Text style={styles.communicationHeaderTitle}>COMMUNICATE WITH SECURITY</Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.chatButton}
+                onPress={() => setShowChatScreen(true)}
+              >
+                <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+                <Text style={styles.chatButtonText}>Open Emergency Chat</Text>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
             {/* Emergency Actions */}
             <View style={styles.emergencyContainer}>
               <View style={styles.emergencyHeader}>
@@ -311,7 +341,7 @@ export default function SOSModal({
                     {
                       text: "Yes, Cancel SOS",
                       style: "destructive",
-                      onPress: handleCancelSOS
+                      onPress: handleMistakeActivation || handleCancelSOS
                     }
                   ]
                 );
@@ -330,7 +360,14 @@ export default function SOSModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
+      
+      {/* Emergency Chat Screen */}
+      <EmergencyChatScreen 
+        visible={showChatScreen} 
+        onClose={() => setShowChatScreen(false)}
+        emergencyId="current-emergency"
+      />
     </Modal>
   );
 }
@@ -637,5 +674,41 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF3B30',
     marginLeft: 4,
+  },
+  // Text Communication Styles
+  communicationContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E1E1E1',
+  },
+  communicationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  communicationHeaderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginLeft: 8,
+    flex: 1,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 10,
+  },
+  chatButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+    marginRight: 8,
   },
 });
