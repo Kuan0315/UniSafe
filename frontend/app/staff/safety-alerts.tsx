@@ -9,26 +9,29 @@ import {
   Alert,
   Modal,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import StandardHeader from '../../components/StandardHeader';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SafetyAlert {
   id: string;
   title: string;
   message: string;
   type: 'critical' | 'warning' | 'info';
-  priority: 'critical' | 'warning' | 'info';
+  priority: 'high' | 'medium' | 'low';
   category: string;
-  targetAudience: 'all' | 'students' | 'staff' | 'visitors';
   createdBy: string;
   createdAt: Date;
   expiresAt?: Date;
   timeLimit?: number; // Time limit in hours
+  scheduledAt?: Date; // When to send the alert (for scheduled alerts)
   isActive: boolean;
   isAutoDeactivated: boolean;
+  isScheduled: boolean; // Whether this is a scheduled alert
   sendPushNotification: boolean;
   sendEmail: boolean;
   sendSMS: boolean;
@@ -43,14 +46,20 @@ export default function SafetyAlerts() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState<SafetyAlert['type']>('info');
-  const [priority, setPriority] = useState<SafetyAlert['priority']>('info');
+  const [priority, setPriority] = useState<SafetyAlert['priority']>('medium');
   const [category, setCategory] = useState('');
-  const [targetAudience, setTargetAudience] = useState<SafetyAlert['targetAudience']>('all');
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeLimit, setTimeLimit] = useState<number | undefined>(24); // Default 24 hours
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+  const [isScheduled, setIsScheduled] = useState(false);
   const [sendPushNotification, setSendPushNotification] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [sendSMS, setSendSMS] = useState(false);
+  
+  // Date/Time picker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   useEffect(() => {
     loadAlerts();
@@ -65,14 +74,14 @@ export default function SafetyAlerts() {
           title: 'Emergency: Campus Lockdown',
           message: 'Due to a security incident, all campus buildings are in lockdown. Please remain in your current location and await further instructions. Do not leave buildings until the all-clear is given.',
           type: 'critical',
-          priority: 'critical',
+          priority: 'high',
           category: 'security',
-          targetAudience: 'all',
           createdBy: 'Security Office',
           createdAt: new Date(Date.now() - 3600000),
           isActive: true,
           timeLimit: undefined,
           isAutoDeactivated: false,
+          isScheduled: false,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: true,
@@ -82,15 +91,15 @@ export default function SafetyAlerts() {
           title: 'Weather Warning: Heavy Rain Expected',
           message: 'Heavy rainfall is expected from 2 PM to 6 PM today. Please exercise caution when walking on campus, especially near construction areas. Shuttle services may be delayed.',
           type: 'warning',
-          priority: 'warning',
+          priority: 'medium',
           category: 'weather',
-          targetAudience: 'all',
           createdBy: 'Campus Operations',
           createdAt: new Date(Date.now() - 7200000),
           expiresAt: new Date(Date.now() + 14400000), // 4 hours from now
           isActive: true,
           timeLimit: 4,
           isAutoDeactivated: true,
+          isScheduled: false,
           sendPushNotification: true,
           sendEmail: false,
           sendSMS: false,
@@ -100,15 +109,15 @@ export default function SafetyAlerts() {
           title: 'Maintenance: Parking Lot B Closure',
           message: 'Parking Lot B will be closed for maintenance from March 15-17. Alternative parking is available in Lots A and C. We apologize for any inconvenience.',
           type: 'info',
-          priority: 'info',
+          priority: 'low',
           category: 'maintenance',
-          targetAudience: 'all',
           createdBy: 'Facilities Management',
           createdAt: new Date(Date.now() - 86400000),
           expiresAt: new Date(Date.now() + 172800000), // 2 days from now
           isActive: true,
           timeLimit: 48,
           isAutoDeactivated: true,
+          isScheduled: false,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
@@ -118,14 +127,14 @@ export default function SafetyAlerts() {
           title: 'COVID-19 Update: Mask Guidelines',
           message: 'Effective immediately, masks are recommended but not required in outdoor campus areas. Masks are still required in all indoor spaces including classrooms, libraries, and dining halls.',
           type: 'info',
-          priority: 'info',
+          priority: 'low',
           category: 'health',
-          targetAudience: 'all',
           createdBy: 'Health Services',
           createdAt: new Date(Date.now() - 172800000),
           isActive: false,
           timeLimit: undefined,
           isAutoDeactivated: false,
+          isScheduled: false,
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
@@ -150,8 +159,9 @@ export default function SafetyAlerts() {
     setMessage(alert.message);
     setType(alert.type);
     setPriority(alert.priority);
-    setTargetAudience(alert.targetAudience);
     setExpiresAt(alert.expiresAt || null);
+    setScheduledAt(alert.scheduledAt || null);
+    setIsScheduled(alert.isScheduled || false);
     setSendPushNotification(alert.sendPushNotification);
     setSendEmail(alert.sendEmail);
     setSendSMS(alert.sendSMS);
@@ -163,9 +173,10 @@ export default function SafetyAlerts() {
     setTitle('');
     setMessage('');
     setType('info');
-    setPriority('info');
-    setTargetAudience('all');
+    setPriority('medium');
     setExpiresAt(null);
+    setScheduledAt(null);
+    setIsScheduled(false);
     setSendPushNotification(true);
     setSendEmail(false);
     setSendSMS(false);
@@ -185,13 +196,14 @@ export default function SafetyAlerts() {
         type,
         priority,
         category,
-        targetAudience,
         createdBy: 'Current Staff Member', // Replace with actual user
         createdAt: editingAlert?.createdAt || new Date(),
         expiresAt: expiresAt || undefined,
-        isActive: true,
+        scheduledAt: scheduledAt || undefined,
+        isActive: !isScheduled, // If scheduled, not active yet
         timeLimit,
         isAutoDeactivated: timeLimit !== null && timeLimit !== undefined,
+        isScheduled,
         sendPushNotification,
         sendEmail,
         sendSMS,
@@ -213,7 +225,7 @@ export default function SafetyAlerts() {
         
         Alert.alert(
           'Alert Published',
-          `Alert has been sent to ${targetAudience} via: ${deliveryMethods.join(', ')}`
+          `Alert has been sent to everyone on campus via: ${deliveryMethods.join(', ')}`
         );
       }
 
@@ -235,6 +247,47 @@ export default function SafetyAlerts() {
     } catch (error) {
       Alert.alert('Error', 'Failed to update alert status');
     }
+  };
+
+  // Date/Time picker handlers
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    
+    if (selectedDate) {
+      setTempDate(selectedDate);
+      if (Platform.OS === 'ios') {
+        // For iOS, directly set the date
+        const newDateTime = scheduledAt ? new Date(scheduledAt) : new Date();
+        newDateTime.setFullYear(selectedDate.getFullYear());
+        newDateTime.setMonth(selectedDate.getMonth());
+        newDateTime.setDate(selectedDate.getDate());
+        setScheduledAt(newDateTime);
+      } else {
+        // For Android, continue to time picker
+        setShowTimePicker(true);
+      }
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    
+    if (selectedTime) {
+      const newDateTime = new Date(tempDate);
+      newDateTime.setHours(selectedTime.getHours());
+      newDateTime.setMinutes(selectedTime.getMinutes());
+      setScheduledAt(newDateTime);
+    }
+  };
+
+  const openDateTimePicker = () => {
+    const now = new Date();
+    setTempDate(scheduledAt || now);
+    setShowDatePicker(true);
   };
 
   const deleteAlert = async (alertId: string) => {
@@ -261,6 +314,15 @@ export default function SafetyAlerts() {
       case 'warning': return '#FF9500';
       case 'info': return '#007AFF';
       default: return '#007AFF';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return '#FF3B30';
+      case 'medium': return '#FF9500';
+      case 'low': return '#34C759';
+      default: return '#34C759';
     }
   };
 
@@ -296,25 +358,25 @@ export default function SafetyAlerts() {
       title: 'Weather Alert',
       message: 'Weather conditions may affect campus operations. Please check local weather reports and exercise caution.',
       type: 'warning' as const,
-      priority: 'warning' as const,
+      priority: 'medium' as const,
     },
     {
       title: 'Emergency Drill',
       message: 'A scheduled emergency drill will take place today. Please participate and follow evacuation procedures.',
       type: 'info' as const,
-      priority: 'info' as const,
+      priority: 'low' as const,
     },
     {
       title: 'Maintenance Notice',
       message: 'Scheduled maintenance will affect [LOCATION] from [START TIME] to [END TIME]. Please plan accordingly.',
       type: 'info' as const,
-      priority: 'info' as const,
+      priority: 'low' as const,
     },
     {
       title: 'Security Alert',
       message: 'Please be aware of suspicious activity in the area. Report any concerns to campus security immediately.',
       type: 'critical' as const,
-      priority: 'critical' as const,
+      priority: 'high' as const,
     },
   ];
 
@@ -337,7 +399,7 @@ export default function SafetyAlerts() {
           <Text style={styles.statLabel}>Active Alerts</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{alerts.filter(a => a.priority === 'critical').length}</Text>
+          <Text style={styles.statNumber}>{alerts.filter(a => a.priority === 'high').length}</Text>
           <Text style={styles.statLabel}>High Priority</Text>
         </View>
         <View style={styles.statCard}>
@@ -399,7 +461,7 @@ export default function SafetyAlerts() {
             </Text>
 
             <View style={styles.alertDelivery}>
-              <Text style={styles.alertDeliveryLabel}>Sent to: {alert.targetAudience}</Text>
+              <Text style={styles.alertDeliveryLabel}>Sent to: Everyone on campus</Text>
               <View style={styles.deliveryMethods}>
                 {alert.sendPushNotification && (
                   <View style={styles.deliveryMethod}>
@@ -562,39 +624,19 @@ export default function SafetyAlerts() {
 
                 <Text style={styles.inputLabel}>Priority</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsContainer}>
-                  {(['critical', 'warning', 'info'] as const).map((option) => (
+                  {(['high', 'medium', 'low'] as const).map((option) => (
                     <TouchableOpacity
                       key={option}
                       style={[
                         styles.optionButton,
-                        priority === option && styles.optionButtonActive
+                        priority === option && styles.optionButtonActive,
+                        { backgroundColor: priority === option ? getPriorityColor(option) : '#F2F2F7' }
                       ]}
                       onPress={() => setPriority(option)}
                     >
                       <Text style={[
                         styles.optionButtonText,
                         priority === option && styles.optionButtonTextActive
-                      ]}>
-                        {option.charAt(0).toUpperCase() + option.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <Text style={styles.inputLabel}>Target Audience</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsContainer}>
-                  {(['all', 'students', 'staff', 'visitors'] as const).map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      style={[
-                        styles.optionButton,
-                        targetAudience === option && styles.optionButtonActive
-                      ]}
-                      onPress={() => setTargetAudience(option)}
-                    >
-                      <Text style={[
-                        styles.optionButtonText,
-                        targetAudience === option && styles.optionButtonTextActive
                       ]}>
                         {option.charAt(0).toUpperCase() + option.slice(1)}
                       </Text>
@@ -632,6 +674,88 @@ export default function SafetyAlerts() {
                   <Text style={styles.timeLimitLabel}>
                     {timeLimit ? `Expires in ${timeLimit} hours` : 'No expiration'}
                   </Text>
+                </View>
+
+                <Text style={styles.inputLabel}>Scheduling</Text>
+                <View style={styles.switchContainer}>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>Send immediately</Text>
+                    <Switch
+                      value={!isScheduled}
+                      onValueChange={(value) => setIsScheduled(!value)}
+                      trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
+                    />
+                  </View>
+                  {isScheduled && (
+                    <View style={styles.dateTimeContainer}>
+                      <Text style={styles.subLabel}>Scheduled send time:</Text>
+                      <TouchableOpacity
+                        style={styles.dateTimeButton}
+                        onPress={openDateTimePicker}
+                      >
+                        <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+                        <Text style={styles.dateTimeText}>
+                          {scheduledAt ? scheduledAt.toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          }) : 'Select date and time'}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+                      </TouchableOpacity>
+                      {scheduledAt && (
+                        <TouchableOpacity
+                          style={styles.clearButton}
+                          onPress={() => setScheduledAt(null)}
+                        >
+                          <Ionicons name="close-circle" size={16} color="#FF3B30" />
+                          <Text style={styles.clearButtonText}>Clear</Text>
+                        </TouchableOpacity>
+                      )}
+                      
+                      {/* Date and Time Pickers */}
+                      {showDatePicker && (
+                        <DateTimePicker
+                          value={tempDate}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleDateChange}
+                          minimumDate={new Date()}
+                        />
+                      )}
+                      
+                      {showTimePicker && Platform.OS === 'android' && (
+                        <DateTimePicker
+                          value={tempDate}
+                          mode="time"
+                          display="default"
+                          onChange={handleTimeChange}
+                        />
+                      )}
+                      
+                      {Platform.OS === 'ios' && scheduledAt && (
+                        <View style={styles.iosTimePickerContainer}>
+                          <Text style={styles.subLabel}>Time:</Text>
+                          <DateTimePicker
+                            value={scheduledAt}
+                            mode="time"
+                            display="compact"
+                            onChange={(event, selectedTime) => {
+                              if (selectedTime && scheduledAt) {
+                                const newDateTime = new Date(scheduledAt);
+                                newDateTime.setHours(selectedTime.getHours());
+                                newDateTime.setMinutes(selectedTime.getMinutes());
+                                setScheduledAt(newDateTime);
+                              }
+                            }}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
 
                 <Text style={styles.inputLabel}>Delivery Methods</Text>
@@ -1023,5 +1147,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     fontStyle: 'italic',
+  },
+  dateTimeContainer: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  subLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 8,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: '#007AFF',
+    flex: 1,
+  },
+  clearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    gap: 4,
+  },
+  clearButtonText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  iosTimePickerContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
   },
 });
