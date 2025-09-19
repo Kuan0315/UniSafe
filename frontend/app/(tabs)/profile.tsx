@@ -48,6 +48,8 @@ export default function ProfileScreen() {
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
   const [showChatbotModal, setShowChatbotModal] = useState(false);
+  const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>('fake-call'); // New alarm type setting
+  const [showAlarmTypeDropdown, setShowAlarmTypeDropdown] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -122,12 +124,39 @@ export default function ProfileScreen() {
     };
     loadAutoCapture();
   }, []);
+
+  // ===== Load alarmType setting from AsyncStorage =====
+  React.useEffect(() => {
+    const loadAlarmType = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@alarmType');
+        if (saved !== null) {
+          // Handle migration from old 'loud-alarm' to new 'ring'
+          const migratedType = saved === 'loud-alarm' ? 'ring' : saved;
+          setAlarmType(migratedType as 'fake-call' | 'ring');
+        }
+      } catch (error) {
+        console.log('Error loading alarmType:', error);
+      }
+    };
+    loadAlarmType();
+  }, []);
+
   const toggleAutoCaptureSOS = async (value: boolean) => {
     try {
       setAutoCaptureSOS(value);
       await AsyncStorage.setItem('@autoCaptureSOS', value.toString());
     } catch (error) {
       console.log('Error saving autoCaptureSOS:', error);
+    }
+  };
+
+  const setAlarmTypeSetting = async (type: 'fake-call' | 'ring') => {
+    try {
+      setAlarmType(type);
+      await AsyncStorage.setItem('@alarmType', type);
+    } catch (error) {
+      console.log('Error saving alarmType:', error);
     }
   };
 
@@ -352,6 +381,96 @@ export default function ProfileScreen() {
               trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
               thumbColor="#fff"
             />
+          </View>
+
+          {/* Discreet Alarm Type Setting */}
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              <Ionicons name="alarm" size={20} color="#666" />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Discreet Alarm Type</Text>
+                <Text style={styles.settingDescription}>
+                  {alarmType === 'fake-call' 
+                    ? "Fake incoming call to help you exit situations"
+                    : "Phone ring sound to deter threats"}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Clean Modern Dropdown */}
+            <View style={styles.cleanDropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.cleanDropdownButton,
+                  showAlarmTypeDropdown && styles.cleanDropdownButtonActive
+                ]}
+                onPress={() => setShowAlarmTypeDropdown(!showAlarmTypeDropdown)}
+              >
+                <Ionicons 
+                  name={alarmType === 'fake-call' ? "call" : "notifications"} 
+                  size={16} 
+                  color="#007AFF" 
+                />
+                <Text style={styles.cleanDropdownButtonText} numberOfLines={1}>
+                  {alarmType === 'fake-call' ? 'Call' : 'Ring'}
+                </Text>
+                <Ionicons 
+                  name={showAlarmTypeDropdown ? "chevron-up" : "chevron-down"} 
+                  size={14} 
+                  color="#999" 
+                />
+              </TouchableOpacity>
+              
+              {showAlarmTypeDropdown && (
+                <View style={styles.cleanDropdownOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cleanDropdownOption,
+                      alarmType === 'fake-call' && styles.cleanDropdownOptionSelected
+                    ]}
+                    onPress={() => {
+                      setAlarmTypeSetting('fake-call');
+                      setShowAlarmTypeDropdown(false);
+                    }}
+                  >
+                    <Ionicons 
+                      name="call" 
+                      size={16} 
+                      color={alarmType === 'fake-call' ? '#007AFF' : '#666'} 
+                    />
+                    <Text style={[
+                      styles.cleanDropdownOptionText,
+                      alarmType === 'fake-call' && styles.cleanDropdownOptionTextSelected
+                    ]}>
+                      Call
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.cleanDropdownOption,
+                      alarmType === 'ring' && styles.cleanDropdownOptionSelected
+                    ]}
+                    onPress={() => {
+                      setAlarmTypeSetting('ring');
+                      setShowAlarmTypeDropdown(false);
+                    }}
+                  >
+                    <Ionicons 
+                      name="notifications" 
+                      size={16} 
+                      color={alarmType === 'ring' ? '#007AFF' : '#666'} 
+                    />
+                    <Text style={[
+                      styles.cleanDropdownOptionText,
+                      alarmType === 'ring' && styles.cleanDropdownOptionTextSelected
+                    ]}>
+                      Ring
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
 
         </View>
@@ -817,6 +936,20 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f8ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
@@ -826,6 +959,126 @@ const styles = StyleSheet.create({
   settingDescription: {
     fontSize: 14,
     color: '#666',
+  },
+  alarmTypeSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    gap: 6,
+  },
+  alarmTypeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF6B35',
+  },
+  alarmTypeOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  alarmOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFFFFF',
+    gap: 6,
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  alarmOptionActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+  },
+  alarmOptionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#FF6B35',
+  },
+  alarmOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  // Clean Simple Dropdown Styles
+  cleanDropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  cleanDropdownButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    minWidth: 110,
+    maxWidth: 130,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  cleanDropdownButtonActive: {
+    borderColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.1,
+  },
+  cleanDropdownButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    flex: 1,
+    textAlign: 'center',
+  },
+  cleanDropdownOptions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 1001,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  cleanDropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
+  cleanDropdownOptionSelected: {
+    backgroundColor: '#F0F8FF',
+  },
+  cleanDropdownOptionText: {
+    fontSize: 14,
+    color: '#1C1C1E',
+    flex: 1,
+  },
+  cleanDropdownOptionTextSelected: {
+    color: '#007AFF',
+    fontWeight: '500',
   },
   contactItem: {
     flexDirection: 'row',

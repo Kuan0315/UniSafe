@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   ScrollView, 
   StyleSheet, 
@@ -16,7 +16,7 @@ import {
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Header from '../../components/Header';
 import SafetyAlerts from '../../components/SafetyAlerts';
 import SOSModal from '../../components/Modals/SOSModal';
@@ -24,14 +24,19 @@ import PostIncidentResourceScreen from '../../components/PostIncidentResourceScr
 import ReasonForm from '../../components/ReasonForm';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import ActivityModal from '../../components/Modals/ActivityModal';
+import DiscreetAlarmModal from '../../components/Modals/DiscreetAlarmModal';
+import HelpdeskModal from '../../components/Modals/HelpdeskModal';
 import FollowMeButton from '../../components/FollowMeButton';
 import usePermissions from '../hooks/usePermissions';
+import { soundAlarmService } from '../../services/SoundAlarmService';
 import useLocation from '../hooks/useLocation';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { triggerSOSActions, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery } from '../../services/SOSService';
 import { useSOSContext } from '../../contexts/SOSContext';
+import { useAlarmContext } from '../../contexts/AlarmContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -239,6 +244,14 @@ function HomeScreen() {
   const [showReasonForm, setShowReasonForm] = useState(false);
   const [incidentData, setIncidentData] = useState<{ type: string; id: string } | null>(null);
 
+  // Discreet alarm and helpdesk states
+  const [showDiscreetAlarmModal, setShowDiscreetAlarmModal] = useState(false);
+  const [showHelpdeskModal, setShowHelpdeskModal] = useState(false);
+  const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>('fake-call');
+  
+  // Use global alarm context
+  const { isAlarmPlaying, currentAlarmType, startAlarm, stopAlarm } = useAlarmContext();
+
   // Animation for SOS button pulse effect
   const pulseAnim = useRef(new Animated.Value(1)).current;
   // Add a countdown animation ref
@@ -340,6 +353,50 @@ function HomeScreen() {
     };
     loadSettings();
   }, []);
+
+  // Load alarm type from profile settings
+  useEffect(() => {
+    const loadAlarmType = async () => {
+      try {
+        const savedAlarmType = await AsyncStorage.getItem('@alarmType');
+        if (savedAlarmType) {
+          // Handle migration from old 'loud-alarm' to new 'ring'
+          const migratedType = savedAlarmType === 'loud-alarm' ? 'ring' : savedAlarmType;
+          setAlarmType(migratedType as 'fake-call' | 'ring');
+        }
+      } catch (error) {
+        console.log('Error loading alarm type:', error);
+      }
+    };
+    loadAlarmType();
+  }, []);
+
+  // Reload alarm type when user navigates back to this screen (e.g., from profile)
+  useFocusEffect(
+    useCallback(() => {
+      const loadAlarmType = async () => {
+        try {
+          const savedAlarmType = await AsyncStorage.getItem('@alarmType');
+          if (savedAlarmType) {
+            const migratedType = savedAlarmType === 'loud-alarm' ? 'ring' : savedAlarmType;
+            setAlarmType(migratedType as 'fake-call' | 'ring');
+            console.log('Reloaded alarm type on focus:', migratedType);
+          }
+        } catch (error) {
+          console.log('Error reloading alarm type:', error);
+        }
+      };
+      loadAlarmType();
+    }, [])
+  );
+
+  // Setup sound service callback to clear UI state when sound finishes
+  useEffect(() => {
+    soundAlarmService.setOnSoundFinished(() => {
+      // Global context will handle state updates via AlarmContext
+      stopAlarm();
+    });
+  }, [stopAlarm]);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -527,6 +584,136 @@ function HomeScreen() {
         : 'Your location is no longer being shared with trusted contacts.',
       [{ text: 'OK' }]
     );
+  };
+
+  // Discreet Alarm Functions
+  const handleDiscreetAlarm = async () => {
+    try {
+      if (isAlarmPlaying) {
+        // Stop the alarm if it's currently playing
+        await stopAlarm();
+        Alert.alert('Alarm Stopped', 'The discreet alarm has been stopped.');
+      } else {
+        // Start the alarm if it's not playing
+        await startAlarm(alarmType);
+        
+        if (alarmType === 'fake-call') {
+          Alert.alert(
+            'Fake Call Activated',
+            'Triggering fake call sound...',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Ring Alarm Activated', 
+            'Triggering ring sound...',
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.log('Error with discreet alarm:', error);
+      Alert.alert('Error', 'Failed to control alarm. Please try again.');
+    }
+  };
+
+  const handleStopAlarm = async () => {
+    try {
+      await stopAlarm();
+      Alert.alert('Alarm Stopped', 'The alarm has been stopped.');
+    } catch (error) {
+      console.log('Error stopping alarm:', error);
+      Alert.alert('Error', 'Failed to stop alarm.');
+    }
+  };
+
+  const triggerFakeCall = async (delaySeconds: number = 30) => {
+    Alert.alert(
+      'Discreet Alarm Set',
+      `Fake call will trigger in ${delaySeconds} seconds. Stay calm.`,
+      [{ text: 'OK' }]
+    );
+
+    setTimeout(async () => {
+      try {
+        // Trigger haptic feedback
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        
+        // Start fake call alarm
+        await startAlarm('fake-call');
+        
+        // Simulate a fake incoming call
+        Alert.alert(
+          'Incoming Call',
+          'Mom is calling...',
+          [
+            { 
+              text: 'Answer', 
+              onPress: () => {
+                // Open phone app to make it look authentic
+                Linking.openURL('tel:+1234567890');
+              }
+            },
+            { 
+              text: 'Decline' 
+            }
+          ]
+        );
+      } catch (error) {
+        console.error('Error triggering fake call:', error);
+        stopAlarm();
+      }
+    }, delaySeconds * 1000);
+  };
+
+  const triggerLoudAlarm = async (delaySeconds: number = 10) => {
+    Alert.alert(
+      'Discreet Alarm Set',
+      `Loud alarm will sound in ${delaySeconds} seconds. Move to safety if needed.`,
+      [{ text: 'OK' }]
+    );
+
+    setTimeout(async () => {
+      try {
+        // Trigger haptic feedback
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        
+        // Start ring alarm
+        await startAlarm('ring');
+        
+        Alert.alert(
+          'Loud Alarm Activated',
+          'Alarm is sounding. Use the alarm indicator in the top bar to stop it.',
+          [{ text: 'OK' }]
+        );
+      } catch (error) {
+        console.error('Error triggering loud alarm:', error);
+        stopAlarm();
+      }
+    }, delaySeconds * 1000);
+  };
+
+  // Helpdesk Functions
+  const handleHelpdesk = () => {
+    setShowHelpdeskModal(true);
+  };
+
+  const contactHelpdesk = (method: 'call' | 'chat' | 'email') => {
+    switch (method) {
+      case 'call':
+        Linking.openURL('tel:+60123456700');
+        // Keep modal open so user can return to helpdesk
+        break;
+      case 'chat':
+        // In a real app, this would open a live chat system
+        Alert.alert('Live Chat', 'Connecting you to campus support...', [{ text: 'OK' }]);
+        setShowHelpdeskModal(false); // Close only for chat since it's handled in app
+        break;
+      case 'email':
+        Linking.openURL('mailto:support@university.edu.my?subject=Student Support Request');
+        // Keep modal open so user can return to helpdesk after email
+        break;
+    }
   };
 
   const activateSOS = async () => {
@@ -745,45 +932,89 @@ function HomeScreen() {
               </TouchableOpacity>
             </Animated.View>
 
-            {/* Secondary Buttons */}
+            {/* Secondary Buttons - 2x2 Grid */}
             <View style={styles.secondaryButtonsContainer}>
-              {/* Follow Me Button */}
-              <TouchableOpacity
-                style={[styles.secondaryButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
-                onPress={handleFollowMe}
-                accessibilityLabel="Follow Me Button"
-                accessibilityHint="Share your location with trusted contacts"
-              >
-                <View style={styles.secondaryButtonContent}>
-                  <Ionicons
-                    name={isFollowing ? 'location' : 'location-outline'}
-                    size={20}
-                    color={isFollowing ? '#fff' : '#007AFF'}
-                  />
-                  <Text style={isFollowing ? styles.secondaryButtonTextActive : styles.secondaryButtonText}>
-                    {isFollowing ? 'Following' : 'Follow Me'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              {/* Row 1 */}
+              <View style={styles.buttonRow}>
+                {/* Follow Me Button */}
+                <TouchableOpacity
+                  style={[styles.secondaryButton, styles.followMeButton, isFollowing && styles.followMeButtonActive]}
+                  onPress={handleFollowMe}
+                  accessibilityLabel="Follow Me Button"
+                  accessibilityHint="Share your location with trusted contacts"
+                >
+                  <View style={styles.secondaryButtonContent}>
+                    <Ionicons
+                      name={isFollowing ? 'location' : 'location-outline'}
+                      size={20}
+                      color={isFollowing ? '#fff' : '#007AFF'}
+                    />
+                    <Text style={isFollowing ? styles.secondaryButtonTextActive : styles.secondaryButtonText}>
+                      {isFollowing ? 'Following' : 'Follow Me'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
 
-              {/* Torch Button - Added TouchableOpacity for torch activation */}
-              <TouchableOpacity
-                style={[styles.secondaryButton, styles.torchButton, isTorchOn && styles.torchButtonActive]}
-                onPress={toggleTorch}
-                accessibilityLabel="Torchlight Button"
-                accessibilityHint="Turn on or off your device flashlight"
-              >
-                <View style={styles.secondaryButtonContent}>
-                  <Ionicons
-                    name={isTorchOn ? "flashlight" : "flashlight-outline"}
-                    size={20}
-                    color={isTorchOn ? "#fff" : "#FFD700"}
-                  />
-                  <Text style={isTorchOn ? styles.secondaryButtonTextLight : styles.torchButtonText}>
-                    {isTorchOn ? "ON" : "Torch"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                {/* Torch Button */}
+                <TouchableOpacity
+                  style={[styles.secondaryButton, styles.torchButton, isTorchOn && styles.torchButtonActive]}
+                  onPress={toggleTorch}
+                  accessibilityLabel="Torchlight Button"
+                  accessibilityHint="Turn on or off your device flashlight"
+                >
+                  <View style={styles.secondaryButtonContent}>
+                    <Ionicons
+                      name={isTorchOn ? "flashlight" : "flashlight-outline"}
+                      size={20}
+                      color={isTorchOn ? "#fff" : "#FFD700"}
+                    />
+                    <Text style={isTorchOn ? styles.secondaryButtonTextLight : styles.torchButtonText}>
+                      {isTorchOn ? "ON" : "Torch"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Row 2 */}
+              <View style={styles.buttonRow}>
+                {/* Discreet Alarm Button */}
+                <TouchableOpacity
+                  style={[styles.secondaryButton, styles.discreetAlarmButton, isAlarmPlaying && styles.discreetAlarmButtonActive]}
+                  onPress={handleDiscreetAlarm}
+                  accessibilityLabel="Discreet Alarm Button"
+                  accessibilityHint="Trigger fake call or alarm sound to deter threats"
+                >
+                  <View style={styles.secondaryButtonContent}>
+                    <Ionicons
+                      name={isAlarmPlaying ? "alarm" : "alarm-outline"}
+                      size={20}
+                      color={isAlarmPlaying ? "#fff" : "#FF6B35"}
+                    />
+                    <Text style={isAlarmPlaying ? styles.secondaryButtonTextActive : styles.discreetAlarmButtonText}>
+                      {isAlarmPlaying ? 'Stop' : 'Discreet'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Helpdesk Button */}
+                <TouchableOpacity
+                  style={[styles.secondaryButton, styles.helpdeskButton]}
+                  onPress={handleHelpdesk}
+                  accessibilityLabel="Helpdesk Button"
+                  accessibilityHint="Contact campus support and helpdesk services"
+                >
+                  <View style={styles.secondaryButtonContent}>
+                    <Ionicons
+                      name="help-circle-outline"
+                      size={20}
+                      color="#8B5CF6"
+                    />
+                    <Text style={styles.helpdeskButtonText}>
+                      Helpdesk
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -867,6 +1098,21 @@ function HomeScreen() {
         visible={showReasonForm}
         onClose={() => setShowReasonForm(false)}
         onSubmit={handleReasonSubmit}
+      />
+
+      {/* Discreet Alarm Modal */}
+      <DiscreetAlarmModal
+        visible={showDiscreetAlarmModal}
+        onClose={() => setShowDiscreetAlarmModal(false)}
+        onTriggerFakeCall={triggerFakeCall}
+        onTriggerLoudAlarm={triggerLoudAlarm}
+      />
+
+      {/* Helpdesk Modal */}
+      <HelpdeskModal
+        visible={showHelpdeskModal}
+        onClose={() => setShowHelpdeskModal(false)}
+        onContactHelpdesk={contactHelpdesk}
       />
     </SafeAreaView>
   );
@@ -1223,13 +1469,17 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   secondaryButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     width: '100%',
-    gap: 16,
+    gap: 12,
     marginBottom: 0,
     paddingBottom: 0,
     marginTop: 0,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   secondaryButton: {
     flex: 1,
@@ -1272,6 +1522,29 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     marginTop: 6,
   },
+  discreetAlarmButton: {
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+  },
+  discreetAlarmButtonActive: {
+    backgroundColor: '#FF6B35',
+  },
+  discreetAlarmButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF6B35',
+    marginTop: 6,
+  },
+  helpdeskButton: {
+    borderWidth: 2,
+    borderColor: '#8B5CF6',
+  },
+  helpdeskButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    marginTop: 6,
+  },
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: '600',
@@ -1302,6 +1575,46 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginBottom: 5,
+  },
+  alarmRingingContainer: {
+    backgroundColor: '#ffebee',
+    borderColor: '#ff1744',
+    borderWidth: 2,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#ff1744',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  alarmRingingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  alarmRingingText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#d32f2f',
+    marginLeft: 12,
+  },
+  stopAlarmButton: {
+    backgroundColor: '#ff1744',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stopAlarmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
