@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Dimensions,
   Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
@@ -108,6 +109,8 @@ export default function MapScreen() {
   const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
   const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
   const [isFullScreenMap, setIsFullScreenMap] = useState(false);
+  const [destination, setDestination] = useState<string>('');
+  const [useSafeRoute, setUseSafeRoute] = useState(true);
 
   // Speak page title on load for accessibility
   useFocusEffect(
@@ -118,12 +121,14 @@ export default function MapScreen() {
 
   // Request location permissions and get current location
   useEffect(() => {
-    (async () => {
+    let locationSubscription: any;
+
+    const setupLocationTracking = async () => {
       try {
         console.log('Requesting location permissions...');
         const { status } = await Location.requestForegroundPermissionsAsync();
         console.log('Location permission status:', status);
-        
+      
         if (status !== 'granted') {
           console.log('Location permission denied');
           speakButtonAction('Location permission denied. Please enable location access in settings.');
@@ -131,26 +136,55 @@ export default function MapScreen() {
           return;
         }
 
-        console.log('Getting current position...');
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 5000,
+        // Set up real-time location updates
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 10 // Update if user moves 10 meters
+          },
+          (location) => {
+            console.log('Location update:', location.coords);
+            setUserLocation(location);
+            setRegion({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            });
+          }
+        );
+
+        // Get initial location
+        console.log('Getting initial position...');
+        const initialLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
         });
-        console.log('Location obtained:', location.coords);
+        console.log('Initial location:', initialLocation.coords);
         
-        setUserLocation(location);
+        setUserLocation(initialLocation);
         setRegion({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: initialLocation.coords.latitude,
+          longitude: initialLocation.coords.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         });
+
       } catch (error) {
-        console.error('Error getting location:', error);
+        console.error('Error setting up location tracking:', error);
         speakButtonAction('Unable to get your current location. Please check your location settings.');
         Alert.alert('Location Error', 'Unable to get your current location. Please check your location settings.');
       }
-    })();
+    };
+
+    setupLocationTracking();
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
   }, []);
 
   const filteredIncidents = selectedIncidentType === 'all' 
@@ -161,20 +195,19 @@ export default function MapScreen() {
     setSelectedIncident(incident);
   };
 
-  const handleSafeRouteToggle = () => {
-    setShowSafeRoute(!showSafeRoute);
-    if (!showSafeRoute) {
-      Alert.alert('Safe Routes', 'Safe route displayed on map. This route avoids reported incidents and high-risk areas.');
-    } else {
-      Alert.alert('Safe Routes', 'Safe route hidden');
+  const handleDestinationSearch = async () => {
+    if (!destination || !userLocation) {
+      Alert.alert("Error", "Please enter a destination and ensure location is enabled.");
+      return;
     }
-  };
 
-  const handleNavigateToDestination = () => {
-    if (showSafeRoute) {
-      Alert.alert('Navigation', 'Starting navigation to destination using safe route. Follow the highlighted path.');
+    if (useSafeRoute) {
+      // Your custom safe route logic (filter incidents, recalc path)
+      setShowSafeRoute(true);
+      Alert.alert("Safe Route", `Showing safest route to ${destination}`);
     } else {
-      Alert.alert('Navigation', 'Please enable safe routes first to get navigation guidance.');
+      // Directly open Google Maps navigation
+      openGoogleMaps(userLocation.coords.latitude, userLocation.coords.longitude);
     }
   };
 
@@ -189,22 +222,6 @@ export default function MapScreen() {
     }
   };
 
-  const handleMapPress = (event: any) => {
-    // Handle map press events - could be used for adding new incidents
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    console.log('Map pressed at:', { latitude, longitude });
-  };
-
-  const getRouteSafetyScore = () => {
-    // Calculate safety score based on incidents along the route
-    const incidentsOnRoute = mockIncidents.filter(incident => {
-      // Simple distance calculation (in real app, use proper geospatial queries)
-      return incident.type !== 'safe';
-    });
-    const score = Math.max(0, 100 - (incidentsOnRoute.length * 20));
-    return Math.min(100, score);
-  };
-
   const getIncidentIcon = (type: string): keyof typeof Ionicons.glyphMap => {
     const iconName = incidentIcons[type as keyof typeof incidentIcons];
     return iconName || 'alert-circle-outline';
@@ -212,10 +229,6 @@ export default function MapScreen() {
 
   const getIncidentColor = (type: string) => {
     return incidentColors[type as keyof typeof incidentColors] || '#FF3B30';
-  };
-
-  const getDensityColor = (density: string) => {
-    return densityColors[density as keyof typeof densityColors] || '#34C759';
   };
 
   return (
@@ -256,6 +269,35 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
+      {/* Search + Toggle Row */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search destination..."
+            value={destination}
+            onChangeText={setDestination}
+            onSubmitEditing={handleDestinationSearch}
+          />
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleDestinationSearch}
+          >
+            <Ionicons name="search" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.toggleButton, useSafeRoute && styles.toggleActive]}
+          onPress={() => setUseSafeRoute(!useSafeRoute)}
+        >
+          <Ionicons name="shield-checkmark" size={18} color={useSafeRoute ? "#fff" : "#007AFF"}/>
+          <Text style={[styles.toggleText, useSafeRoute && styles.toggleTextActive]}>
+            Safest
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Google Maps */}
       <View style={styles.mapContainer}>
         {userLocation ? (
@@ -281,31 +323,10 @@ export default function MapScreen() {
             </Text>
           </View>
         )}
-
-
       </View>
 
       {/* Control Buttons */}
       <View style={styles.controlButtons}>
-        {/* Navigation button */}
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            if (selectedIncident) {
-              openGoogleMaps(
-                selectedIncident.location.latitude,
-                selectedIncident.location.longitude
-              );
-            } else {
-              Alert.alert(
-                'No Destination Selected',
-                'Please tap on an incident or location to navigate to.'
-              );
-            }
-          }}
-        >
-          <Ionicons name="navigate-circle" size={24} color="#007AFF" />
-        </TouchableOpacity>
 
         {/* Fullscreen toggle */}
         <TouchableOpacity
@@ -315,40 +336,13 @@ export default function MapScreen() {
           <Ionicons name="expand" size={24} color="#007AFF" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.controlButton, showSafeRoute && styles.controlButtonActive]}
-          onPress={handleSafeRouteToggle}
-        >
-          <Ionicons 
-            name="map" 
-            size={24} 
-            color={showSafeRoute ? '#fff' : '#007AFF'} 
-          />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={handleNavigateToDestination}
-        >
-          <Ionicons name="navigate" size={24} color="#007AFF" />
-        </TouchableOpacity>
-
+        {/* Center on User Location */}
         <TouchableOpacity
           style={styles.controlButton}
           onPress={centerOnUserLocation}
         >
           <Ionicons name="locate" size={24} color="#007AFF" />
         </TouchableOpacity>
-
-        {showSafeRoute && (
-          <View style={styles.safetyScoreContainer}>
-            <Text style={styles.safetyScoreLabel}>Route Safety</Text>
-            <View style={styles.safetyScoreBar}>
-              <View style={[styles.safetyScoreFill, { width: `${getRouteSafetyScore()}%` }]} />
-            </View>
-            <Text style={styles.safetyScoreText}>{getRouteSafetyScore()}%</Text>
-          </View>
-        )}
       </View>
 
       {/* Incident Details Modal */}
@@ -562,7 +556,7 @@ const styles = StyleSheet.create({
   controlButtons: {
     position: 'absolute',
     right: 20,
-    bottom: 100,
+    bottom: 125,
     gap: 12,
   },
   controlButton: {
@@ -770,10 +764,61 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
-     incidentCardTime: {
-     fontSize: 12,
-     color: '#999',
-   },
-   
- });
-
+  incidentCardTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  searchInput: {
+    flex: 1,
+    height: 36,
+    fontSize: 14,
+  },
+  searchButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 20,
+    padding: 6,
+    marginLeft: 6,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  toggleActive: {
+    backgroundColor: '#007AFF',
+  },
+  toggleText: {
+    marginLeft: 4,
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
+});
