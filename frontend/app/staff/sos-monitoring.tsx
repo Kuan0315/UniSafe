@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import StandardHeader from '../../components/StandardHeader';
+import StaffEmergencyChat from '../../components/StaffEmergencyChat';
 import { Video, ResizeMode } from 'expo-av';
 
 interface SOSAlert {
@@ -49,6 +50,7 @@ interface SOSAlert {
     thumbnail?: string;
   }[];
   description?: string;
+  chatSummary?: string;
   emergencyContacts?: string[];
   responseTime?: number;
   followedBy?: {
@@ -75,6 +77,7 @@ export default function SOSMonitoring() {
   const [refreshing, setRefreshing] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const [messageSummary, setMessageSummary] = useState<string>('');
 
   useEffect(() => {
     loadSOSAlerts();
@@ -131,6 +134,7 @@ export default function SOSMonitoring() {
             }
           ],
           description: 'Emergency situation near the library entrance, someone following me',
+          chatSummary: 'Student reports being followed - security threat',
           emergencyContacts: ['+60198765432', '+60187654321'],
         },
         {
@@ -162,6 +166,7 @@ export default function SOSMonitoring() {
             }
           ],
           description: 'Having chest pain, need medical help urgently',
+          chatSummary: 'Medical emergency - student requires medical assistance',
           responseTime: 12,
           followedBy: {
             staffId: 'MED001',
@@ -196,6 +201,7 @@ export default function SOSMonitoring() {
           emergencyType: 'general_emergency',
           mediaAttached: false,
           description: 'Accidentally triggered SOS while jogging',
+          chatSummary: 'False alarm - accidental activation confirmed',
           responseTime: 8,
         },
       ];
@@ -224,6 +230,12 @@ export default function SOSMonitoring() {
   const handleAlertPress = (alert: SOSAlert) => {
     setSelectedAlert(alert);
     setModalVisible(true);
+    // Initialize messageSummary with existing chatSummary if available
+    if (alert.chatSummary) {
+      setMessageSummary(alert.chatSummary);
+    } else {
+      setMessageSummary('');
+    }
   };
 
   const openImageViewer = (mediaItem: { url: string; type: 'image' | 'video'; thumbnail?: string }) => {
@@ -343,6 +355,33 @@ export default function SOSMonitoring() {
     Linking.openURL(url);
   };
 
+  const handleMessageSummary = (summary: string) => {
+    setMessageSummary(summary);
+    
+    // Update the alert's chatSummary in the main alerts list
+    if (selectedAlert) {
+      setSosAlerts(prevAlerts => 
+        prevAlerts.map(alert => 
+          alert.id === selectedAlert.id 
+            ? { ...alert, chatSummary: summary }
+            : alert
+        )
+      );
+      
+      // Also update filteredAlerts if it's currently filtered
+      setFilteredAlerts(prevFiltered => 
+        prevFiltered.map(alert => 
+          alert.id === selectedAlert.id 
+            ? { ...alert, chatSummary: summary }
+            : alert
+        )
+      );
+      
+      // Update selectedAlert state for consistency
+      setSelectedAlert(prev => prev ? { ...prev, chatSummary: summary } : null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return '#FF3B30';
@@ -454,8 +493,8 @@ export default function SOSMonitoring() {
 
             <Text style={styles.alertLocation}>{alert.location.address}</Text>
             
-            {alert.description && (
-              <Text style={styles.alertDescription}>{alert.description}</Text>
+            {alert.chatSummary && (
+              <Text style={styles.alertDescription}>{alert.chatSummary}</Text>
             )}
 
             <View style={styles.alertMeta}>
@@ -667,12 +706,25 @@ export default function SOSMonitoring() {
                     </TouchableOpacity>
                   </View>
 
-                  {selectedAlert.description && (
+                  {/* Emergency Summary */}
+                  {messageSummary && (
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionTitle}>Description</Text>
-                      <Text style={styles.modalText}>{selectedAlert.description}</Text>
+                      <Text style={styles.modalSectionTitle}>Emergency Summary</Text>
+                      <View style={styles.summaryContainer}>
+                        <Ionicons name="information-circle" size={20} color="#3182CE" />
+                        <Text style={styles.summaryText}>{messageSummary}</Text>
+                      </View>
                     </View>
                   )}
+
+                  {/* Emergency Communication Chat */}
+                  <View style={styles.modalSectionNoTopPadding}>
+                    <StaffEmergencyChat
+                      studentName={selectedAlert.userName}
+                      alertId={selectedAlert.id}
+                      onMessageSummary={handleMessageSummary}
+                    />
+                  </View>
 
                   {selectedAlert.mediaAttached && selectedAlert.mediaUrls && selectedAlert.mediaUrls.length > 0 && (
                     <View style={styles.modalSection}>
@@ -1188,6 +1240,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F2F2F7',
   },
+  modalSectionNoTopPadding: {
+    paddingLeft: 20,
+    paddingRight: 20,
+    paddingBottom: 20,
+    paddingTop: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
   modalSectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -1198,6 +1258,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1D1D1F',
     marginBottom: 8,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#B3D9FF',
+  },
+  summaryText: {
+    fontSize: 14,
+    color: '#1D1D1F',
+    marginLeft: 8,
+    flex: 1,
+    fontWeight: '500',
   },
   modalButton: {
     flexDirection: 'row',

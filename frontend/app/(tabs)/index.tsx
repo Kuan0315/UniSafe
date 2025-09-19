@@ -20,6 +20,8 @@ import { router } from 'expo-router';
 import Header from '../../components/Header';
 import SafetyAlerts from '../../components/SafetyAlerts';
 import SOSModal from '../../components/Modals/SOSModal';
+import PostIncidentResourceScreen from '../../components/PostIncidentResourceScreen';
+import ReasonForm from '../../components/ReasonForm';
 import NotificationsModal from '../../components/Modals/NotificationsModal';
 import ActivityModal from '../../components/Modals/ActivityModal';
 import FollowMeButton from '../../components/FollowMeButton';
@@ -231,6 +233,11 @@ function HomeScreen() {
   // Camera states for photo/video capture
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
   const [cameraFlash, setCameraFlash] = useState<'on' | 'off'>('off');
+  
+  // Post-incident resource coordination
+  const [showPostIncidentResources, setShowPostIncidentResources] = useState(false);
+  const [showReasonForm, setShowReasonForm] = useState(false);
+  const [incidentData, setIncidentData] = useState<{ type: string; id: string } | null>(null);
 
   // Animation for SOS button pulse effect
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -360,6 +367,50 @@ function HomeScreen() {
     setShowSOSModal(false);
     setSosStartTime(null);
     console.log('SOS canceled');
+  };
+
+  const handleEndEmergency = () => {
+    setIsSOSActivated(false);
+    setIsSOSActive(false);
+    setShowSOSModal(false);
+    setSosStartTime(null);
+    
+    // Set incident data for post-incident resources
+    setIncidentData({
+      type: 'emergency_resolved',
+      id: `SOS_${Date.now()}`
+    });
+    
+    // Show post-incident resources after a brief delay
+    setTimeout(() => {
+      setShowPostIncidentResources(true);
+    }, 500);
+    
+    console.log('Emergency ended - showing resources');
+  };
+
+  const handleMistakeActivation = () => {
+    setIsSOSActivated(false);
+    setIsSOSActive(false);
+    setShowSOSModal(false);
+    setSosStartTime(null);
+    
+    // Show reason form for mistake
+    setTimeout(() => {
+      setShowReasonForm(true);
+    }, 500);
+    
+    console.log('SOS was a mistake - showing reason form');
+  };
+
+  const handleReasonSubmit = (reason: string, details?: string) => {
+    console.log('False alarm reason submitted:', reason, details);
+    Alert.alert(
+      'Report Submitted',
+      'Thank you for helping us improve our emergency response system.',
+      [{ text: 'OK' }]
+    );
+    setShowReasonForm(false);
   };
   
   const handleMinimizeSOS = () => {
@@ -744,6 +795,8 @@ function HomeScreen() {
         onClose={handleCancelSOS}
         onMinimize={handleMinimizeSOS}
         handleCancelSOS={handleCancelSOS}
+        handleEndEmergency={handleEndEmergency}
+        handleMistakeActivation={handleMistakeActivation}
         sosStartTime={sosStartTime}
         capturedMedia={capturedMedia}
         currentLocation={currentLocation}
@@ -796,6 +849,24 @@ function HomeScreen() {
       <NotificationsModal
         visible={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
+      />
+      
+      {/* Post-Incident Resource Coordination */}
+      <PostIncidentResourceScreen
+        visible={showPostIncidentResources}
+        incidentType={incidentData?.type || 'general'}
+        incidentId={incidentData?.id || ''}
+        onClose={() => {
+          setShowPostIncidentResources(false);
+          setIncidentData(null);
+        }}
+      />
+
+      {/* Reason Form for Mistake Activations */}
+      <ReasonForm
+        visible={showReasonForm}
+        onClose={() => setShowReasonForm(false)}
+        onSubmit={handleReasonSubmit}
       />
     </SafeAreaView>
   );
