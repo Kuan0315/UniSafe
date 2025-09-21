@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  SafeAreaView,
   Dimensions,
   Modal,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
 import * as Location from 'expo-location';
@@ -20,6 +20,7 @@ import GeofencingService, { University } from '../../services/GeofencingService'
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { openGoogleMaps } from '../../services/NavigationService';
 import UniversitySelector from '../../components/UniversitySelector';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 
 const { width, height } = Dimensions.get('window');
@@ -111,6 +112,7 @@ export default function MapScreen() {
   const [isFullScreenMap, setIsFullScreenMap] = useState(false);
   const [destination, setDestination] = useState<string>('');
   const [useSafeRoute, setUseSafeRoute] = useState(true);
+
 
   // Speak page title on load for accessibility
   useFocusEffect(
@@ -272,12 +274,59 @@ export default function MapScreen() {
       {/* Search + Toggle Row */}
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
+          <GooglePlacesAutocomplete
             placeholder="Search destination..."
-            value={destination}
-            onChangeText={setDestination}
-            onSubmitEditing={handleDestinationSearch}
+            debounce={200}
+            fetchDetails={true}
+            onFail={(error) => console.error("Places API Error:", error)}
+            onNotFound={() => console.warn("No places found")}
+            query={{
+              key: MAPS_CONFIG.GOOGLE_MAPS_API_KEY,
+              language: 'en',
+            }}
+            textInputProps={{
+              autoCorrect: false,
+              placeholderTextColor: "#999",
+              onFocus: () => console.log("Input focused"),
+            }}
+            onPress={(data, details = null) => {
+              if (!details?.geometry) {
+                console.warn("No geometry returned:", data, details);
+                return;
+              }
+
+              const { lat, lng } = details.geometry.location;
+              setDestination(data.description);
+
+              if (useSafeRoute) {
+                setShowSafeRoute(true);
+                Alert.alert("Safe Route", `Showing safest route to ${data.description}`);
+                // TODO: Add safe route calculation here
+              } else {
+                openGoogleMaps(lat, lng);
+              }
+            }}
+            predefinedPlaces={[]}
+            listViewDisplayed="auto"  // 👈 add here
+            currentLocation={false}
+            renderRow={(rowData) => (
+              <View style={{ padding: 10, borderBottomWidth: 0.5, borderColor: "#ccc" }}>
+                <Text>{rowData.description || "No description"}</Text>
+              </View>
+            )}  
+            styles={{
+              container: { flex: 1 },
+              textInput: {
+                height: 36,
+                fontSize: 14,
+                backgroundColor: "transparent", // since container already styled
+              },
+              listView: {
+                backgroundColor: '#fff',
+                zIndex: 20,
+                elevation: 3,
+              },
+            }}
           />
           <TouchableOpacity
             style={styles.searchButton}
@@ -776,27 +825,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
+    zIndex: 10, // keep dropdown visible
   },
   searchContainer: {
-    flex: 1,
+    flex: 1, // takes up all space before button
     flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
     borderRadius: 20,
     paddingHorizontal: 12,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e1e5e9',
-  },
-  searchInput: {
-    flex: 1,
-    height: 36,
-    fontSize: 14,
+    borderColor: '#ddd',
+    marginRight: 8, // spacing before button
   },
   searchButton: {
     backgroundColor: '#007AFF',
     borderRadius: 20,
-    padding: 6,
-    marginLeft: 6,
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   toggleButton: {
     flexDirection: 'row',

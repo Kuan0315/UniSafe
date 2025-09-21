@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { SOSProvider } from "../contexts/SOSContext";
 import { AlarmProvider } from "../contexts/AlarmContext";
 import LoadingScreen from "../components/LoadingScreen";
+import "react-native-get-random-values";
 
 function LayoutContent() {
   const { isLoading, user } = useAuth();

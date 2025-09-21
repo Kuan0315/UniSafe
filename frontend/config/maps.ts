@@ -1,13 +1,12 @@
+import { GOOGLE_MAPS_API_KEY } from "@env";
+
 export const MAPS_CONFIG = {
-  // Replace with your actual Google Maps API key
-  GOOGLE_MAPS_API_KEY: 'AIzaSyCWVQznQKDcmgdKc6nWlEgqZlGkh0nKeFI',
-  
-  // Default map region (Malaysia - centered on KL area)
+  GOOGLE_MAPS_API_KEY,
   DEFAULT_REGION: {
-    latitude: 3.1390,
-    longitude: 101.6869,
-    latitudeDelta: 0.1,
-    longitudeDelta: 0.1,
+    latitude: 3.1201,
+    longitude: 101.6544,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   },
   
   // Map styling options

@@ -2,16 +2,16 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     },
     "skipLibCheck": true      // <--- ignore type errors in node_modules
   },
   "include": [
+    "env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "services/guardianService.js",
-   "app/(tabs)/TrustedContactsScreen"  ],
+    "services/guardianService.js",],
   "exclude": ["node_modules"]
 }
