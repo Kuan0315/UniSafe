@@ -1,7 +1,9 @@
-import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { MAPS_CONFIG } from '../config/maps';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert } from 'react-native';
+import MapView, { Marker, Polyline, Circle, Polygon, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
+import { directionsService, Coordinate, DirectionsResponse } from '../services/directionsService';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,291 +20,584 @@ interface GoogleMapsViewProps {
     severity: string;
   }>;
   showSafeRoute: boolean;
-  currentUniversity?: {
-    id: string;
-    name: string;
-    center: { latitude: number; longitude: number };
-    campusBoundary: Array<{ latitude: number; longitude: number }>;
-    coverageRadius: number;
-  } | null;
   onMapPress?: (latitude: number, longitude: number) => void;
+  destination?: { latitude: number; longitude: number; name?: string };
+  useSafeRoute?: boolean;
+  onFullscreen?: () => void;
 }
 
 export default function GoogleMapsView({ 
   userLocation, 
   incidents, 
   showSafeRoute, 
-  currentUniversity,
   onMapPress,
   region,
+  destination,
+  useSafeRoute = false,
+  onFullscreen,
 }: GoogleMapsViewProps) {
-  const webViewRef = useRef<WebView>(null);
+  const { user } = useAuth();
+  const currentUniversity = user?.university;
+  const mapRef = useRef<MapView>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+  const [directionsRoute, setDirectionsRoute] = useState<Coordinate[]>([]);
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [loadingDirections, setLoadingDirections] = useState(false);
 
-  useEffect(() => {
-    if (region && webViewRef.current) {
-      const jsCode = `
-        if (map) {
-          map.setCenter({ lat: ${region.latitude}, lng: ${region.longitude} });
-          map.setZoom(15);
-          if (userMarker) {
-            userMarker.setPosition({ lat: ${region.latitude}, lng: ${region.longitude} });
-          }
-        }
-      `;
-      webViewRef.current.injectJavaScript(jsCode);
-    }
-  }, [region]);
-
-  // Generate Google Maps HTML with your API key
-  const generateGoogleMapsHTML = () => {
-    const apiKey = MAPS_CONFIG.GOOGLE_MAPS_API_KEY;
-    
-    // Create markers for incidents with better visibility
-    const incidentMarkers = incidents.map(incident => {
-      const iconUrl = getIncidentIcon(incident.type);
-      return `
-        new google.maps.Marker({
-          position: { lat: ${incident.location.latitude}, lng: ${incident.location.longitude} },
-          map: map,
-          title: '${incident.title}',
-          icon: {
-            url: '${iconUrl}',
-            scaledSize: new google.maps.Size(32, 32)
-          }
-        });
-      `;
-    }).join('');
-
-    // Create university coverage visualization
-    const universityCoverage = currentUniversity ? `
-      // Coverage radius circle (10km)
-      const coverageCircle = new google.maps.Circle({
-        strokeColor: '#FF9500',
-        strokeOpacity: 0.3,
-        strokeWeight: 2,
-        fillColor: '#FF9500',
-        fillOpacity: 0.1,
-        map: map,
-        center: { lat: ${currentUniversity.center.latitude}, lng: ${currentUniversity.center.longitude} },
-        radius: ${currentUniversity.coverageRadius * 1000}, // Convert km to meters
-      });
-
-      // Campus boundary polygon
-      const campusBoundary = new google.maps.Polygon({
-        paths: [${currentUniversity.campusBoundary.map(point => 
-          `{ lat: ${point.latitude}, lng: ${point.longitude} }`
-        ).join(', ')}],
-        strokeColor: '#34C759',
-        strokeOpacity: 0.8,
-        strokeWeight: 3,
-        fillColor: '#34C759',
-        fillOpacity: 0.1,
-        map: map,
-      });
-
-      // University center marker
-      const universityMarker = new google.maps.Marker({
-        position: { lat: ${currentUniversity.center.latitude}, lng: ${currentUniversity.center.longitude} },
-        map: map,
-        title: '${currentUniversity.name}',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#007AFF',
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 2
-        }
-      });
-    ` : '';
-
-    // Create safe route polyline
-    const safeRoutePolyline = showSafeRoute ? `
-      const safeRoute = new google.maps.Polyline({
-        path: [
-          { lat: ${userLocation?.latitude || 3.1201}, lng: ${userLocation?.longitude || 101.6544} },
-          { lat: 3.1250, lng: 101.6600 },
-          { lat: 3.1150, lng: 101.6480 }
-        ],
-        geodesic: true,
-        strokeColor: '#34C759',
-        strokeOpacity: 1.0,
-        strokeWeight: 4,
-        icons: [{
-          icon: {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW
-          },
-          offset: '50%'
-        }]
-      });
-      safeRoute.setMap(map);
-    ` : '';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body { margin: 0; padding: 0; }
-            #map { width: 100%; height: 100vh; }
-            .map-controls {
-              position: absolute;
-              top: 10px;
-              right: 10px;
-              background: white;
-              padding: 10px;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-          </style>
-        </head>
-        <body>
-          <div id="map"></div>
-          
-          
-          <script>
-            let map;
-            let userMarker;
-            
-            function initMap() {
-                           const userLat = ${userLocation?.latitude || 3.1201};
-             const userLng = ${userLocation?.longitude || 101.6544};
-              
-              map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: userLat, lng: userLng },
-                zoom: 15,
-                mapTypeId: google.maps.MapTypeId.ROADMAP,
-                styles: [
-                  {
-                    featureType: 'poi',
-                    elementType: 'labels',
-                    stylers: [{ visibility: 'off' }]
-                  }
-                ]
-              });
-
-              // User location marker
-              userMarker = new google.maps.Marker({
-                position: { lat: userLat, lng: userLng },
-                map: map,
-                title: 'Your Location',
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 10,
-                  fillColor: '#007AFF',
-                  fillOpacity: 1,
-                  strokeColor: '#fff',
-                  strokeWeight: 3
-                }
-              });
-
-                             // University coverage
-               ${universityCoverage}
-
-               // Incident markers
-               ${incidentMarkers}
-
-               // Safe route
-               ${safeRoutePolyline}
-
-              // Map click handler
-              map.addListener('click', function(event) {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'mapClick',
-                  latitude: lat,
-                  longitude: lng
-                }));
-              });
-            }
-          </script>
-          
-          <script async defer
-            src="https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap">
-          </script>
-        </body>
-      </html>
-    `;
+  // Default to Kuala Lumpur if no location provided
+  const defaultRegion: Region = {
+    latitude: userLocation?.latitude || currentUniversity?.center?.latitude || 3.1201,
+    longitude: userLocation?.longitude || currentUniversity?.center?.longitude || 101.6544,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   };
 
-  const getIncidentColor = (type: string) => {
-    const colors: Record<string, string> = {
+  const currentRegion = region || defaultRegion;
+
+  // Center map on user location when it changes
+  useEffect(() => {
+    if (mapReady && userLocation && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
+  }, [userLocation, mapReady]);
+
+  // Get directions when destination changes
+  useEffect(() => {
+    if (destination && userLocation && mapReady) {
+      getDirectionsToDestination();
+    }
+  }, [destination, userLocation, useSafeRoute, mapReady]);
+
+  const getDirectionsToDestination = async () => {
+    if (!destination || !userLocation) return;
+
+    setLoadingDirections(true);
+    try {
+      const origin: Coordinate = {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      };
+      
+      const dest: Coordinate = {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      };
+
+      let response: DirectionsResponse;
+      
+      if (useSafeRoute) {
+        // Use safe route with incident avoidance
+        response = await directionsService.getSafeRoute(origin, dest, incidents, 'walking');
+      } else {
+        // Use regular route
+        response = await directionsService.getDirections(origin, dest, 'walking');
+      }
+
+      if (response.routes.length > 0) {
+        const route = response.routes[0];
+        const polylinePoints = directionsService.decodePolyline(route.overview_polyline.points);
+        setDirectionsRoute(polylinePoints);
+        
+        // Set route info
+        if (route.legs.length > 0) {
+          setRouteInfo({
+            distance: route.legs[0].distance.text,
+            duration: route.legs[0].duration.text,
+          });
+        }
+
+        // Fit map to show entire route
+        if (mapRef.current) {
+          const coordinates = [origin, dest, ...polylinePoints];
+          mapRef.current.fitToCoordinates(coordinates, {
+            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+            animated: true,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error getting directions:', error);
+      Alert.alert('Directions Error', 'Unable to get directions. Please try again.');
+    } finally {
+      setLoadingDirections(false);
+    }
+  };
+
+  // Get incident marker color based on severity and type
+  const getIncidentColor = (type: string, severity: string) => {
+    const severityColors = {
+      high: '#FF3B30',
+      medium: '#FF9500', 
+      low: '#FFCC00'
+    };
+    
+    const typeColors = {
       theft: '#FF9500',
       harassment: '#FF3B30',
       accident: '#007AFF',
       suspicious: '#FF6B35',
-      fire: '#FF2D55'
-    };
-    return colors[type] || '#FF3B30';
-  };
-
-  const getIncidentIcon = (type: string) => {
-    const color = getIncidentColor(type);
-
-    const icons: Record<string, string> = {
-      theft: `<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><rect x="32" y="128" width="448" height="320" rx="48" ry="48" fill="none" stroke="${color}" stroke-linejoin="round" stroke-width="32"/><path d="M144 128V96a32 32 0 0132-32h160a32 32 0 0132 32v32M480 240H32M320 240v24a8 8 0 01-8 8H200a8 8 0 01-8-8v-24" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`, // briefcase-outline
-
-      harassment: `<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M85.57 446.25h340.86a32 32 0 0028.17-47.17L284.18 82.58c-12.09-22.44-44.27-22.44-56.36 0L57.4 399.08a32 32 0 0028.17 47.17z" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path d="M250.26 195.39l5.74 122 5.73-121.95a5.74 5.74 0 00-5.79-6h0a5.74 5.74 0 00-5.68 5.95z" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path d="M256 397.25a20 20 0 1120-20 20 20 0 01-20 20z"/></svg>`, // warning-outline
-
-      accident: `<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M80 224l37.78-88.15C123.93 121.5 139.6 112 157.11 112h197.78c17.51 0 33.18 9.5 39.33 23.85L432 224M80 224h352v144H80zM112 368v32H80v-32M432 368v32h-32v-32" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><circle cx="144" cy="288" r="16" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><circle cx="368" cy="288" r="16" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`, // car-outline
-
-      suspicious: `<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M255.66 112c-77.94 0-157.89 45.11-220.83 135.33a16 16 0 00-.27 17.77C82.92 340.8 161.8 400 255.66 400c92.84 0 173.34-59.38 221.79-135.25a16.14 16.14 0 000-17.47C428.89 172.28 347.8 112 255.66 112z" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><circle cx="256" cy="256" r="80" fill="none" stroke="${color}" stroke-miterlimit="10" stroke-width="32"/></svg>`, // eye-outline
-
-      fire: `<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M112 320c0-93 124-165 96-272 66 0 192 96 192 272a144 144 0 01-288 0z" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><path d="M320 368c0 57.71-32 80-64 80s-64-22.29-64-80 40-86 32-128c42 0 96 70.29 96 128z" fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`, // flame-outline
+      fire: '#FF2D55',
+      emergency: '#FF0000'
     };
 
-    // Convert SVG string to Data URI
-    const svg = icons[type] || icons['suspicious'];
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+    return severityColors[severity as keyof typeof severityColors] || 
+           typeColors[type as keyof typeof typeColors] || 
+           '#FF3B30';
   };
 
-  const handleWebViewMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'mapClick' && onMapPress) {
-        onMapPress(data.latitude, data.longitude);
+  // Safe route coordinates (example path)
+  const safeRouteCoordinates = showSafeRoute && userLocation ? [
+    userLocation,
+    { latitude: userLocation.latitude + 0.001, longitude: userLocation.longitude + 0.001 },
+    { latitude: userLocation.latitude + 0.002, longitude: userLocation.longitude - 0.001 },
+    { latitude: userLocation.latitude + 0.003, longitude: userLocation.longitude + 0.002 },
+  ] : [];
+
+  const handleMapPress = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    onMapPress?.(latitude, longitude);
+  };
+
+  const handleIncidentPress = (incident: any) => {
+    Alert.alert(
+      incident.title,
+      `${incident.description}\n\nTime: ${incident.time}\nSeverity: ${incident.severity}`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const toggleMapType = () => {
+    setMapType(current => {
+      switch (current) {
+        case 'standard': return 'satellite';
+        case 'satellite': return 'hybrid';
+        case 'hybrid': return 'standard';
+        default: return 'standard';
       }
-    } catch (error) {
-      console.log('WebView message:', event.nativeEvent.data);
+    });
+  };
+
+  const centerOnUser = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
+  };
+
+  const centerOnUniversity = () => {
+    if (currentUniversity && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: currentUniversity.center?.latitude || 3.1201,
+        longitude: currentUniversity.center?.longitude || 101.6544,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 1000);
     }
   };
 
   return (
     <View style={styles.container}>
-             <WebView
-         ref={webViewRef}
-         source={{ html: generateGoogleMapsHTML() }}
-         style={styles.webview}
-         onMessage={handleWebViewMessage}
-         javaScriptEnabled={true}
-         domStorageEnabled={true}
-         startInLoadingState={true}
-         scalesPageToFit={true}
-         allowsInlineMediaPlayback={true}
-         mediaPlaybackRequiresUserAction={false}
-         onError={(syntheticEvent) => {
-           const { nativeEvent } = syntheticEvent;
-           console.warn('WebView error: ', nativeEvent);
-         }}
-         onHttpError={(syntheticEvent) => {
-           const { nativeEvent } = syntheticEvent;
-           console.warn('WebView HTTP error: ', nativeEvent);
-         }}
-       />
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        initialRegion={currentRegion}
+        mapType={mapType}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        showsCompass={true}
+        showsScale={true}
+        rotateEnabled={true}
+        scrollEnabled={true}
+        zoomEnabled={true}
+        onMapReady={() => setMapReady(true)}
+        onPress={handleMapPress}
+        customMapStyle={[
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+          }
+        ]}
+      >
+        {/* User Location Marker - Simple Blue Dot */}
+        {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            title="Your Location"
+            description="Current position"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.userDot} />
+          </Marker>
+        )}
+
+        {/* University Coverage Circle */}
+        {currentUniversity && (
+          <>
+            <Circle
+              center={currentUniversity.center || currentUniversity.location}
+              radius={(currentUniversity.coverageRadius || 2) * 1000} // Convert km to meters
+              strokeColor="rgba(255, 149, 0, 0.3)"
+              fillColor="rgba(255, 149, 0, 0.1)"
+              strokeWidth={2}
+            />
+
+            {/* Campus Boundary */}
+            <Polygon
+              coordinates={currentUniversity.campusBoundary || []}
+              strokeColor="rgba(52, 199, 89, 0.8)"
+              fillColor="rgba(52, 199, 89, 0.1)"
+              strokeWidth={3}
+            />
+
+            {/* University Center Marker */}
+            <Marker
+              coordinate={currentUniversity.center || currentUniversity.location}
+              title={currentUniversity.name}
+              description="University Campus"
+            >
+              <View style={styles.universityMarker}>
+                <Ionicons name="school" size={24} color="white" />
+              </View>
+            </Marker>
+          </>
+        )}
+
+        {/* Incident Markers */}
+        {incidents.map((incident) => (
+          <Marker
+            key={incident.id}
+            coordinate={incident.location}
+            title={incident.title}
+            description={incident.description}
+            onPress={() => handleIncidentPress(incident)}
+          >
+            <View style={[
+              styles.incidentMarker,
+              { backgroundColor: getIncidentColor(incident.type, incident.severity) }
+            ]}>
+              <Ionicons 
+                name={getIncidentIcon(incident.type)} 
+                size={20} 
+                color="white" 
+              />
+            </View>
+          </Marker>
+        ))}
+
+        {/* Destination Marker - Simple Red Dot */}
+        {destination && (
+          <Marker
+            coordinate={destination}
+            title={destination.name || "Destination"}
+            description="Your destination"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.destinationDot} />
+          </Marker>
+        )}
+
+        {/* Directions Route */}
+        {directionsRoute.length > 0 && (
+          <Polyline
+            coordinates={directionsRoute}
+            strokeColor={useSafeRoute ? "#34C759" : "#007AFF"}
+            strokeWidth={5}
+            geodesic={true}
+            lineDashPattern={useSafeRoute ? undefined : [10, 10]}
+          />
+        )}
+
+        {/* Safe Route (legacy - keeping for compatibility) */}
+        {showSafeRoute && safeRouteCoordinates.length > 0 && !directionsRoute.length && (
+          <Polyline
+            coordinates={safeRouteCoordinates}
+            strokeColor="#34C759"
+            strokeWidth={4}
+            geodesic={true}
+          />
+        )}
+      </MapView>
+
+      {/* Map Controls */}
+      <View style={styles.controls}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={toggleMapType}
+        >
+          <Ionicons name="layers" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
+        {userLocation && (
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={centerOnUser}
+          >
+            <Ionicons name="locate" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => {
+            if (onFullscreen) {
+              onFullscreen();
+            }
+          }}
+        >
+          <Ionicons name="expand" size={24} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Route Info Display */}
+      {routeInfo && (
+        <View style={styles.routeInfo}>
+          <View style={styles.routeInfoRow}>
+            <Ionicons name="time" size={16} color="#666" />
+            <Text style={styles.routeInfoText}>{routeInfo.duration}</Text>
+          </View>
+          <View style={styles.routeInfoRow}>
+            <Ionicons name="location" size={16} color="#666" />
+            <Text style={styles.routeInfoText}>{routeInfo.distance}</Text>
+          </View>
+          {useSafeRoute && (
+            <View style={styles.safeRouteBadge}>
+              <Ionicons name="shield-checkmark" size={12} color="#fff" />
+              <Text style={styles.safeRouteText}>Safe Route</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Loading Indicator */}
+      {loadingDirections && (
+        <View style={styles.loadingOverlay}>
+          <Text style={styles.loadingText}>Getting directions...</Text>
+        </View>
+      )}
+
+      {/* Map Type Indicator */}
+      <View style={styles.mapTypeIndicator}>
+        <Text style={styles.mapTypeText}>
+          {mapType.charAt(0).toUpperCase() + mapType.slice(1)}
+        </Text>
+      </View>
     </View>
   );
+}
+
+// Helper function to get appropriate icon for incident type
+function getIncidentIcon(type: string): keyof typeof Ionicons.glyphMap {
+  const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+    theft: 'bag',
+    harassment: 'warning',
+    accident: 'car',
+    suspicious: 'eye',
+    fire: 'flame',
+    emergency: 'alert-circle',
+    assault: 'person',
+    vandalism: 'hammer'
+  };
+  
+  return iconMap[type] || 'alert-circle';
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
   },
-  webview: {
-    flex: 1,
-    borderRadius: 16,
+  map: {
+    width: width,
+    height: height,
+  },
+  userMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    overflow: 'hidden', // Ensures perfect circle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  universityMarker: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    overflow: 'hidden', // Ensures perfect circle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  incidentMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    overflow: 'hidden', // Ensures perfect circle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  destinationMarker: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    overflow: 'hidden', // Ensures perfect circle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  controls: {
+    position: 'absolute',
+    top: 50,
+    right: 15,
+    flexDirection: 'column',
+    gap: 10,
+  },
+  controlButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden', // Ensures perfect circle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mapTypeIndicator: {
+    position: 'absolute',
+    bottom: 100,
+    left: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  mapTypeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  routeInfo: {
+    position: 'absolute',
+    top: 50,
+    left: 15,
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 140,
+  },
+  routeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  routeInfoText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  safeRouteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34C759',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  safeRouteText: {
+    marginLeft: 4,
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -60 }, { translateY: -10 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  loadingText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  userDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  destinationDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF3B30',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

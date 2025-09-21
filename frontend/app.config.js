@@ -16,7 +16,7 @@ export default ({ config }) => ({
     backgroundColor: "#ffffff"
   },
   extra: {
-    GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+    GOOGLE_MAPS_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
   },
   assetBundlePatterns: ["**/*"],
   ios: {
@@ -24,7 +24,7 @@ export default ({ config }) => ({
     bundleIdentifier: "com.yourcompany.unisafe",
     buildNumber: "1.0.0",
     config: {
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
     },
     infoPlist: {
       NSLocationWhenInUseUsageDescription: "This app needs access to location for safety features.",
@@ -52,7 +52,7 @@ export default ({ config }) => ({
     ],
     package: "com.yourcompany.unisafe",
     config: {
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
     }
   },
   web: {

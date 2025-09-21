@@ -26,6 +26,7 @@ import NotificationsModal from '../../components/Modals/NotificationsModal';
 import ActivityModal from '../../components/Modals/ActivityModal';
 import DiscreetAlarmModal from '../../components/Modals/DiscreetAlarmModal';
 import HelpdeskModal from '../../components/Modals/HelpdeskModal';
+import FakeCallScreen from '../../components/FakeCallScreen';
 import FollowMeButton from '../../components/FollowMeButton';
 import usePermissions from '../hooks/usePermissions';
 import { soundAlarmService } from '../../services/SoundAlarmService';
@@ -235,6 +236,11 @@ function HomeScreen() {
   // Refs for countdown and SOS activation
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sosTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Refs for discreet button interactions
+  const discreetTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const discreetHoldIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastDiscreetTapTimeRef = useRef<number>(0);
   // Camera states for photo/video capture
   const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
   const [cameraFlash, setCameraFlash] = useState<'on' | 'off'>('off');
@@ -248,6 +254,12 @@ function HomeScreen() {
   const [showDiscreetAlarmModal, setShowDiscreetAlarmModal] = useState(false);
   const [showHelpdeskModal, setShowHelpdeskModal] = useState(false);
   const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>('fake-call');
+  
+  // New state for discreet button interactions
+  const [discreetTapCount, setDiscreetTapCount] = useState(0);
+  const [discreetHoldProgress, setDiscreetHoldProgress] = useState(0);
+  const [isDiscreetHolding, setIsDiscreetHolding] = useState(false);
+  const [showFakeCallScreen, setShowFakeCallScreen] = useState(false);
   
   // Use global alarm context
   const { isAlarmPlaying, currentAlarmType, startAlarm, stopAlarm } = useAlarmContext();
@@ -586,30 +598,197 @@ function HomeScreen() {
     );
   };
 
-  // Discreet Alarm Functions
+  // New Discreet Alarm Functions with tap-and-hold and triple-tap
+  const handleDiscreetPress = () => {
+    const now = Date.now();
+    const timeSinceLastTap = now - lastDiscreetTapTimeRef.current;
+    lastDiscreetTapTimeRef.current = now;
+
+    // If it's been more than 500ms since last tap, reset count
+    if (timeSinceLastTap > 500) {
+      setDiscreetTapCount(1);
+    } else {
+      setDiscreetTapCount(prev => prev + 1);
+    }
+
+    // Clear any existing tap timeout
+    if (discreetTapTimeoutRef.current) {
+      clearTimeout(discreetTapTimeoutRef.current);
+    }
+
+    // Haptic feedback for each tap
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (e) {
+      console.log('Haptics not available');
+    }
+
+    // Set timeout to reset tap count
+    discreetTapTimeoutRef.current = setTimeout(() => {
+      setDiscreetTapCount(0);
+    }, 500);
+  };
+
+  // Watch for triple tap on discreet button
+  useEffect(() => {
+    if (discreetTapCount === 3) {
+      // Triple tap detected - trigger loud alarm
+      setDiscreetTapCount(0);
+      triggerLoudAlarm();
+    }
+  }, [discreetTapCount]);
+
+  const handleDiscreetPressIn = () => {
+    setIsDiscreetHolding(true);
+    setDiscreetHoldProgress(0);
+    
+    // Start hold progress animation
+    discreetHoldIntervalRef.current = setInterval(() => {
+      setDiscreetHoldProgress(prev => {
+        const newProgress = prev + (100 / 30); // 3 seconds = 30 intervals of 100ms
+        if (newProgress >= 100) {
+          // Hold complete - trigger discreet alarm
+          clearInterval(discreetHoldIntervalRef.current!);
+          setIsDiscreetHolding(false);
+          setDiscreetHoldProgress(0);
+          triggerDiscreetAlarm();
+          return 0;
+        }
+        return newProgress;
+      });
+    }, 100);
+
+    // Haptic feedback when hold starts
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } catch (e) {
+      console.log('Haptics not available');
+    }
+    
+    speakButtonAction('Hold for discreet alert');
+  };
+
+  const handleDiscreetPressOut = () => {
+    setIsDiscreetHolding(false);
+    setDiscreetHoldProgress(0);
+    
+    // Clear hold interval
+    if (discreetHoldIntervalRef.current) {
+      clearInterval(discreetHoldIntervalRef.current);
+      discreetHoldIntervalRef.current = null;
+    }
+
+    // Light haptic feedback when released early
+    if (discreetHoldProgress > 0 && discreetHoldProgress < 100) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) {
+        console.log('Haptics not available');
+      }
+      speakButtonAction('Hold cancelled');
+    }
+  };
+
+  const triggerDiscreetAlarm = async () => {
+    try {
+      // Success haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      speakButtonAction('Discreet alert activated');
+      
+      if (alarmType === 'fake-call') {
+        // Show fake call screen instead of just playing audio
+        setShowFakeCallScreen(true);
+        
+        // Also start the fake call audio
+        await startAlarm(alarmType);
+        
+        Alert.alert(
+          '📞 Fake Call Activated',
+          'Incoming call screen displayed. You can now pretend to take an important call to safely leave the situation.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // For ring alarm, just play the sound
+        await startAlarm(alarmType);
+        
+        Alert.alert(
+          '🔊 Discreet Alert', 
+          'Ring alarm activated discreetly.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.log('Error with discreet alarm:', error);
+      Alert.alert('Error', 'Failed to activate discreet alert. Please try again.');
+    }
+  };
+
+  const triggerLoudAlarm = async (delaySeconds: number = 0) => {
+    try {
+      if (delaySeconds > 0) {
+        // Legacy delay functionality for scheduled alarms
+        Alert.alert(
+          'Discreet Alarm Set',
+          `Loud alarm will sound in ${delaySeconds} seconds. Move to safety if needed.`,
+          [{ text: 'OK' }]
+        );
+
+        setTimeout(async () => {
+          try {
+            // Strong haptic feedback for loud alarm
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            
+            speakButtonAction('Loud alarm activated');
+            
+            // Start loud alarm (ring)
+            await startAlarm('ring');
+            
+            Alert.alert(
+              'Loud Alarm Activated',
+              'Alarm is sounding. Use the alarm indicator in the top bar to stop it.',
+              [{ text: 'OK' }]
+            );
+          } catch (error) {
+            console.error('Error triggering loud alarm:', error);
+            stopAlarm();
+          }
+        }, delaySeconds * 1000);
+      } else {
+        // Immediate activation for triple-tap
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        
+        speakButtonAction('Loud alarm activated');
+        
+        // Show immediate feedback
+        Alert.alert(
+          '🚨 LOUD ALARM ACTIVATED',
+          'Loud alarm is sounding!',
+          [
+            { 
+              text: 'Stop Alarm', 
+              onPress: () => stopAlarm(),
+              style: 'destructive'
+            }
+          ]
+        );
+        
+        // Start loud alarm (ring)
+        await startAlarm('ring');
+      }
+    } catch (error) {
+      console.log('Error with loud alarm:', error);
+      Alert.alert('Error', 'Failed to activate loud alarm. Please try again.');
+    }
+  };
+
+  // Legacy functions for compatibility
   const handleDiscreetAlarm = async () => {
     try {
       if (isAlarmPlaying) {
         // Stop the alarm if it's currently playing
         await stopAlarm();
         Alert.alert('Alarm Stopped', 'The discreet alarm has been stopped.');
-      } else {
-        // Start the alarm if it's not playing
-        await startAlarm(alarmType);
-        
-        if (alarmType === 'fake-call') {
-          Alert.alert(
-            'Fake Call Activated',
-            'Triggering fake call sound...',
-            [{ text: 'OK' }]
-          );
-        } else {
-          Alert.alert(
-            'Ring Alarm Activated', 
-            'Triggering ring sound...',
-            [{ text: 'OK' }]
-          );
-        }
       }
     } catch (error) {
       console.log('Error with discreet alarm:', error);
@@ -661,33 +840,6 @@ function HomeScreen() {
         );
       } catch (error) {
         console.error('Error triggering fake call:', error);
-        stopAlarm();
-      }
-    }, delaySeconds * 1000);
-  };
-
-  const triggerLoudAlarm = async (delaySeconds: number = 10) => {
-    Alert.alert(
-      'Discreet Alarm Set',
-      `Loud alarm will sound in ${delaySeconds} seconds. Move to safety if needed.`,
-      [{ text: 'OK' }]
-    );
-
-    setTimeout(async () => {
-      try {
-        // Trigger haptic feedback
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        
-        // Start ring alarm
-        await startAlarm('ring');
-        
-        Alert.alert(
-          'Loud Alarm Activated',
-          'Alarm is sounding. Use the alarm indicator in the top bar to stop it.',
-          [{ text: 'OK' }]
-        );
-      } catch (error) {
-        console.error('Error triggering loud alarm:', error);
         stopAlarm();
       }
     }, delaySeconds * 1000);
@@ -977,22 +1129,50 @@ function HomeScreen() {
 
               {/* Row 2 */}
               <View style={styles.buttonRow}>
-                {/* Discreet Alarm Button */}
+                {/* Discreet Alarm Button with new interactions */}
                 <TouchableOpacity
-                  style={[styles.secondaryButton, styles.discreetAlarmButton, isAlarmPlaying && styles.discreetAlarmButtonActive]}
-                  onPress={handleDiscreetAlarm}
+                  style={[
+                    styles.secondaryButton, 
+                    styles.discreetAlarmButton, 
+                    (isAlarmPlaying || isDiscreetHolding) && styles.discreetAlarmButtonActive,
+                    discreetTapCount > 0 && styles.discreetTapping
+                  ]}
+                  onPress={isAlarmPlaying ? handleDiscreetAlarm : handleDiscreetPress}
+                  onPressIn={!isAlarmPlaying ? handleDiscreetPressIn : undefined}
+                  onPressOut={!isAlarmPlaying ? handleDiscreetPressOut : undefined}
                   accessibilityLabel="Discreet Alarm Button"
-                  accessibilityHint="Trigger fake call or alarm sound to deter threats"
+                  accessibilityHint="Hold for 3 seconds for discreet alert, or tap 3 times quickly for loud alarm"
                 >
                   <View style={styles.secondaryButtonContent}>
-                    <Ionicons
-                      name={isAlarmPlaying ? "alarm" : "alarm-outline"}
-                      size={20}
-                      color={isAlarmPlaying ? "#fff" : "#FF6B35"}
-                    />
-                    <Text style={isAlarmPlaying ? styles.secondaryButtonTextActive : styles.discreetAlarmButtonText}>
-                      {isAlarmPlaying ? 'Stop' : 'Discreet'}
-                    </Text>
+                    {isDiscreetHolding ? (
+                      <View style={styles.discreetHoldContainer}>
+                        <View style={styles.discreetProgressBar}>
+                          <View style={[styles.discreetProgressFill, { width: `${discreetHoldProgress}%` }]} />
+                        </View>
+                        <Ionicons name="call" size={16} color="#fff" />
+                        <Text style={styles.secondaryButtonTextActive}>Call</Text>
+                        <Text style={styles.discreetHoldSubtext}>Hold...</Text>
+                      </View>
+                    ) : discreetTapCount > 0 ? (
+                      <View style={styles.discreetTapContainer}>
+                        <Text style={styles.discreetTapCountText}>{discreetTapCount}</Text>
+                        <Text style={styles.discreetTapSubtext}>
+                          {discreetTapCount === 1 ? "Tap 2 more" : "Tap 1 more"}
+                        </Text>
+                        <Text style={styles.discreetTapSubtext2}>for ALARM</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={isAlarmPlaying ? "alarm" : "alarm-outline"}
+                          size={20}
+                          color={(isAlarmPlaying || isDiscreetHolding) ? "#fff" : "#FF6B35"}
+                        />
+                        <Text style={(isAlarmPlaying || isDiscreetHolding) ? styles.secondaryButtonTextActive : styles.discreetAlarmButtonText}>
+                          {isAlarmPlaying ? 'Stop' : 'Discreet'}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 </TouchableOpacity>
 
@@ -1113,6 +1293,17 @@ function HomeScreen() {
         visible={showHelpdeskModal}
         onClose={() => setShowHelpdeskModal(false)}
         onContactHelpdesk={contactHelpdesk}
+      />
+
+      {/* Fake Call Screen */}
+      <FakeCallScreen
+        visible={showFakeCallScreen}
+        onEndCall={() => {
+          setShowFakeCallScreen(false);
+          stopAlarm(); // Stop the fake call sound when ending the call
+        }}
+        callerName="Mom"
+        callerNumber="+1 (555) 123-4567"
       />
     </SafeAreaView>
   );
@@ -1528,6 +1719,63 @@ const styles = StyleSheet.create({
   },
   discreetAlarmButtonActive: {
     backgroundColor: '#FF6B35',
+  },
+  discreetTapping: {
+    backgroundColor: '#ff9500',
+    transform: [{ scale: 1.05 }],
+  },
+  // New styles for discreet button interactions
+  discreetHoldContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  discreetProgressBar: {
+    position: 'absolute',
+    bottom: 4,
+    width: '80%',
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 1,
+  },
+  discreetProgressFill: {
+    height: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 1,
+  },
+  discreetTapContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  discreetTapCountText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  discreetTapSubtext: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '500',
+    opacity: 0.9,
+  },
+  discreetTapSubtext2: {
+    color: '#fff',
+    fontSize: 7,
+    fontWeight: '500',
+    opacity: 0.8,
+    marginTop: 1,
+  },
+  discreetHoldSubtext: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '500',
+    opacity: 0.9,
+    marginTop: 1,
   },
   discreetAlarmButtonText: {
     fontSize: 12,

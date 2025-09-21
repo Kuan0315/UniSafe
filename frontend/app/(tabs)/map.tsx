@@ -14,13 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
+import PlacesSearch from '../../components/PlacesSearch';
+import AppHeader from '../../components/AppHeader';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
-import GeofencingService, { University } from '../../services/GeofencingService';
+import GeofencingService from '../../services/GeofencingService';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { openGoogleMaps } from '../../services/NavigationService';
-import UniversitySelector from '../../components/UniversitySelector';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 
 const { width, height } = Dimensions.get('window');
@@ -107,11 +107,18 @@ export default function MapScreen() {
   const [showSafeRoute, setShowSafeRoute] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
-  const [currentUniversity, setCurrentUniversity] = useState<University | null>(null);
   const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
   const [isFullScreenMap, setIsFullScreenMap] = useState(false);
   const [destination, setDestination] = useState<string>('');
+  const [destinationCoords, setDestinationCoords] = useState<{latitude: number; longitude: number; name?: string} | undefined>();
   const [useSafeRoute, setUseSafeRoute] = useState(true);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showLocationPreview, setShowLocationPreview] = useState(false);
+  const [previewLocation, setPreviewLocation] = useState<{latitude: number; longitude: number; name: string; description: string} | null>(null);
+  const [transportMode, setTransportMode] = useState<'driving' | 'motorbike' | 'walking'>('driving');
+  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
+  const [routeType, setRouteType] = useState<'safest' | 'fastest'>('safest');
+  const [showTransportSelection, setShowTransportSelection] = useState(false);
 
 
   // Speak page title on load for accessibility
@@ -224,6 +231,12 @@ export default function MapScreen() {
     }
   };
 
+  const clearRoute = () => {
+    setDestination('');
+    setDestinationCoords(undefined);
+    setShowSafeRoute(false);
+  };
+
   const getIncidentIcon = (type: string): keyof typeof Ionicons.glyphMap => {
     const iconName = incidentIcons[type as keyof typeof incidentIcons];
     return iconName || 'alert-circle-outline';
@@ -234,116 +247,69 @@ export default function MapScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* University Selector */}
-      <UniversitySelector
-        onUniversityChange={setCurrentUniversity}
-        currentUniversity={currentUniversity}
+    <View style={styles.container}>
+      <AppHeader 
+        title="Map" 
+        showFilterButton={true}
+        onFilterPress={() => setShowFilterModal(true)}
+        hasActiveFilter={selectedIncidentType !== 'all'}
       />
-
-      {/* Filter Bar */}
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[styles.filterChip, selectedIncidentType === 'all' && styles.filterChipActive]}
-            onPress={() => setSelectedIncidentType('all')}
-          >
-            <Text style={[styles.filterText, selectedIncidentType === 'all' && styles.filterTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-          {Object.keys(incidentIcons).map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[styles.filterChip, selectedIncidentType === type && styles.filterChipActive]}
-              onPress={() => setSelectedIncidentType(type)}
-            >
-              <Ionicons 
-                name={getIncidentIcon(type)} 
-                size={16} 
-                color={selectedIncidentType === type ? '#fff' : getIncidentColor(type)} 
-              />
-              <Text style={[styles.filterText, selectedIncidentType === type && styles.filterTextActive]}>
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Search + Toggle Row */}
+      
+      {/* Search + Mic Row */}
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
-          <GooglePlacesAutocomplete
+          <PlacesSearch
             placeholder="Search destination..."
-            debounce={200}
-            fetchDetails={true}
-            onFail={(error) => console.error("Places API Error:", error)}
-            onNotFound={() => console.warn("No places found")}
-            query={{
-              key: MAPS_CONFIG.GOOGLE_MAPS_API_KEY,
-              language: 'en',
-            }}
-            textInputProps={{
-              autoCorrect: false,
-              placeholderTextColor: "#999",
-              onFocus: () => console.log("Input focused"),
-            }}
-            onPress={(data, details = null) => {
-              if (!details?.geometry) {
-                console.warn("No geometry returned:", data, details);
-                return;
-              }
+            onPlaceSelected={(place) => {
+              console.log('Place selected:', place);
+              
+              // Set preview location data
+              setPreviewLocation({
+                latitude: place.latitude,
+                longitude: place.longitude,
+                name: place.description,
+                description: place.description
+              });
 
-              const { lat, lng } = details.geometry.location;
-              setDestination(data.description);
+              // Focus map on destination
+              setRegion({
+                latitude: place.latitude,
+                longitude: place.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              });
 
-              if (useSafeRoute) {
-                setShowSafeRoute(true);
-                Alert.alert("Safe Route", `Showing safest route to ${data.description}`);
-                // TODO: Add safe route calculation here
-              } else {
-                openGoogleMaps(lat, lng);
-              }
+              // Show transportation selection bottom panel
+              setShowTransportSelection(true);
             }}
-            predefinedPlaces={[]}
-            listViewDisplayed="auto"  // 👈 add here
-            currentLocation={false}
-            renderRow={(rowData) => (
-              <View style={{ padding: 10, borderBottomWidth: 0.5, borderColor: "#ccc" }}>
-                <Text>{rowData.description || "No description"}</Text>
-              </View>
-            )}  
-            styles={{
-              container: { flex: 1 },
-              textInput: {
-                height: 36,
-                fontSize: 14,
-                backgroundColor: "transparent", // since container already styled
-              },
-              listView: {
-                backgroundColor: '#fff',
-                zIndex: 20,
-                elevation: 3,
-              },
-            }}
+            style={styles.placesSearch}
           />
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={handleDestinationSearch}
-          >
-            <Ionicons name="search" size={20} color="#fff" />
-          </TouchableOpacity>
+          
+          {destination && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => {
+                setDestination('');
+                setDestinationCoords(undefined);
+                setShowSafeRoute(false);
+                setShowTransportSelection(false); // Hide transport panel
+                setPreviewLocation(null); // Clear preview location
+              }}
+            >
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity
-          style={[styles.toggleButton, useSafeRoute && styles.toggleActive]}
-          onPress={() => setUseSafeRoute(!useSafeRoute)}
+          style={styles.micButton}
+          onPress={() => {
+            // Handle speech to text functionality
+            console.log('Microphone pressed for speech to text');
+            // TODO: Implement speech to text here
+          }}
         >
-          <Ionicons name="shield-checkmark" size={18} color={useSafeRoute ? "#fff" : "#007AFF"}/>
-          <Text style={[styles.toggleText, useSafeRoute && styles.toggleTextActive]}>
-            Safest
-          </Text>
+          <Ionicons name="mic" size={20} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
@@ -358,41 +324,160 @@ export default function MapScreen() {
             region={region}
             incidents={filteredIncidents}
             showSafeRoute={showSafeRoute}
-            currentUniversity={currentUniversity}
+            destination={destinationCoords}
+            useSafeRoute={useSafeRoute}
+            onFullscreen={() => setIsFullScreenMap(true)}
             onMapPress={(latitude, longitude) => {
               console.log('Map clicked at:', { latitude, longitude });
             }}
           />
         ) : (
-          <View style={styles.mapPlaceholder}>
-            <Ionicons name="map" size={64} color="#007AFF" />
-            <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
-            <Text style={styles.mapPlaceholderSubtext}>
-              Requesting location permissions...
-            </Text>
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="map" size={64} color="#007AFF" />
+              <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
+              <Text style={styles.mapPlaceholderSubtext}>
+                Requesting location permissions...
+              </Text>
+            </View>
+          )}
+      </View>
+
+      {/* Transportation Selection Bottom Panel */}
+      {showTransportSelection && previewLocation && (
+        <View style={styles.transportBottomPanel}>
+          {/* Location Info */}
+          <View style={styles.bottomLocationInfo}>
+            <View style={styles.bottomLocationIcon}>
+              <Ionicons name="location" size={20} color="#007AFF" />
+            </View>
+            <View style={styles.bottomLocationDetails}>
+              <Text style={styles.bottomLocationName} numberOfLines={1}>
+                {previewLocation.name}
+              </Text>
+              <Text style={styles.bottomLocationCoords}>
+                {previewLocation.latitude.toFixed(4)}, {previewLocation.longitude.toFixed(4)}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.closePanelButton}
+              onPress={() => setShowTransportSelection(false)}
+            >
+              <Ionicons name="close" size={20} color="#666" />
+            </TouchableOpacity>
           </View>
-        )}
-      </View>
 
-      {/* Control Buttons */}
-      <View style={styles.controlButtons}>
+          {/* Transportation Mode Selection */}
+          <View style={styles.bottomTransportModes}>
+            <TouchableOpacity
+              style={[styles.bottomTransportButton, transportMode === 'driving' && styles.bottomTransportActive]}
+              onPress={() => setTransportMode('driving')}
+            >
+              <Ionicons 
+                name="car" 
+                size={20} 
+                color={transportMode === 'driving' ? '#fff' : '#007AFF'} 
+              />
+              <Text style={[styles.bottomTransportText, transportMode === 'driving' && styles.bottomTransportTextActive]}>
+                Car
+              </Text>
+            </TouchableOpacity>
 
-        {/* Fullscreen toggle */}
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => setIsFullScreenMap(true)}
-        >
-          <Ionicons name="expand" size={24} color="#007AFF" />
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bottomTransportButton, transportMode === 'motorbike' && styles.bottomTransportActive]}
+              onPress={() => setTransportMode('motorbike')}
+            >
+              <Ionicons 
+                name="bicycle" 
+                size={20} 
+                color={transportMode === 'motorbike' ? '#fff' : '#007AFF'} 
+              />
+              <Text style={[styles.bottomTransportText, transportMode === 'motorbike' && styles.bottomTransportTextActive]}>
+                Bike
+              </Text>
+            </TouchableOpacity>
 
-        {/* Center on User Location */}
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={centerOnUserLocation}
-        >
-          <Ionicons name="locate" size={24} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={[styles.bottomTransportButton, transportMode === 'walking' && styles.bottomTransportActive]}
+              onPress={() => setTransportMode('walking')}
+            >
+              <Ionicons 
+                name="walk" 
+                size={20} 
+                color={transportMode === 'walking' ? '#fff' : '#007AFF'} 
+              />
+              <Text style={[styles.bottomTransportText, transportMode === 'walking' && styles.bottomTransportTextActive]}>
+                Walk
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Route Type Selection */}
+          <View style={styles.bottomRouteTypes}>
+            <TouchableOpacity
+              style={[styles.bottomRouteButton, routeType === 'safest' && styles.bottomRouteActive]}
+              onPress={() => setRouteType('safest')}
+            >
+              <Ionicons 
+                name="shield-checkmark" 
+                size={18} 
+                color={routeType === 'safest' ? '#fff' : '#34C759'} 
+              />
+              <Text style={[styles.bottomRouteText, routeType === 'safest' && styles.bottomRouteTextActive]}>
+                Safest Route
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.bottomRouteButton, 
+                routeType === 'fastest' && styles.bottomRouteActive,
+                routeType === 'fastest' && { borderColor: '#FF9500', backgroundColor: routeType === 'fastest' ? '#FF9500' : '#fff' }
+              ]}
+              onPress={() => setRouteType('fastest')}
+            >
+              <Ionicons 
+                name="flash" 
+                size={18} 
+                color={routeType === 'fastest' ? '#fff' : '#FF9500'} 
+              />
+              <Text style={[
+                styles.bottomRouteText, 
+                routeType === 'fastest' && styles.bottomRouteTextActive,
+                routeType === 'fastest' ? { color: '#fff' } : { color: '#FF9500' }
+              ]}>
+                Fastest Route
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Navigate Button */}
+          <TouchableOpacity
+            style={styles.bottomNavigateButton}
+            onPress={() => {
+              if (previewLocation) {
+                setDestination(previewLocation.name);
+                setDestinationCoords({
+                  latitude: previewLocation.latitude,
+                  longitude: previewLocation.longitude,
+                  name: previewLocation.name
+                });
+                setShowSafeRoute(true);
+                setUseSafeRoute(routeType === 'safest');
+                setShowTransportSelection(false);
+                Alert.alert(
+                  "Route Planning", 
+                  `Showing ${routeType} ${transportMode} route to ${previewLocation.name}`
+                );
+              }
+            }}
+          >
+            <Ionicons name="navigate" size={20} color="#fff" />
+            <Text style={styles.bottomNavigateText}>
+              Start Navigation
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Incident Details Modal */}
       <Modal
@@ -446,6 +531,84 @@ export default function MapScreen() {
         </View>
       </Modal>
 
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.filterModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Incidents</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.filterList}>
+              <TouchableOpacity
+                style={[styles.filterOption, selectedIncidentType === 'all' && styles.filterOptionSelected]}
+                onPress={() => {
+                  setSelectedIncidentType('all');
+                  setShowFilterModal(false);
+                }}
+              >
+                <View style={styles.filterOptionContent}>
+                  <Text style={[styles.filterOptionText, selectedIncidentType === 'all' && styles.filterOptionTextSelected]}>
+                    All Incidents
+                  </Text>
+                  {selectedIncidentType === 'all' && (
+                    <Ionicons name="checkmark" size={20} color="#007AFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {Object.keys(incidentIcons).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.filterOption, selectedIncidentType === type && styles.filterOptionSelected]}
+                  onPress={() => {
+                    setSelectedIncidentType(type);
+                    setShowFilterModal(false);
+                  }}
+                >
+                  <View style={styles.filterOptionContent}>
+                    <View style={styles.filterOptionLeft}>
+                      <View style={[styles.filterIconContainer, { backgroundColor: getIncidentColor(type) }]}>
+                        <Ionicons 
+                          name={getIncidentIcon(type)} 
+                          size={16} 
+                          color="#fff"
+                        />
+                      </View>
+                      <Text style={[styles.filterOptionText, selectedIncidentType === type && styles.filterOptionTextSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </View>
+                    {selectedIncidentType === type && (
+                      <Ionicons name="checkmark" size={20} color="#007AFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Location Preview Modal - DISABLED: Using bottom panel instead
+      <Modal
+        visible={showLocationPreview}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLocationPreview(false)}
+      >
+        ...modal content removed for bottom panel...
+      </Modal>
+      */}
+
       {/* Fullscreen Map Modal*/}
       <Modal
         visible={isFullScreenMap}
@@ -473,7 +636,8 @@ export default function MapScreen() {
               }}
               incidents={filteredIncidents}
               showSafeRoute={showSafeRoute}
-              currentUniversity={currentUniversity}
+              destination={destinationCoords}
+              useSafeRoute={useSafeRoute}
               onMapPress={(latitude, longitude) => {
                 console.log('Map clicked at:', { latitude, longitude });
               }}
@@ -489,14 +653,53 @@ export default function MapScreen() {
           )}
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
+  },
+  safeAreaMap: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0056CC',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  filterButton: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterIndicator: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
   },
   filterContainer: {
     backgroundColor: '#fff',
@@ -531,8 +734,10 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    margin: 16,
-    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  mapContainerNoSpacing: {
+    flex: 1,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -602,27 +807,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
-  controlButtons: {
-    position: 'absolute',
-    right: 20,
-    bottom: 125,
-    gap: 12,
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#fff',
-    borderRadius: 25,
+  filterButtonHeader: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  controlButtonActive: {
-    backgroundColor: '#34C759',
+    marginLeft: 8,
   },
   safetyScoreContainer: {
     backgroundColor: '#fff',
@@ -821,7 +1016,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
@@ -831,12 +1026,18 @@ const styles = StyleSheet.create({
     flex: 1, // takes up all space before button
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginRight: 8, // spacing before button
+    backgroundColor: '#f8f9fb',
+    borderRadius: 25,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: '#e8eaed',
+    marginRight: 12, // spacing before mic button
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   searchButton: {
     backgroundColor: '#007AFF',
@@ -845,27 +1046,325 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  toggleButton: {
+  // New styles for improved search suggestions
+  suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 12,
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
   },
-  toggleActive: {
+  suggestionIcon: {
+    marginRight: 12,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 2,
+  },
+  suggestionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  placesSearch: {
+    flex: 1,
+    marginRight: 8,
+  },
+  clearSearchButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micButton: {
+    backgroundColor: 'white',
+    borderRadius: 25,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 50,
+    height: 50,
+    borderWidth: 1.5,
+    borderColor: '#e8eaed',
+  },
+  // Filter Modal Styles
+  filterModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '60%',
+  },
+  filterList: {
+    maxHeight: 300,
+  },
+  filterOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  filterOptionSelected: {
+    backgroundColor: '#f0f9ff',
+  },
+  filterOptionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  filterOptionTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  // Location Preview Modal Styles
+  locationPreviewContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  locationIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e3f2fd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  locationDetails: {
+    flex: 1,
+  },
+  locationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  locationCoords: {
+    fontSize: 14,
+    color: '#666',
+  },
+  transportModeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  transportModeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  transportModeButton: {
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    backgroundColor: '#fff',
+    minWidth: 80,
+  },
+  transportModeActive: {
     backgroundColor: '#007AFF',
   },
-  toggleText: {
-    marginLeft: 4,
-    fontSize: 13,
+  transportModeText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '600',
     color: '#007AFF',
-    fontWeight: '500',
   },
-  toggleTextActive: {
+  transportModeTextActive: {
+    color: '#fff',
+  },
+  routeActions: {
+    gap: 12,
+  },
+  showRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  showRouteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  cancelRouteButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  cancelRouteButtonText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  // Bottom Transport Panel Styles
+  transportBottomPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+    maxHeight: '40%',
+  },
+  bottomLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  bottomLocationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e3f2fd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bottomLocationDetails: {
+    flex: 1,
+  },
+  bottomLocationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  bottomLocationCoords: {
+    fontSize: 12,
+    color: '#666',
+  },
+  closePanelButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomTransportModes: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  bottomTransportButton: {
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    backgroundColor: '#fff',
+    minWidth: 80,
+  },
+  bottomTransportActive: {
+    backgroundColor: '#007AFF',
+  },
+  bottomTransportText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  bottomTransportTextActive: {
+    color: '#fff',
+  },
+  bottomRouteTypes: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  bottomRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#34C759',
+    backgroundColor: '#fff',
+    gap: 6,
+  },
+  bottomRouteActive: {
+    backgroundColor: '#34C759',
+  },
+  bottomRouteText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34C759',
+  },
+  bottomRouteTextActive: {
+    color: '#fff',
+  },
+  bottomNavigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  bottomNavigateText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
   },
 });
