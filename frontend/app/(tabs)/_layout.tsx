@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import AppHeader from "../../components/AppHeader";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -8,12 +8,12 @@ export default function TabsLayout() {
   
   return (
     <Tabs
-      screenOptions={{
-        headerShown: true,
+      screenOptions={({ route }) => ({
+        headerShown: route.name !== 'map', // Hide header for map screen so it can have custom header
         header: ({ options }) => (
           <AppHeader title={options.title as string} />
         ),
-      }}
+      })}
     >
       <Tabs.Screen
         name="index"

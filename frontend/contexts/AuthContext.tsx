@@ -101,6 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email: credentials.email,
         name: credentials.name,
         role: credentials.role,
+        university: credentials.university,
       };
 
       setUser(mockUser);
