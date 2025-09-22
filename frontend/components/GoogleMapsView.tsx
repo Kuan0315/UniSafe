@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, Polyline, Circle, Polygon, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { directionsService, Coordinate, DirectionsResponse } from '../services/directionsService';
 import { useAuth } from '../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
@@ -49,9 +48,6 @@ export default function GoogleMapsView({
   const mapRef = useRef<MapView>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
-  const [directionsRoute, setDirectionsRoute] = useState<Coordinate[]>([]);
-  // const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
-  const [loadingDirections, setLoadingDirections] = useState(false);
 
   // Default to Kuala Lumpur if no location provided
   const defaultRegion: Region = {
@@ -160,14 +156,6 @@ export default function GoogleMapsView({
            typeColors[type as keyof typeof typeColors] || 
            '#FF3B30';
   };
-
-  // Safe route coordinates (example path)
-  const safeRouteCoordinates = showSafeRoute && userLocation ? [
-    userLocation,
-    { latitude: userLocation.latitude + 0.001, longitude: userLocation.longitude + 0.001 },
-    { latitude: userLocation.latitude + 0.002, longitude: userLocation.longitude - 0.001 },
-    { latitude: userLocation.latitude + 0.003, longitude: userLocation.longitude + 0.002 },
-  ] : [];
 
   const handleMapPress = (event: any) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
@@ -299,9 +287,14 @@ export default function GoogleMapsView({
             ]}>
               <Ionicons 
                 name={getIncidentIcon(incident.type)} 
-                size={20} 
+                size={18} 
                 color="white" 
               />
+              {/* Severity indicator ring */}
+              <View style={[
+                styles.severityRing,
+                { borderColor: getSeverityRingColor(incident.severity) }
+              ]} />
             </View>
           </Marker>
         ))}
@@ -318,33 +311,12 @@ export default function GoogleMapsView({
           </Marker>
         )}
 
-        {/* New Selected Route Polyline-new */}
+        {/* Route Polyline - Using new routing system */}
         {routePolyline && routePolyline.length > 0 && (
           <Polyline
             coordinates={routePolyline}
             strokeColor={useSafeRoute ? "#34C759" : "#007AFF"}
             strokeWidth={6}
-            geodesic={true}
-          />
-        )}
-
-        {/* Directions Route-old */}
-        {directionsRoute.length > 0 && (
-          <Polyline
-            coordinates={directionsRoute}
-            strokeColor={useSafeRoute ? "#34C759" : "#007AFF"}
-            strokeWidth={5}
-            geodesic={true}
-            lineDashPattern={useSafeRoute ? undefined : [10, 10]}
-          />
-        )}
-
-        {/* Safe Route (legacy - keeping for compatibility) */}
-        {showSafeRoute && safeRouteCoordinates.length > 0 && !directionsRoute.length && (
-          <Polyline
-            coordinates={safeRouteCoordinates}
-            strokeColor="#34C759"
-            strokeWidth={4}
             geodesic={true}
           />
         )}
@@ -408,13 +380,6 @@ export default function GoogleMapsView({
         </View>
       )}
 
-      {/* Loading Indicator */}
-      {loadingDirections && (
-        <View style={styles.loadingOverlay}>
-          <Text style={styles.loadingText}>Getting directions...</Text>
-        </View>
-      )}
-
       {/* Map Type Indicator */}
       <View style={styles.mapTypeIndicator}>
         <Text style={styles.mapTypeText}>
@@ -428,17 +393,28 @@ export default function GoogleMapsView({
 // Helper function to get appropriate icon for incident type
 function getIncidentIcon(type: string): keyof typeof Ionicons.glyphMap {
   const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-    theft: 'bag',
-    harassment: 'warning',
-    accident: 'car',
-    suspicious: 'eye',
-    fire: 'flame',
-    emergency: 'alert-circle',
-    assault: 'person',
-    vandalism: 'hammer'
+    theft: 'briefcase-outline',
+    harassment: 'warning-outline', 
+    accident: 'car-outline',
+    suspicious: 'eye-outline',
+    fire: 'flame-outline',
+    emergency: 'alert-circle-outline',
+    assault: 'person-outline',
+    vandalism: 'hammer-outline'
   };
   
-  return iconMap[type] || 'alert-circle';
+  return iconMap[type] || 'alert-circle-outline';
+}
+
+// Helper function to get severity ring color
+function getSeverityRingColor(severity: string): string {
+  const severityColors: Record<string, string> = {
+    high: '#FF3B30',    // Red
+    medium: '#FF9500',  // Orange  
+    low: '#34C759'      // Green
+  };
+  
+  return severityColors[severity] || '#FF9500';
 }
 
 const styles = StyleSheet.create({
@@ -482,19 +458,27 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   incidentMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: 'white',
-    overflow: 'hidden', // Ensures perfect circle
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  severityRing: {
+    position: 'absolute',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    top: -6,
+    left: -6,
   },
   destinationMarker: {
     width: 44,

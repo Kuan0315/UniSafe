@@ -3,9 +3,7 @@ import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View, Scr
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import StandardHeader from '../../components/StandardHeader';
-import { LinearGradient } from "expo-linear-gradient";
+import { LinearGradient } from 'expo-linear-gradient';
 
 function confirmAndCall(phone: string, contactName: string) {
   Alert.alert(
@@ -37,21 +35,19 @@ export default function EmergencyCallScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Scrollable Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-      {/* Gradient Header inside SafeAreaView */}
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Header with blue gradient */}
       <LinearGradient
-        colors={["#2563eb", "#1d4ed8"]}
+        colors={['#2563eb', '#1d4ed8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientHeader}
+        style={styles.header}
       >
-        <View style={styles.gradientHeaderIcon}>
+        <View style={styles.headerIconContainer}>
           <Ionicons name="alert-circle" size={36} color="#fff" />
         </View>
-        <Text style={styles.gradientHeaderTitle}>Emergency Contacts</Text>
-        <Text style={styles.gradientHeaderSubtitle}>Quickly reach campus & public safety services</Text>
+        <Text style={styles.headerTitle}>Emergency Contacts</Text>
+        <Text style={styles.headerSubtitle}>Quickly reach campus & public safety services</Text>
       </LinearGradient>
 
       {/* Info Banner */}
@@ -127,55 +123,52 @@ export default function EmergencyCallScreen() {
           In case of emergency, stay calm and provide your location clearly to the operator.
         </Text>
       </View>
-      </ScrollView>
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-  },
   container: { 
     flex: 1, 
-    backgroundColor: "#f9fafb",   // light gray background
+    backgroundColor: "#f9fafb" 
   },
   contentContainer: {
     padding: 16,
     paddingBottom: 30,
   },
-  gradientHeader: {                // 👈 renamed from "header"
+  // Header - made smaller
+  header: {
     paddingVertical: 24,
     paddingHorizontal: 20,
-    borderRadius: 16,              // curves all around
+    borderRadius: 16,
     alignItems: "center",
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 4,                  // Android shadow
+    elevation: 4,
   },
-  gradientHeaderIcon: {            // 👈 renamed from "headerIconContainer"
-    backgroundColor: "rgba(255,255,255,0.2)",
+  headerIconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
     width: 60,
     height: 60,
     borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
   },
-  gradientHeaderTitle: {           // 👈 renamed from "headerTitle"
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#fff",
+  headerTitle: { 
+    fontSize: 22, 
+    fontWeight: "800", 
+    color: "#fff", 
     marginBottom: 4,
-    textAlign: "center",
+    textAlign: 'center'
   },
-  gradientHeaderSubtitle: {        // 👈 renamed from "headerSubtitle"
-    fontSize: 14,
-    color: "#e0f2fe",
-    textAlign: "center",
+  headerSubtitle: { 
+    fontSize: 14, 
+    color: "#e0f2fe", 
+    textAlign: 'center',
     paddingHorizontal: 10,
   },
 

@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, Animated } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, Platform, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSOSContext } from "../contexts/SOSContext";
 import { useAlarmContext } from "../contexts/AlarmContext";
@@ -16,78 +17,83 @@ export default function AppHeader({ title, showFilterButton, onFilterPress, hasA
   const { isAlarmPlaying, currentAlarmType, onAlarmIndicatorPress } = useAlarmContext();
   
   return (
-    <View style={styles.container}>
-      <View style={styles.brandRow}>
-        <View style={styles.leftSection}>
-          <Image
-            source={require("../assets/images/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.appName}>UniSafe</Text>
-        </View>
-        
-        <View style={styles.rightSection}>
-          {/* SOS Active Indicator */}
-          {isSOSActive && (
-            <TouchableOpacity 
-              style={styles.sosIndicator}
-              onPress={onSOSIndicatorPress}
-              activeOpacity={0.8}
-            >
-              <View style={styles.sosIndicatorContent}>
-                <View style={styles.sosStatusDot} />
-                <Text style={styles.sosStatusText}>SOS</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <View style={styles.brandRow}>
+          <View style={styles.leftSection}>
+            <Image
+              source={require("../assets/images/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appName}>UniSafe</Text>
+          </View>
           
-          {/* Alarm Active Indicator */}
-          {isAlarmPlaying && (
-            <TouchableOpacity 
-              style={styles.alarmIndicator}
-              onPress={onAlarmIndicatorPress}
-              activeOpacity={0.8}
-            >
-              <View style={styles.alarmIndicatorContent}>
-                <Ionicons 
-                  name={currentAlarmType === 'fake-call' ? 'call' : 'notifications'} 
-                  size={12} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.alarmStatusText}>
-                  {currentAlarmType === 'fake-call' ? 'CALL' : 'RING'}
-                </Text>
-                <Ionicons name="stop" size={10} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-          )}
+          <View style={styles.rightSection}>
+            {/* SOS Active Indicator */}
+            {isSOSActive && (
+              <TouchableOpacity 
+                style={styles.sosIndicator}
+                onPress={onSOSIndicatorPress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.sosIndicatorContent}>
+                  <View style={styles.sosStatusDot} />
+                  <Text style={styles.sosStatusText}>SOS</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            {/* Alarm Active Indicator */}
+            {isAlarmPlaying && (
+              <TouchableOpacity 
+                style={styles.alarmIndicator}
+                onPress={onAlarmIndicatorPress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.alarmIndicatorContent}>
+                  <Ionicons 
+                    name={currentAlarmType === 'fake-call' ? 'call' : 'notifications'} 
+                    size={12} 
+                    color="#FFFFFF" 
+                  />
+                  <Text style={styles.alarmStatusText}>
+                    {currentAlarmType === 'fake-call' ? 'CALL' : 'RING'}
+                  </Text>
+                  <Ionicons name="stop" size={10} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+        {title ? (
+          <View style={styles.titleBar}>
+            <Text style={styles.titleText}>{title}</Text>
+            {showFilterButton && (
+              <TouchableOpacity 
+                style={styles.filterButton}
+                onPress={onFilterPress}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="filter" size={20} color="#FFFFFF" />
+                {hasActiveFilter && (
+                  <View style={styles.filterIndicator} />
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : null}
       </View>
-      {title ? (
-        <View style={styles.titleBar}>
-          <Text style={styles.titleText}>{title}</Text>
-          {showFilterButton && (
-            <TouchableOpacity 
-              style={styles.filterButton}
-              onPress={onFilterPress}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="filter" size={20} color="#FFFFFF" />
-              {hasActiveFilter && (
-                <View style={styles.filterIndicator} />
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : null}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const BLUE = "#1E88E5";
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: "#fff",
+  },
   container: {
     backgroundColor: "#fff",
   },
@@ -204,5 +210,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
   },
 });
-
 

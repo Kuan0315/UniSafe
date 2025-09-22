@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
+  StyleSheet as RNStyleSheet,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -11,11 +12,11 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import GoogleMapsView from '../../components/GoogleMapsView';
 import PlacesSearch from '../../components/PlacesSearch';
 import AppHeader from '../../components/AppHeader';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService from '../../services/GeofencingService';
@@ -61,6 +62,34 @@ const mockIncidents: Incident[] = [
     title: 'Accident Report',
     description: 'Minor collision in parking lot',
     location: { latitude: 3.1150, longitude: 101.6480 },
+    time: '30 mins ago',
+    severity: 'low',
+  },
+  // Test incidents for SRJK(C) Bukit Siput area (near coordinates 2.4858831, 102.8460264)
+  {
+    id: 4,
+    type: 'theft',
+    title: 'Phone Theft - Bukit Siput',
+    description: 'Phone stolen near main road to school',
+    location: { latitude: 2.4820, longitude: 102.8475 }, // Along likely route
+    time: '45 mins ago',
+    severity: 'medium',
+  },
+  {
+    id: 5,
+    type: 'harassment',
+    title: 'Harassment - School Area',
+    description: 'Verbal harassment reported near SRJK area',
+    location: { latitude: 2.4845, longitude: 102.8465 }, // Close to school
+    time: '1.5 hours ago',
+    severity: 'high',
+  },
+  {
+    id: 6,
+    type: 'suspicious',
+    title: 'Suspicious Activity',
+    description: 'Suspicious person loitering near Jalan Abdul Hamid',
+    location: { latitude: 2.4830, longitude: 102.8450 }, // Alternative route area
     time: '30 mins ago',
     severity: 'low',
   },
@@ -119,6 +148,9 @@ export default function MapScreen() {
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const [routeType, setRouteType] = useState<'safest' | 'fastest'>('safest');
   const [showTransportSelection, setShowTransportSelection] = useState(false);
+  const [showLocationDetails, setShowLocationDetails] = useState(false);
+  const [showRouteOptions, setShowRouteOptions] = useState(false);
+  const [availableRoutes, setAvailableRoutes] = useState<any[]>([]);
 
 
   // Speak page title on load for accessibility
@@ -244,14 +276,18 @@ export default function MapScreen() {
 
   // --- Compute safety score for a route polyline given incidents ---
   // Lower is safer. Penalty increases when route passes near incidents.
-  function computeSafetyScore(routeCoords: { latitude: number; longitude: number }[], incidents: Incident[]) {
+  function computeSafetyScore(routeCoords: { latitude: number; longitude: number }[], incidents: Incident[], routeId?: string) {
     // parameters you can tune:
     const PENALTY_BASE = { low: 5, medium: 15, high: 40 }; // penalty weight by severity
     const NEARBY_THRESHOLD_METERS = 200; // consider incident affecting route within 200m
     let score = 0;
+    let incidentsNearRoute = [];
 
     // sample every Nth point to limit compute cost
     const sampleStep = Math.max(1, Math.floor(routeCoords.length / 200)); // keep up to ~200 samples
+    
+    console.log(`🔒 Computing safety score for ${routeId || 'route'} with ${routeCoords.length} points (sampling every ${sampleStep})`);
+    
     for (let i = 0; i < routeCoords.length; i += sampleStep) {
       const pt = routeCoords[i];
       for (const inc of incidents) {
@@ -260,10 +296,25 @@ export default function MapScreen() {
           // Closer incidents yield slightly bigger penalty: linear falloff to threshold
           const proximityFactor = 1 - (d / NEARBY_THRESHOLD_METERS); // 1.0 if at same point, 0.0 at threshold
           const base = PENALTY_BASE[inc.severity];
-          score += base * proximityFactor;
+          const penalty = base * proximityFactor;
+          score += penalty;
+          
+          incidentsNearRoute.push({
+            incident: inc.title,
+            severity: inc.severity,
+            distance: Math.round(d),
+            penalty: Math.round(penalty * 100) / 100
+          });
         }
       }
     }
+    
+    console.log(`🔒 ${routeId || 'Route'} safety analysis:`, {
+      totalScore: Math.round(score * 100) / 100,
+      incidentsNearby: incidentsNearRoute.length,
+      details: incidentsNearRoute
+    });
+    
     return score;
   }
 
@@ -317,9 +368,11 @@ export default function MapScreen() {
     routeType: 'fastest' | 'safest',
     incidents: Incident[]
   ) {
+    console.log(`🗺️ Planning ${routeType} route (${mode}) with ${incidents.length} incidents to consider`);
+    
     // fetch directions
     const raw = await fetchDirections(originLatLng, destLatLng, mode);
-    const candidates = (raw.routes || []).map((r: any) => {
+    const candidates = (raw.routes || []).map((r: any, index: number) => {
       const coords = decodePolyline(r.overview_polyline?.points || '');
       // prefer duration_in_traffic if provided
       const leg = (r.legs && r.legs[0]) ? r.legs[0] : null;
@@ -332,16 +385,20 @@ export default function MapScreen() {
         distanceMeters: distance,
         durationSecs: duration,
         durationInTrafficSecs: durationInTraffic,
+        routeId: `Route ${index + 1}`,
       };
     });
 
     if (!candidates.length) {
+      console.log('❌ No route candidates found');
       return null;
     }
 
+    console.log(`📍 Found ${candidates.length} route candidates`);
+
     // Score each candidate
     const scored = candidates.map((c: any) => {
-      const safetyScore = computeSafetyScore(c.coords, incidents);
+      const safetyScore = computeSafetyScore(c.coords, incidents, c.routeId);
       // pick the most meaningful travel time: duration_in_traffic (if driving) else duration
       const travelTime = (mode === 'driving' && c.durationInTrafficSecs) ? c.durationInTrafficSecs : c.durationSecs;
       return {
@@ -349,6 +406,17 @@ export default function MapScreen() {
         safetyScore,
         travelTime,
       };
+    });
+
+    // Log all route comparisons
+    console.log('📊 Route Comparison:');
+    scored.forEach((route: any, index: number) => {
+      console.log(`${route.routeId}:`, {
+        distance: `${Math.round(route.distanceMeters/1000*100)/100} km`,
+        duration: `${Math.ceil((route.travelTime || 0)/60)} mins`,
+        safetyScore: Math.round(route.safetyScore * 100) / 100,
+        polylinePoints: route.coords.length
+      });
     });
 
     // Selection logic
@@ -360,6 +428,7 @@ export default function MapScreen() {
         return a.safetyScore - b.safetyScore;
       });
       chosen = scored[0];
+      console.log(`🏃 Selected FASTEST route: ${chosen.routeId} (${Math.ceil((chosen.travelTime || 0)/60)} mins, safety: ${Math.round(chosen.safetyScore * 100) / 100})`);
     } else { // safest
       // pick minimum safetyScore; if equal, pick fastest among them
       scored.sort((a: any, b: any) => {
@@ -367,6 +436,7 @@ export default function MapScreen() {
         return (a.travelTime || 0) - (b.travelTime || 0);
       });
       chosen = scored[0];
+      console.log(`🛡️ Selected SAFEST route: ${chosen.routeId} (safety: ${Math.round(chosen.safetyScore * 100) / 100}, ${Math.ceil((chosen.travelTime || 0)/60)} mins)`);
     }
 
     // build route info to give to map UI
@@ -380,6 +450,114 @@ export default function MapScreen() {
 
     return routeInfo;
   }
+
+  // --- TEST FUNCTION: Debug routing issues ---
+  const testRoute = async () => {
+    if (!userLocation || !previewLocation) {
+      Alert.alert('Test', 'Need both user location and destination');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing route from:', userLocation.coords, 'to:', previewLocation);
+      
+      const plan = await planRoutesAndSelect(
+        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: previewLocation.latitude, lng: previewLocation.longitude },
+        'walking',
+        'fastest',
+        mockIncidents
+      );
+
+      if (plan) {
+        console.log('✅ Route found:', {
+          distance: `${Math.round(plan.distanceMeters/1000*100)/100} km`,
+          duration: `${Math.ceil((plan.durationSecs || 0)/60)} mins`,
+          polylinePoints: plan.polyline.length,
+          firstFewPoints: plan.polyline.slice(0, 3),
+          lastFewPoints: plan.polyline.slice(-3),
+          safetyScore: plan.safetyScore
+        });
+        
+        Alert.alert('Route Test', `Found route!\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nPoints: ${plan.polyline.length}\nSafety Score: ${Math.round(plan.safetyScore * 100) / 100}`);
+      } else {
+        console.log('❌ No route found');
+        Alert.alert('Route Test', 'No route found');
+      }
+    } catch (error: any) {
+      console.error('🚫 Route test error:', error);
+      Alert.alert('Route Test Error', error.message || 'Unknown error');
+    }
+  };
+
+  // --- COMPREHENSIVE TEST: Compare fastest vs safest routes ---
+  const testBothRoutes = async () => {
+    if (!userLocation || !previewLocation) {
+      Alert.alert('Test', 'Need both user location and destination');
+      return;
+    }
+
+    try {
+      console.log('🔬 COMPREHENSIVE ROUTE TEST - Comparing Fastest vs Safest');
+      console.log('📍 From:', userLocation.coords);
+      console.log('📍 To:', previewLocation);
+      console.log('🚨 Active incidents:', mockIncidents.map(inc => `${inc.title} (${inc.severity}) at ${inc.location.latitude}, ${inc.location.longitude}`));
+      
+      // Test fastest route
+      console.log('\n🏃 TESTING FASTEST ROUTE:');
+      const fastestPlan = await planRoutesAndSelect(
+        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: previewLocation.latitude, lng: previewLocation.longitude },
+        transportMode === 'motorbike' ? 'driving' : transportMode,
+        'fastest',
+        mockIncidents
+      );
+
+      // Test safest route
+      console.log('\n🛡️ TESTING SAFEST ROUTE:');
+      const safestPlan = await planRoutesAndSelect(
+        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: previewLocation.latitude, lng: previewLocation.longitude },
+        transportMode === 'motorbike' ? 'driving' : transportMode,
+        'safest',
+        mockIncidents
+      );
+
+      // Compare results
+      if (fastestPlan && safestPlan) {
+        console.log('\n📊 FINAL COMPARISON:');
+        console.log('Fastest Route:', {
+          distance: `${Math.round(fastestPlan.distanceMeters/1000*100)/100} km`,
+          duration: `${Math.ceil((fastestPlan.durationSecs || 0)/60)} mins`,
+          safetyScore: Math.round(fastestPlan.safetyScore * 100) / 100,
+          polylinePoints: fastestPlan.polyline.length
+        });
+        console.log('Safest Route:', {
+          distance: `${Math.round(safestPlan.distanceMeters/1000*100)/100} km`,
+          duration: `${Math.ceil((safestPlan.durationSecs || 0)/60)} mins`,
+          safetyScore: Math.round(safestPlan.safetyScore * 100) / 100,
+          polylinePoints: safestPlan.polyline.length
+        });
+
+        const timeDiff = Math.ceil(((safestPlan.durationSecs || 0) - (fastestPlan.durationSecs || 0))/60);
+        const safetyDiff = Math.round((fastestPlan.safetyScore - safestPlan.safetyScore) * 100) / 100;
+
+        Alert.alert('Route Comparison', 
+          `Fastest Route: ${Math.ceil((fastestPlan.durationSecs || 0)/60)} mins, Safety: ${Math.round(fastestPlan.safetyScore * 100) / 100}\n\n` +
+          `Safest Route: ${Math.ceil((safestPlan.durationSecs || 0)/60)} mins, Safety: ${Math.round(safestPlan.safetyScore * 100) / 100}\n\n` +
+          `Time difference: ${timeDiff > 0 ? '+' : ''}${timeDiff} mins\n` +
+          `Safety improvement: ${safetyDiff > 0 ? '+' : ''}${safetyDiff} points\n\n` +
+          `Check console for detailed analysis!`
+        );
+      } else {
+        console.log('❌ One or both routes failed');
+        Alert.alert('Route Test', 'Failed to generate one or both routes');
+      }
+    } catch (error: any) {
+      console.error('🚫 Route comparison test error:', error);
+      Alert.alert('Route Test Error', error.message || 'Unknown error');
+    }
+  };
 
   const filteredIncidents = selectedIncidentType === 'all' 
     ? mockIncidents 
@@ -440,7 +618,7 @@ export default function MapScreen() {
   }>(null);
 
   return (
-    <View style={styles.container}>
+  <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <AppHeader 
         title="Map" 
         showFilterButton={true}
@@ -472,8 +650,8 @@ export default function MapScreen() {
                 longitudeDelta: 0.01,
               });
 
-              // Show transportation selection bottom panel
-              setShowTransportSelection(true);
+              // Show location details first instead of transport selection
+              setShowLocationDetails(true);
             }}
             style={styles.placesSearch}
           />
@@ -523,6 +701,12 @@ export default function MapScreen() {
             onMapPress={(latitude, longitude) => {
               console.log('Map clicked at:', { latitude, longitude });
             }}
+            routePolyline={selectedRoute?.polyline}
+            routeInfo={{
+              distanceMeters: selectedRoute?.distanceMeters,
+              durationSecs: selectedRoute?.durationSecs,
+              safetyScore: selectedRoute?.safetyScore
+            }}
           />
         ) : (
             <View style={styles.mapPlaceholder}>
@@ -535,183 +719,339 @@ export default function MapScreen() {
           )}
       </View>
 
-      {/* Transportation Selection Bottom Panel */}
-      {showTransportSelection && previewLocation && (
-        <View style={styles.transportBottomPanel}>
-          {/* Location Info */}
-          <View style={styles.bottomLocationInfo}>
-            <View style={styles.bottomLocationIcon}>
-              <Ionicons name="location" size={20} color="#007AFF" />
-            </View>
-            <View style={styles.bottomLocationDetails}>
-              <Text style={styles.bottomLocationName} numberOfLines={1}>
-                {previewLocation.name}
-              </Text>
-              <Text style={styles.bottomLocationCoords}>
-                {previewLocation.latitude.toFixed(4)}, {previewLocation.longitude.toFixed(4)}
-              </Text>
+      {/* Location Details Panel - Step 1 */}
+      {showLocationDetails && previewLocation && !showRouteOptions && (
+        <View style={styles.locationDetailsPanel}>
+          <View style={styles.locationDetailsHeader}>
+            <View style={styles.locationDetailsInfo}>
+              <Ionicons name="location" size={24} color="#007AFF" />
+              <View style={styles.locationDetailsText}>
+                <Text style={styles.locationDetailsName} numberOfLines={2}>
+                  {previewLocation.name}
+                </Text>
+                <Text style={styles.locationDetailsDescription} numberOfLines={3}>
+                  {previewLocation.description}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity 
-              style={styles.closePanelButton}
-              onPress={() => setShowTransportSelection(false)}
+              style={styles.locationDetailsCloseButton}
+              onPress={() => {
+                setShowLocationDetails(false);
+                setPreviewLocation(null);
+              }}
             >
               <Ionicons name="close" size={20} color="#666" />
             </TouchableOpacity>
           </View>
-
-          {/* Transportation Mode Selection */}
-          <View style={styles.bottomTransportModes}>
-            <TouchableOpacity
-              style={[styles.bottomTransportButton, transportMode === 'driving' && styles.bottomTransportActive]}
-              onPress={() => setTransportMode('driving')}
-            >
-              <Ionicons 
-                name="car" 
-                size={20} 
-                color={transportMode === 'driving' ? '#fff' : '#007AFF'} 
-              />
-              <Text style={[styles.bottomTransportText, transportMode === 'driving' && styles.bottomTransportTextActive]}>
-                Car
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.bottomTransportButton, transportMode === 'motorbike' && styles.bottomTransportActive]}
-              onPress={() => setTransportMode('motorbike')}
-            >
-              <Ionicons 
-                name="bicycle" 
-                size={20} 
-                color={transportMode === 'motorbike' ? '#fff' : '#007AFF'} 
-              />
-              <Text style={[styles.bottomTransportText, transportMode === 'motorbike' && styles.bottomTransportTextActive]}>
-                Bike
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.bottomTransportButton, transportMode === 'walking' && styles.bottomTransportActive]}
-              onPress={() => setTransportMode('walking')}
-            >
-              <Ionicons 
-                name="walk" 
-                size={20} 
-                color={transportMode === 'walking' ? '#fff' : '#007AFF'} 
-              />
-              <Text style={[styles.bottomTransportText, transportMode === 'walking' && styles.bottomTransportTextActive]}>
-                Walk
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Route Type Selection */}
-          <View style={styles.bottomRouteTypes}>
-            <TouchableOpacity
-              style={[styles.bottomRouteButton, routeType === 'safest' && styles.bottomRouteActive]}
-              onPress={() => setRouteType('safest')}
-            >
-              <Ionicons 
-                name="shield-checkmark" 
-                size={18} 
-                color={routeType === 'safest' ? '#fff' : '#34C759'} 
-              />
-              <Text style={[styles.bottomRouteText, routeType === 'safest' && styles.bottomRouteTextActive]}>
-                Safest Route
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.bottomRouteButton, 
-                routeType === 'fastest' && styles.bottomRouteActive,
-                routeType === 'fastest' && { borderColor: '#FF9500', backgroundColor: routeType === 'fastest' ? '#FF9500' : '#fff' }
-              ]}
-              onPress={() => setRouteType('fastest')}
-            >
-              <Ionicons 
-                name="flash" 
-                size={18} 
-                color={routeType === 'fastest' ? '#fff' : '#FF9500'} 
-              />
-              <Text style={[
-                styles.bottomRouteText, 
-                routeType === 'fastest' && styles.bottomRouteTextActive,
-                routeType === 'fastest' ? { color: '#fff' } : { color: '#FF9500' }
-              ]}>
-                Fastest Route
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Navigate Button */}
+          
           <TouchableOpacity
-            style={styles.bottomNavigateButton}
+            style={styles.getRouteButton}
             onPress={async () => {
-              if (!previewLocation || !userLocation) {
-                Alert.alert('Error', 'Missing location or destination.');
-                return;
-              }
-
-              setShowTransportSelection(false);
-
-              // Map mode mapping
-              const modeParam = transportMode === 'motorbike' ? 'driving' : (transportMode === 'driving' ? 'driving' : 'walking');
-
+              if (!userLocation || !previewLocation) return;
+              
+              setShowLocationDetails(false);
+              
               try {
-                // show a quick message to user
-                Alert.alert('Routing', `Planning ${routeType} route (${transportMode})...`);
-
-                const apiMode: 'driving' | 'bicycling' | 'walking' =
-                  transportMode === 'motorbike' ? 'driving' : transportMode;
-
-                const plan = await planRoutesAndSelect(
-                  { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
-                  { lat: previewLocation.latitude, lng: previewLocation.longitude },
-                  apiMode,
-                  routeType,
-                  mockIncidents // replace mockIncidents with live incident feed array in production
-                );
-
-                if (!plan) {
-                  Alert.alert('No route', 'Could not find any route to the destination.');
-                  return;
-                }
-
-                // set route state to pass to GoogleMapsView
-                setDestination(previewLocation.name);
-                setDestinationCoords({
-                  latitude: previewLocation.latitude,
-                  longitude: previewLocation.longitude,
-                  name: previewLocation.name
+                // Get all route options for all transport modes
+                const routePromises = [
+                  { mode: 'driving' as const, icon: 'car', label: 'Car' },
+                  { mode: 'walking' as const, icon: 'walk', label: 'Walk' },
+                  { mode: 'bicycling' as const, icon: 'bicycle', label: 'Bike' }
+                ].map(async (transport) => {
+                  try {
+                    const fastest = await planRoutesAndSelect(
+                      { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                      { lat: previewLocation.latitude, lng: previewLocation.longitude },
+                      transport.mode,
+                      'fastest',
+                      mockIncidents
+                    );
+                    
+                    const safest = await planRoutesAndSelect(
+                      { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                      { lat: previewLocation.latitude, lng: previewLocation.longitude },
+                      transport.mode,
+                      'safest',
+                      mockIncidents
+                    );
+                    
+                    return {
+                      transport,
+                      fastest,
+                      safest
+                    };
+                  } catch (error) {
+                    console.error(`Error getting routes for ${transport.mode}:`, error);
+                    return {
+                      transport,
+                      fastest: null,
+                      safest: null
+                    };
+                  }
                 });
-
-                // pass polyline and route info to map view (need to add props in GoogleMapsView)
-                // We'll store them in component state:
-                setShowSafeRoute(true);
-                setUseSafeRoute(routeType === 'safest');
-
-                // store route in state to pass into GoogleMapsView
-                setSelectedRoute({
-                  polyline: plan.polyline,
-                  distanceMeters: plan.distanceMeters,
-                  durationSecs: plan.durationSecs,
-                  safetyScore: plan.safetyScore,
-                  raw: plan.rawRoute,
-                });
-
-                Alert.alert('Route ready', `${routeType === 'fastest' ? 'Fastest' : 'Safest'} route selected.\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nETA: ${Math.ceil((plan.durationSecs || 0)/60)} mins`);
-
-              } catch (err: any) {
-                console.error('Routing error', err);
-                Alert.alert('Routing error', err.message || 'Unexpected error while planning route.');
+                
+                const routes = await Promise.all(routePromises);
+                setAvailableRoutes(routes.filter(r => r.fastest || r.safest));
+                setShowRouteOptions(true);
+                
+              } catch (error) {
+                console.error('Error getting routes:', error);
+                Alert.alert('Error', 'Failed to get route options');
               }
             }}
           >
             <Ionicons name="navigate" size={20} color="#fff" />
-            <Text style={styles.bottomNavigateText}>
-              Start Navigation
-            </Text>
+            <Text style={styles.getRouteButtonText}>Get Routes</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Route Options Panel - Step 2 */}
+      {showRouteOptions && availableRoutes.length > 0 && (
+        <View style={styles.routeOptionsPanel}>
+          <View style={styles.routeOptionsHeader}>
+            <Text style={styles.routeOptionsTitle}>Choose Your Route</Text>
+            <TouchableOpacity 
+              style={styles.routeOptionsCloseButton}
+              onPress={() => {
+                setShowRouteOptions(false);
+                setAvailableRoutes([]);
+                setShowLocationDetails(true);
+              }}
+            >
+              <Ionicons name="arrow-back" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.routeOptionsList} showsVerticalScrollIndicator={false}>
+            {availableRoutes.map((routeGroup, index) => (
+              <View key={index} style={styles.routeGroupContainer}>
+                <View style={styles.routeGroupHeader}>
+                  <Ionicons name={routeGroup.transport.icon as any} size={20} color="#007AFF" />
+                  <Text style={styles.routeGroupTitle}>{routeGroup.transport.label}</Text>
+                </View>
+                
+                {/* Fastest Route Option */}
+                {routeGroup.fastest && (
+                  <TouchableOpacity
+                    style={styles.routeOptionItem}
+                    onPress={() => {
+                      setTransportMode(routeGroup.transport.mode === 'bicycling' ? 'motorbike' : routeGroup.transport.mode);
+                      setRouteType('fastest');
+                      setSelectedRoute({
+                        polyline: routeGroup.fastest.polyline,
+                        distanceMeters: routeGroup.fastest.distanceMeters,
+                        durationSecs: routeGroup.fastest.durationSecs,
+                        safetyScore: routeGroup.fastest.safetyScore,
+                        raw: routeGroup.fastest.rawRoute,
+                      });
+                      setDestination(previewLocation!.name);
+                      setDestinationCoords({
+                        latitude: previewLocation!.latitude,
+                        longitude: previewLocation!.longitude,
+                        name: previewLocation!.name
+                      });
+                      setShowSafeRoute(true);
+                      setUseSafeRoute(false);
+                      setShowRouteOptions(false);
+                      setShowTransportSelection(true);
+                    }}
+                  >
+                    <View style={styles.routeOptionContent}>
+                      <View style={styles.routeOptionLeft}>
+                        <Ionicons name="flash" size={16} color="#FF9500" />
+                        <Text style={styles.routeOptionType}>Fastest</Text>
+                      </View>
+                      <View style={styles.routeOptionRight}>
+                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.fastest.durationSecs || 0)/60)} min</Text>
+                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.fastest.distanceMeters || 0)/1000*100)/100} km</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                
+                {/* Safest Route Option */}
+                {routeGroup.safest && (
+                  <TouchableOpacity
+                    style={styles.routeOptionItem}
+                    onPress={() => {
+                      setTransportMode(routeGroup.transport.mode === 'bicycling' ? 'motorbike' : routeGroup.transport.mode);
+                      setRouteType('safest');
+                      setSelectedRoute({
+                        polyline: routeGroup.safest.polyline,
+                        distanceMeters: routeGroup.safest.distanceMeters,
+                        durationSecs: routeGroup.safest.durationSecs,
+                        safetyScore: routeGroup.safest.safetyScore,
+                        raw: routeGroup.safest.rawRoute,
+                      });
+                      setDestination(previewLocation!.name);
+                      setDestinationCoords({
+                        latitude: previewLocation!.latitude,
+                        longitude: previewLocation!.longitude,
+                        name: previewLocation!.name
+                      });
+                      setShowSafeRoute(true);
+                      setUseSafeRoute(true);
+                      setShowRouteOptions(false);
+                      setShowTransportSelection(true);
+                    }}
+                  >
+                    <View style={styles.routeOptionContent}>
+                      <View style={styles.routeOptionLeft}>
+                        <Ionicons name="shield-checkmark" size={16} color="#34C759" />
+                        <Text style={styles.routeOptionType}>Safest</Text>
+                      </View>
+                      <View style={styles.routeOptionRight}>
+                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.safest.durationSecs || 0)/60)} min</Text>
+                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.safest.distanceMeters || 0)/1000*100)/100} km</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Compact Transportation Selection Bottom Panel - Step 3 */}
+      {(showTransportSelection || selectedRoute) && previewLocation && (
+        <View style={styles.compactBottomPanel}>
+          {/* Header with location and close button */}
+          <View style={styles.compactHeader}>
+            <View style={styles.compactLocationInfo}>
+              <Ionicons name="location" size={16} color="#007AFF" />
+              <Text style={styles.compactLocationName} numberOfLines={1}>
+                {previewLocation.name}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.compactCloseButton}
+              onPress={() => {
+                // Clear everything when closed
+                setShowTransportSelection(false);
+                setShowLocationDetails(false);
+                setShowRouteOptions(false);
+                setAvailableRoutes([]);
+                setSelectedRoute(null);
+                setShowSafeRoute(false);
+                setDestination('');
+                setDestinationCoords(undefined);
+                setPreviewLocation(null);
+              }}
+            >
+              <Ionicons name="close" size={18} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Compact controls row */}
+          <View style={styles.compactControls}>
+            {/* Transportation modes */}
+            <View style={styles.compactTransportModes}>
+              <TouchableOpacity
+                style={[styles.compactModeButton, transportMode === 'driving' && styles.compactModeActive]}
+                onPress={() => setTransportMode('driving')}
+              >
+                <Ionicons name="car" size={16} color={transportMode === 'driving' ? '#fff' : '#007AFF'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.compactModeButton, transportMode === 'motorbike' && styles.compactModeActive]}
+                onPress={() => setTransportMode('motorbike')}
+              >
+                <Ionicons name="bicycle" size={16} color={transportMode === 'motorbike' ? '#fff' : '#007AFF'} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.compactModeButton, transportMode === 'walking' && styles.compactModeActive]}
+                onPress={() => setTransportMode('walking')}
+              >
+                <Ionicons name="walk" size={16} color={transportMode === 'walking' ? '#fff' : '#007AFF'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Route type toggle */}
+            <TouchableOpacity
+              style={[styles.compactRouteToggle, routeType === 'safest' ? styles.compactSafestActive : styles.compactFastestActive]}
+              onPress={() => setRouteType(routeType === 'safest' ? 'fastest' : 'safest')}
+            >
+              <Ionicons 
+                name={routeType === 'safest' ? 'shield-checkmark' : 'flash'} 
+                size={14} 
+                color="#fff" 
+              />
+              <Text style={styles.compactRouteText}>
+                {routeType === 'safest' ? 'Safe' : 'Fast'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Navigate button */}
+            <TouchableOpacity
+              style={styles.compactNavigateButton}
+              onPress={async () => {
+                if (!previewLocation || !userLocation) {
+                  Alert.alert('Error', 'Missing location or destination.');
+                  return;
+                }
+
+                try {
+                  const apiMode: 'driving' | 'bicycling' | 'walking' =
+                    transportMode === 'motorbike' ? 'driving' : transportMode;
+
+                  const plan = await planRoutesAndSelect(
+                    { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                    { lat: previewLocation.latitude, lng: previewLocation.longitude },
+                    apiMode,
+                    routeType,
+                    mockIncidents
+                  );
+
+                  if (!plan) {
+                    Alert.alert('No route', 'Could not find any route to the destination.');
+                    return;
+                  }
+
+                  // Set route state
+                  setDestination(previewLocation.name);
+                  setDestinationCoords({
+                    latitude: previewLocation.latitude,
+                    longitude: previewLocation.longitude,
+                    name: previewLocation.name
+                  });
+
+                  setShowSafeRoute(true);
+                  setUseSafeRoute(routeType === 'safest');
+
+                  setSelectedRoute({
+                    polyline: plan.polyline,
+                    distanceMeters: plan.distanceMeters,
+                    durationSecs: plan.durationSecs,
+                    safetyScore: plan.safetyScore,
+                    raw: plan.rawRoute,
+                  });
+
+                  Alert.alert('Route ready', `${routeType === 'fastest' ? 'Fastest' : 'Safest'} route selected.\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nETA: ${Math.ceil((plan.durationSecs || 0)/60)} mins`);
+
+                } catch (err: any) {
+                  console.error('Routing error', err);
+                  Alert.alert('Routing error', err.message || 'Unexpected error while planning route.');
+                }
+              }}
+            >
+              <Ionicons name="navigate" size={16} color="#fff" />
+              <Text style={styles.compactNavigateText}>Go</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Route info (shown when route is active) */}
+          {selectedRoute && (
+            <View style={styles.compactRouteInfo}>
+              <Text style={styles.compactRouteInfoText}>
+                {Math.round((selectedRoute.distanceMeters || 0)/1000*100)/100} km • {Math.ceil((selectedRoute.durationSecs || 0)/60)} min • Safety: {Math.round((selectedRoute.safetyScore || 0) * 100) / 100}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -897,7 +1237,7 @@ export default function MapScreen() {
           )}
         </View>
       </Modal>
-    </View>
+  </SafeAreaView>
   );
 }
 
@@ -1610,5 +1950,269 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Location Details Panel Styles - Step 1
+  locationDetailsPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 15,
+    maxHeight: '40%',
+  },
+  locationDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  locationDetailsInfo: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  locationDetailsText: {
+    flex: 1,
+  },
+  locationDetailsName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  locationDetailsDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  locationDetailsCloseButton: {
+    padding: 4,
+    marginLeft: 12,
+  },
+  getRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  getRouteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Route Options Panel Styles - Step 2
+  routeOptionsPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 15,
+    maxHeight: '70%',
+  },
+  routeOptionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  routeOptionsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  routeOptionsCloseButton: {
+    padding: 4,
+  },
+  routeOptionsList: {
+    flex: 1,
+  },
+  routeGroupContainer: {
+    marginBottom: 20,
+  },
+  routeGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  routeGroupTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  routeOptionItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    overflow: 'hidden',
+  },
+  routeOptionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  routeOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routeOptionType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  routeOptionRight: {
+    alignItems: 'flex-end',
+  },
+  routeOptionTime: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  routeOptionDistance: {
+    fontSize: 12,
+    color: '#666',
+  },
+  // Compact Bottom Panel Styles - Step 3
+  compactBottomPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  compactLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  compactLocationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  compactCloseButton: {
+    padding: 4,
+  },
+  compactControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  compactTransportModes: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  compactModeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  compactModeActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  compactRouteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
+  },
+  compactSafestActive: {
+    backgroundColor: '#34C759',
+  },
+  compactFastestActive: {
+    backgroundColor: '#FF9500',
+  },
+  compactRouteText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  compactNavigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
+  },
+  compactNavigateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  compactRouteInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  compactRouteInfoText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });

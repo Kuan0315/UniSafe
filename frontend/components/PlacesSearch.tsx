@@ -42,6 +42,7 @@ export default function PlacesSearch({
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isPlaceSelected, setIsPlaceSelected] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -56,8 +57,8 @@ export default function PlacesSearch({
       abortControllerRef.current.abort();
     }
 
-    // Don't search if text is too short
-    if (searchText.length < 2) {
+    // Don't search if text is too short or if we just selected a place
+    if (searchText.length < 2 || isPlaceSelected) {
       setPredictions([]);
       setShowSuggestions(false);
       return;
@@ -76,7 +77,7 @@ export default function PlacesSearch({
         abortControllerRef.current.abort();
       }
     };
-  }, [searchText]);
+  }, [searchText, isPlaceSelected]);
 
   const searchPlaces = async (query: string) => {
     if (!MAPS_CONFIG.GOOGLE_MAPS_API_KEY) {
@@ -148,10 +149,14 @@ export default function PlacesSearch({
           place_id: placeId,
         });
         
-        // Clear search
+        // Clear search - set flag to prevent triggering search again
+        setIsPlaceSelected(true);
         setSearchText(description);
         setShowSuggestions(false);
         Keyboard.dismiss();
+        
+        // Reset the flag after a short delay to allow future searches
+        setTimeout(() => setIsPlaceSelected(false), 100);
       } else if (data.status === 'ZERO_RESULTS') {
         console.log('ℹ️ No location details found for:', description);
       } else {
@@ -170,6 +175,15 @@ export default function PlacesSearch({
     setSearchText('');
     setPredictions([]);
     setShowSuggestions(false);
+    setIsPlaceSelected(false);
+  };
+
+  const handleTextChange = (text: string) => {
+    setSearchText(text);
+    // Reset place selected flag when user manually types
+    if (isPlaceSelected) {
+      setIsPlaceSelected(false);
+    }
   };
 
   const renderPrediction = ({ item }: { item: PlacePrediction }) => (
