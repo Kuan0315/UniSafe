@@ -32,7 +32,7 @@ interface Incident {
   description: string;
   location: { latitude: number; longitude: number };
   time: string;
-  severity: string;
+  severity: 'low' | 'medium' | 'high';
 }
 
 // Mock data for incidents
@@ -196,6 +196,191 @@ export default function MapScreen() {
     };
   }, []);
 
+  // --- Helper: decode polyline (Google polyline -> array of {lat, lng}) ---
+  function decodePolyline(encoded: string): { latitude: number; longitude: number }[] {
+    // Standard Google polyline decoder
+    let index = 0, lat = 0, lng = 0, coordinates = [];
+
+    while (index < encoded.length) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      coordinates.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+    }
+    return coordinates;
+  }
+
+  // --- Helper: Haversine for distance between two coords (meters) ---
+  function haversineMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+    const R = 6371000; // meters
+    const toRad = (deg: number) => deg * Math.PI / 180;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLon = toRad(b.longitude - a.longitude);
+    const lat1 = toRad(a.latitude);
+    const lat2 = toRad(b.latitude);
+
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLon = Math.sin(dLon / 2);
+    const aVal = sinDLat * sinDLat + sinDLon * sinDLon * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+    return R * c;
+  }
+
+  // --- Compute safety score for a route polyline given incidents ---
+  // Lower is safer. Penalty increases when route passes near incidents.
+  function computeSafetyScore(routeCoords: { latitude: number; longitude: number }[], incidents: Incident[]) {
+    // parameters you can tune:
+    const PENALTY_BASE = { low: 5, medium: 15, high: 40 }; // penalty weight by severity
+    const NEARBY_THRESHOLD_METERS = 200; // consider incident affecting route within 200m
+    let score = 0;
+
+    // sample every Nth point to limit compute cost
+    const sampleStep = Math.max(1, Math.floor(routeCoords.length / 200)); // keep up to ~200 samples
+    for (let i = 0; i < routeCoords.length; i += sampleStep) {
+      const pt = routeCoords[i];
+      for (const inc of incidents) {
+        const d = haversineMeters(pt, inc.location);
+        if (d <= NEARBY_THRESHOLD_METERS) {
+          // Closer incidents yield slightly bigger penalty: linear falloff to threshold
+          const proximityFactor = 1 - (d / NEARBY_THRESHOLD_METERS); // 1.0 if at same point, 0.0 at threshold
+          const base = PENALTY_BASE[inc.severity];
+          score += base * proximityFactor;
+        }
+      }
+    }
+    return score;
+  }
+
+  // --- Fetch directions from Google Directions API ---
+  async function fetchDirections(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }, mode: 'driving' | 'bicycling' | 'walking') {
+    const apiKey = MAPS_CONFIG.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      throw new Error('GOOGLE_MAPS_API_KEY is missing in MAPS_CONFIG');
+    }
+
+    // Build URL
+    // Use alternatives=true to get candidate routes
+    // For driving, request departure_time=now to get duration_in_traffic
+    const originStr = `${origin.lat},${origin.lng}`;
+    const destStr = `${destination.lat},${destination.lng}`;
+    const baseUrl = 'https://maps.googleapis.com/maps/api/directions/json';
+    const params = new URLSearchParams({
+      origin: originStr,
+      destination: destStr,
+      mode, // treat motorbike as driving in Directions API
+      alternatives: 'true',
+      key: apiKey
+    });
+
+    // if driving, include departure_time to consider traffic
+    if (mode === 'driving') {
+      params.append('departure_time', 'now');
+      // Add traffic_model optional param if needed (best_guess)
+      params.append('traffic_model', 'best_guess');
+    }
+
+    const url = `${baseUrl}?${params.toString()}`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Directions API error: ${resp.status} ${text}`);
+    }
+    const data = await resp.json();
+    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      throw new Error(`Directions API returned status ${data.status}`);
+    }
+    return data; // will contain routes[]
+  }
+
+  // --- Main planner: get candidate routes, score them, choose fastest or safest ---
+  async function planRoutesAndSelect(
+    originLatLng: { lat: number; lng: number },
+    destLatLng: { lat: number; lng: number },
+    mode: 'driving' | 'bicycling' | 'walking',
+    routeType: 'fastest' | 'safest',
+    incidents: Incident[]
+  ) {
+    // fetch directions
+    const raw = await fetchDirections(originLatLng, destLatLng, mode);
+    const candidates = (raw.routes || []).map((r: any) => {
+      const coords = decodePolyline(r.overview_polyline?.points || '');
+      // prefer duration_in_traffic if provided
+      const leg = (r.legs && r.legs[0]) ? r.legs[0] : null;
+      const duration = leg ? (leg.duration ? leg.duration.value : null) : null;
+      const distance = leg ? (leg.distance ? leg.distance.value : null) : null;
+      const durationInTraffic = leg && leg.duration_in_traffic ? leg.duration_in_traffic.value : null;
+      return {
+        raw: r,
+        coords,
+        distanceMeters: distance,
+        durationSecs: duration,
+        durationInTrafficSecs: durationInTraffic,
+      };
+    });
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    // Score each candidate
+    const scored = candidates.map((c: any) => {
+      const safetyScore = computeSafetyScore(c.coords, incidents);
+      // pick the most meaningful travel time: duration_in_traffic (if driving) else duration
+      const travelTime = (mode === 'driving' && c.durationInTrafficSecs) ? c.durationInTrafficSecs : c.durationSecs;
+      return {
+        ...c,
+        safetyScore,
+        travelTime,
+      };
+    });
+
+    // Selection logic
+    let chosen;
+    if (routeType === 'fastest') {
+      // pick minimum travelTime; if equal, pick smallest safetyScore
+      scored.sort((a: any, b: any) => {
+        if ((a.travelTime || 0) !== (b.travelTime || 0)) return (a.travelTime || 0) - (b.travelTime || 0);
+        return a.safetyScore - b.safetyScore;
+      });
+      chosen = scored[0];
+    } else { // safest
+      // pick minimum safetyScore; if equal, pick fastest among them
+      scored.sort((a: any, b: any) => {
+        if (a.safetyScore !== b.safetyScore) return a.safetyScore - b.safetyScore;
+        return (a.travelTime || 0) - (b.travelTime || 0);
+      });
+      chosen = scored[0];
+    }
+
+    // build route info to give to map UI
+    const routeInfo = {
+      distanceMeters: chosen.distanceMeters,
+      durationSecs: chosen.travelTime,
+      safetyScore: chosen.safetyScore,
+      polyline: chosen.coords,
+      rawRoute: chosen.raw,
+    };
+
+    return routeInfo;
+  }
+
   const filteredIncidents = selectedIncidentType === 'all' 
     ? mockIncidents 
     : mockIncidents.filter(incident => incident.type === selectedIncidentType);
@@ -245,6 +430,14 @@ export default function MapScreen() {
   const getIncidentColor = (type: string) => {
     return incidentColors[type as keyof typeof incidentColors] || '#FF3B30';
   };
+
+  const [selectedRoute, setSelectedRoute] = useState<null | {
+    polyline: { latitude: number; longitude: number }[],
+    distanceMeters?: number,
+    durationSecs?: number,
+    safetyScore?: number,
+    raw?: any
+  }>(null);
 
   return (
     <View style={styles.container}>
@@ -453,21 +646,64 @@ export default function MapScreen() {
           {/* Navigate Button */}
           <TouchableOpacity
             style={styles.bottomNavigateButton}
-            onPress={() => {
-              if (previewLocation) {
+            onPress={async () => {
+              if (!previewLocation || !userLocation) {
+                Alert.alert('Error', 'Missing location or destination.');
+                return;
+              }
+
+              setShowTransportSelection(false);
+
+              // Map mode mapping
+              const modeParam = transportMode === 'motorbike' ? 'driving' : (transportMode === 'driving' ? 'driving' : 'walking');
+
+              try {
+                // show a quick message to user
+                Alert.alert('Routing', `Planning ${routeType} route (${transportMode})...`);
+
+                const apiMode: 'driving' | 'bicycling' | 'walking' =
+                  transportMode === 'motorbike' ? 'driving' : transportMode;
+
+                const plan = await planRoutesAndSelect(
+                  { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                  { lat: previewLocation.latitude, lng: previewLocation.longitude },
+                  apiMode,
+                  routeType,
+                  mockIncidents // replace mockIncidents with live incident feed array in production
+                );
+
+                if (!plan) {
+                  Alert.alert('No route', 'Could not find any route to the destination.');
+                  return;
+                }
+
+                // set route state to pass to GoogleMapsView
                 setDestination(previewLocation.name);
                 setDestinationCoords({
                   latitude: previewLocation.latitude,
                   longitude: previewLocation.longitude,
                   name: previewLocation.name
                 });
+
+                // pass polyline and route info to map view (need to add props in GoogleMapsView)
+                // We'll store them in component state:
                 setShowSafeRoute(true);
                 setUseSafeRoute(routeType === 'safest');
-                setShowTransportSelection(false);
-                Alert.alert(
-                  "Route Planning", 
-                  `Showing ${routeType} ${transportMode} route to ${previewLocation.name}`
-                );
+
+                // store route in state to pass into GoogleMapsView
+                setSelectedRoute({
+                  polyline: plan.polyline,
+                  distanceMeters: plan.distanceMeters,
+                  durationSecs: plan.durationSecs,
+                  safetyScore: plan.safetyScore,
+                  raw: plan.rawRoute,
+                });
+
+                Alert.alert('Route ready', `${routeType === 'fastest' ? 'Fastest' : 'Safest'} route selected.\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nETA: ${Math.ceil((plan.durationSecs || 0)/60)} mins`);
+
+              } catch (err: any) {
+                console.error('Routing error', err);
+                Alert.alert('Routing error', err.message || 'Unexpected error while planning route.');
               }
             }}
           >
@@ -634,12 +870,20 @@ export default function MapScreen() {
                 latitude: userLocation.coords.latitude,
                 longitude: userLocation.coords.longitude
               }}
+              region={region}
               incidents={filteredIncidents}
               showSafeRoute={showSafeRoute}
               destination={destinationCoords}
               useSafeRoute={useSafeRoute}
+              onFullscreen={() => setIsFullScreenMap(true)}
               onMapPress={(latitude, longitude) => {
                 console.log('Map clicked at:', { latitude, longitude });
+              }}
+              routePolyline={selectedRoute?.polyline}
+              routeInfo={{
+                distanceMeters: selectedRoute?.distanceMeters,
+                durationSecs: selectedRoute?.durationSecs,
+                safetyScore: selectedRoute?.safetyScore
               }}
             />
           ) : (

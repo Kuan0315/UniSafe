@@ -24,6 +24,12 @@ interface GoogleMapsViewProps {
   destination?: { latitude: number; longitude: number; name?: string };
   useSafeRoute?: boolean;
   onFullscreen?: () => void;
+  routePolyline?: { latitude: number; longitude: number }[];
+  routeInfo?: {
+    distanceMeters?: number;
+    durationSecs?: number;
+    safetyScore?: number;
+  };
 }
 
 export default function GoogleMapsView({ 
@@ -35,6 +41,8 @@ export default function GoogleMapsView({
   destination,
   useSafeRoute = false,
   onFullscreen,
+  routePolyline,
+  routeInfo,
 }: GoogleMapsViewProps) {
   const { user } = useAuth();
   const currentUniversity = user?.university;
@@ -42,7 +50,7 @@ export default function GoogleMapsView({
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
   const [directionsRoute, setDirectionsRoute] = useState<Coordinate[]>([]);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  // const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [loadingDirections, setLoadingDirections] = useState(false);
 
   // Default to Kuala Lumpur if no location provided
@@ -68,6 +76,7 @@ export default function GoogleMapsView({
   }, [userLocation, mapReady]);
 
   // Get directions when destination changes
+  /*
   useEffect(() => {
     if (destination && userLocation && mapReady) {
       getDirectionsToDestination();
@@ -128,6 +137,7 @@ export default function GoogleMapsView({
       setLoadingDirections(false);
     }
   };
+  */
 
   // Get incident marker color based on severity and type
   const getIncidentColor = (type: string, severity: string) => {
@@ -308,7 +318,17 @@ export default function GoogleMapsView({
           </Marker>
         )}
 
-        {/* Directions Route */}
+        {/* New Selected Route Polyline-new */}
+        {routePolyline && routePolyline.length > 0 && (
+          <Polyline
+            coordinates={routePolyline}
+            strokeColor={useSafeRoute ? "#34C759" : "#007AFF"}
+            strokeWidth={6}
+            geodesic={true}
+          />
+        )}
+
+        {/* Directions Route-old */}
         {directionsRoute.length > 0 && (
           <Polyline
             coordinates={directionsRoute}
@@ -363,14 +383,22 @@ export default function GoogleMapsView({
       {/* Route Info Display */}
       {routeInfo && (
         <View style={styles.routeInfo}>
-          <View style={styles.routeInfoRow}>
-            <Ionicons name="time" size={16} color="#666" />
-            <Text style={styles.routeInfoText}>{routeInfo.duration}</Text>
-          </View>
-          <View style={styles.routeInfoRow}>
-            <Ionicons name="location" size={16} color="#666" />
-            <Text style={styles.routeInfoText}>{routeInfo.distance}</Text>
-          </View>
+          {routeInfo.durationSecs !== undefined && (
+            <View style={styles.routeInfoRow}>
+              <Ionicons name="time" size={16} color="#666" />
+              <Text style={styles.routeInfoText}>
+                {Math.ceil((routeInfo.durationSecs || 0) / 60)} mins
+              </Text>
+            </View>
+          )}
+          {routeInfo.distanceMeters !== undefined && (
+            <View style={styles.routeInfoRow}>
+              <Ionicons name="location" size={16} color="#666" />
+              <Text style={styles.routeInfoText}>
+                {(routeInfo.distanceMeters / 1000).toFixed(2)} km
+              </Text>
+            </View>
+          )}
           {useSafeRoute && (
             <View style={styles.safeRouteBadge}>
               <Ionicons name="shield-checkmark" size={12} color="#fff" />
