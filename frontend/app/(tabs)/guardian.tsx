@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   Alert,
   SafeAreaView,
   Modal,
@@ -24,6 +25,8 @@ import {
   speakGuardianStatus,
   speakEmergencyAlert
 } from '../../services/SpeechService';
+import PlacesSearch from '../../components/PlacesSearch';
+import { MAPS_CONFIG } from '../../config/maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +58,79 @@ export default function GuardianScreen() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [selectedRoute, setSelectedRoute] = useState<null | {
+    polyline: { latitude: number; longitude: number }[],
+    distanceMeters?: number,
+    durationSecs?: number,
+    raw?: any
+  }>(null);
+
+  function decodePolyline(encoded: string): { latitude: number; longitude: number }[] {
+    let index = 0, lat = 0, lng = 0, coordinates = [];
+    while (index < encoded.length) {
+      let b, shift = 0, result = 0;
+      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1)); lat += dlat;
+      shift = 0; result = 0;
+      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1)); lng += dlng;
+      coordinates.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+    }
+    return coordinates;
+  }
+
+  async function fetchDirections(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }, mode: 'driving' | 'walking') {
+    const apiKey = MAPS_CONFIG.GOOGLE_MAPS_API_KEY;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&mode=${mode}&key=${apiKey}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    return data;
+  }
+
+  async function planRoute(origin: { lat: number; lng: number }, dest: { lat: number; lng: number }, mode: 'driving' | 'walking') {
+    const raw = await fetchDirections(origin, dest, mode);
+    if (!raw.routes || !raw.routes.length) return null;
+    const r = raw.routes[0];
+    const coords = decodePolyline(r.overview_polyline?.points || '');
+    const leg = r.legs[0];
+    return {
+      polyline: coords,
+      distanceMeters: leg.distance?.value,
+      durationSecs: leg.duration?.value,
+      raw: r,
+    };
+  }
+
+  function haversineMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+    const R = 6371000;
+    const toRad = (deg: number) => deg * Math.PI / 180;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLon = toRad(b.longitude - a.longitude);
+    const lat1 = toRad(a.latitude);
+    const lat2 = toRad(b.latitude);
+    const aVal = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1-aVal));
+  }
+
+  function computeRouteProgress(user: { latitude: number; longitude: number }, route: { latitude: number; longitude: number }[]) {
+    if (!route.length) return 0;
+    let total = 0;
+    for (let i = 1; i < route.length; i++) total += haversineMeters(route[i-1], route[i]);
+
+    let travelled = 0, cumulative = 0, minDist = Infinity;
+    for (let i = 1; i < route.length; i++) {
+      const segLen = haversineMeters(route[i-1], route[i]);
+      const dToStart = haversineMeters(user, route[i-1]);
+      const dToEnd = haversineMeters(user, route[i]);
+      const dSeg = Math.min(dToStart, dToEnd);
+      if (dSeg < minDist) {
+        minDist = dSeg;
+        travelled = cumulative + (dToEnd < dToStart ? segLen : 0);
+      }
+      cumulative += segLen;
+    }
+    return total > 0 ? (travelled / total) * 100 : 0;
+  }
 
   // Mock trusted contacts
   const mockTrustedContacts = [
@@ -231,133 +307,141 @@ export default function GuardianScreen() {
   };
 
   const getProgressPercentage = () => {
-    if (!guardianSession) return 0;
-    const now = new Date();
-    const total = guardianSession.estimatedArrival.getTime() - guardianSession.startTime.getTime();
-    const elapsed = now.getTime() - guardianSession.startTime.getTime();
-    return Math.min(100, Math.max(0, (elapsed / total) * 100));
+    if (!currentLocation || routeCoordinates.length < 2) return 0;
+    return computeRouteProgress(
+      { latitude: currentLocation.coords.latitude, longitude: currentLocation.coords.longitude },
+      routeCoordinates
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Virtual Guardian</Text>
-          <Text style={styles.subtitle}>Stay safe on your journey</Text>
-        </View>
-
-        {/* Guardian Status */}
-        {guardianSession?.isActive ? (
-          <View style={styles.activeSessionContainer}>
-            <View style={styles.sessionHeader}>
-              <Ionicons name="shield-checkmark" size={24} color="#34C759" />
-              <Text style={styles.sessionTitle}>Guardian Active</Text>
-              <TouchableOpacity onPress={handleStopGuardian}>
-                <Ionicons name="stop-circle" size={24} color="#FF3B30" />
-              </TouchableOpacity>
+      <FlatList
+        data={[]} // no data, just use FlatList for scroll layout
+        renderItem={null}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Virtual Guardian</Text>
+              <Text style={styles.subtitle}>Stay safe on your journey</Text>
             </View>
 
-            <View style={styles.sessionInfo}>
-              <Text style={styles.destinationText}>To: {guardianSession.destination}</Text>
-              <Text style={styles.timeText}>ETA: {getEstimatedTime()}</Text>
-            </View>
+            {/* Guardian Status */}
+            {guardianSession?.isActive ? (
+              <View style={styles.activeSessionContainer}>
+                <View style={styles.sessionHeader}>
+                  <Ionicons name="shield-checkmark" size={24} color="#34C759" />
+                  <Text style={styles.sessionTitle}>Guardian Active</Text>
+                  <TouchableOpacity onPress={handleStopGuardian}>
+                    <Ionicons name="stop-circle" size={24} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
 
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{Math.round(getProgressPercentage())}% Complete</Text>
-            </View>
+                <View style={styles.sessionInfo}>
+                  <Text style={styles.destinationText}>To: {guardianSession.destination}</Text>
+                  <Text style={styles.timeText}>ETA: {getEstimatedTime()}</Text>
+                </View>
 
-            {/* Live Map */}
-            <View style={styles.mapContainer}>
-              {currentLocation && (
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: currentLocation.coords.latitude,
-                    longitude: currentLocation.coords.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  showsUserLocation
-                  followsUserLocation
-                >
-                  {/* Current location marker */}
-                  <Marker
-                    coordinate={{
-                      latitude: currentLocation.coords.latitude,
-                      longitude: currentLocation.coords.longitude,
-                    }}
-                    title="You"
-                  />
-
-                  {/* Route polyline */}
-                  {routeCoordinates.length > 1 && (
-                    <Polyline
-                      coordinates={routeCoordinates}
-                      strokeColor="#007AFF"
-                      strokeWidth={4}
-                    />
-                  )}
-                </MapView>
-              )}
-            </View>
-
-            {/* Trusted Contacts Status */}
-            <View style={styles.contactsStatus}>
-              <Text style={styles.contactsTitle}>Trusted Contacts Monitoring</Text>
-              {guardianSession.trustedContacts.map(contactId => {
-                const contact = mockTrustedContacts.find(c => c.id === contactId);
-                return contact ? (
-                  <View key={contactId} style={styles.contactStatus}>
-                    <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactStatusText}>Monitoring</Text>
+                {/* Progress Bar */}
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${getProgressPercentage()}%` }]} />
                   </View>
-                ) : null;
-              })}
-            </View>
+                  <Text style={styles.progressText}>{Math.round(getProgressPercentage())}% Complete</Text>
+                </View>
 
-            {/* Next Check-in */}
-            {nextCheckIn && (
-              <View style={styles.checkInInfo}>
-                <Ionicons name="time" size={20} color="#FF9500" />
-                <Text style={styles.checkInText}>
-                  Next safety check-in in {Math.max(0, Math.floor((nextCheckIn.getTime() - Date.now()) / 60000))} minutes
+                {/* Live Map */}
+                <View style={styles.mapContainer}>
+                  {currentLocation && (
+                    <MapView
+                      style={styles.map}
+                      initialRegion={{
+                        latitude: currentLocation.coords.latitude,
+                        longitude: currentLocation.coords.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      showsUserLocation
+                      followsUserLocation
+                    >
+                      {/* Current location marker */}
+                      <Marker
+                        coordinate={{
+                          latitude: currentLocation.coords.latitude,
+                          longitude: currentLocation.coords.longitude,
+                        }}
+                        title="You"
+                      />
+
+                      {/* Route polyline */}
+                      {routeCoordinates.length > 1 && (
+                        <Polyline
+                          coordinates={routeCoordinates}
+                          strokeColor="#007AFF"
+                          strokeWidth={4}
+                        />
+                      )}
+                    </MapView>
+                  )}
+                </View>
+
+                {/* Trusted Contacts Status */}
+                <View style={styles.contactsStatus}>
+                  <Text style={styles.contactsTitle}>Trusted Contacts Monitoring</Text>
+                  {guardianSession.trustedContacts.map(contactId => {
+                    const contact = mockTrustedContacts.find(c => c.id === contactId);
+                    return contact ? (
+                      <View key={contactId} style={styles.contactStatus}>
+                        <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+                        <Text style={styles.contactName}>{contact.name}</Text>
+                        <Text style={styles.contactStatusText}>Monitoring</Text>
+                      </View>
+                    ) : null;
+                  })}
+                </View>
+
+                {/* Next Check-in */}
+                {nextCheckIn && (
+                  <View style={styles.checkInInfo}>
+                    <Ionicons name="time" size={20} color="#FF9500" />
+                    <Text style={styles.checkInText}>
+                      Next safety check-in in {Math.max(0, Math.floor((nextCheckIn.getTime() - Date.now()) / 60000))} minutes
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.inactiveContainer}>
+                <Ionicons name="shield-outline" size={64} color="#ccc" />
+                <Text style={styles.inactiveTitle}>Guardian Mode Inactive</Text>
+                <Text style={styles.inactiveSubtitle}>
+                  Start a journey to activate live monitoring and safety features
                 </Text>
+
+                <TouchableOpacity
+                  style={styles.startButton}
+                  onPress={() => setShowStartModal(true)}
+                >
+                  <Ionicons name="play" size={24} color="#fff" />
+                  <Text style={styles.startButtonText}>Start Guardian Mode</Text>
+                </TouchableOpacity>
               </View>
             )}
-          </View>
-        ) : (
-          <View style={styles.inactiveContainer}>
-            <Ionicons name="shield-outline" size={64} color="#ccc" />
-            <Text style={styles.inactiveTitle}>Guardian Mode Inactive</Text>
-            <Text style={styles.inactiveSubtitle}>
-              Start a journey to activate live monitoring and safety features
-            </Text>
 
+            {/* Settings Button */}
             <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => setShowStartModal(true)}
+              style={styles.settingsButton}
+              onPress={() => setShowSettingsModal(true)}
             >
-              <Ionicons name="play" size={24} color="#fff" />
-              <Text style={styles.startButtonText}>Start Guardian Mode</Text>
+              <Ionicons name="settings" size={20} color="#666" />
+              <Text style={styles.settingsButtonText}>Guardian Settings</Text>
             </TouchableOpacity>
-          </View>
-        )}
+          </>
+        }
+      />
 
-        {/* Settings Button */}
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => setShowSettingsModal(true)}
-        >
-          <Ionicons name="settings" size={20} color="#666" />
-          <Text style={styles.settingsButtonText}>Guardian Settings</Text>
-        </TouchableOpacity>
-      </ScrollView>
 
       {/* Start Guardian Modal */}
       <Modal
@@ -376,42 +460,68 @@ export default function GuardianScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
-            <TextInputWithVoice
-              label="Destination *"
-              value={destination}
-              onChangeText={setDestination}
-              placeholder="Where are you going?"
-              prompt="destination"
-            />
+          <FlatList
+            data={[]} // empty, just for scroll
+            renderItem={null}
+            style={styles.modalContent}
+            ListHeaderComponent={
+              <>
+                <PlacesSearch
+                  placeholder="Search destination..."
+                  onPlaceSelected={(place) => {
+                    console.log("Place selected:", place);
+                    setDestination(place.description);
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Select Trusted Contacts *</Text>
-              <Text style={styles.inputSubtext}>
-                Choose who will monitor your journey
-              </Text>
-              {mockTrustedContacts.map(contact => (
-                <TouchableOpacity
-                  key={contact.id}
-                  style={[
-                    styles.contactOption,
-                    selectedContacts.includes(contact.id) && styles.contactOptionSelected
-                  ]}
-                  onPress={() => toggleContactSelection(contact.id)}
-                >
-                  <Ionicons
-                    name={selectedContacts.includes(contact.id) ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={24}
-                    color={selectedContacts.includes(contact.id) ? '#007AFF' : '#ccc'}
-                  />
-                  <View style={styles.contactOptionInfo}>
-                    <Text style={styles.contactOptionName}>{contact.name}</Text>
-                    <Text style={styles.contactOptionRelationship}>{contact.relationship}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+                    if (currentLocation) {
+                      planRoute(
+                        { lat: currentLocation.coords.latitude, lng: currentLocation.coords.longitude },
+                        { lat: place.latitude, lng: place.longitude },
+                        'walking' // or 'driving'
+                      ).then((plan) => {
+                        if (plan) {
+                          setSelectedRoute(plan);
+                          setRouteCoordinates(plan.polyline);
+                        } else {
+                          Alert.alert("No route found");
+                        }
+                      }).catch(err => {
+                        console.error("Route error:", err);
+                        Alert.alert("Error", "Failed to get route");
+                      });
+                    } 
+                  }}
+                  style={{ marginBottom: 16 }}
+                />
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Select Trusted Contacts *</Text>
+                  <Text style={styles.inputSubtext}>
+                    Choose who will monitor your journey
+                  </Text>
+                  {mockTrustedContacts.map(contact => (
+                    <TouchableOpacity
+                      key={contact.id}
+                      style={[
+                        styles.contactOption,
+                        selectedContacts.includes(contact.id) && styles.contactOptionSelected
+                      ]}
+                      onPress={() => toggleContactSelection(contact.id)}
+                    >
+                      <Ionicons
+                        name={selectedContacts.includes(contact.id) ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={24}
+                        color={selectedContacts.includes(contact.id) ? '#007AFF' : '#ccc'}
+                      />
+                      <View style={styles.contactOptionInfo}>
+                        <Text style={styles.contactOptionName}>{contact.name}</Text>
+                        <Text style={styles.contactOptionRelationship}>{contact.relationship}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            }
+          />
         </SafeAreaView>
       </Modal>
 

@@ -44,8 +44,13 @@ export default function PlacesSearch({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   useEffect(() => {
+    if (isSelecting) {
+      setIsSelecting(false); // reset after one render
+      return;
+    }
     // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -163,6 +168,10 @@ export default function PlacesSearch({
   };
 
   const handlePlacePress = (prediction: PlacePrediction) => {
+    setIsSelecting(true);              // ✅ prevent new search
+    setSearchText(prediction.description);   // update immediately
+    setShowSuggestions(false);
+    Keyboard.dismiss(); 
     getPlaceDetails(prediction.place_id, prediction.description);
   };
 
@@ -221,14 +230,18 @@ export default function PlacesSearch({
       </View>
 
       {showSuggestions && predictions.length > 0 && (
-        <View style={styles.suggestionsContainer}>
+        <View 
+          style={styles.suggestionsContainer}
+          pointerEvents="box-none"
+        >
           <FlatList
             data={predictions}
             renderItem={renderPrediction}
             keyExtractor={(item) => item.place_id}
             style={styles.suggestionsList}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}   // allow nesting inside ScrollView
           />
         </View>
       )}
