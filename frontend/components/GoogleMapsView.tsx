@@ -8,6 +8,7 @@ const { width, height } = Dimensions.get('window');
 
 interface GoogleMapsViewProps {
   userLocation: { latitude: number; longitude: number } | null;
+  userHeading?: number;
   region?: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
   incidents: Array<{
     id: number;
@@ -29,12 +30,24 @@ interface GoogleMapsViewProps {
     durationSecs?: number;
     safetyScore?: number;
   };
+  availableRoutes?: Array<{
+    transport: {
+      mode: string;
+      icon: string;
+      label: string;
+      transportKey: string;
+    };
+    fastest: any;
+    safest: any;
+  }>;
+  onRouteSelect?: (route: any, routeType: 'fastest' | 'safest') => void;
 }
 
-export default function GoogleMapsView({ 
-  userLocation, 
-  incidents, 
-  showSafeRoute, 
+export default function GoogleMapsView({
+  userLocation,
+  userHeading = 0,
+  incidents,
+  showSafeRoute,
   onMapPress,
   region,
   destination,
@@ -42,6 +55,8 @@ export default function GoogleMapsView({
   onFullscreen,
   routePolyline,
   routeInfo,
+  availableRoutes = [],
+  onRouteSelect,
 }: GoogleMapsViewProps) {
   const { user } = useAuth();
   const currentUniversity = user?.university;
@@ -49,10 +64,10 @@ export default function GoogleMapsView({
   const [mapReady, setMapReady] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
-  // Default to Kuala Lumpur if no location provided
+  // Default to user location first, then university center, then Kuala Lumpur
   const defaultRegion: Region = {
-    latitude: userLocation?.latitude || currentUniversity?.center?.latitude || 3.1201,
-    longitude: userLocation?.longitude || currentUniversity?.center?.longitude || 101.6544,
+    latitude: userLocation?.latitude || 3.1201,
+    longitude: userLocation?.longitude || 101.6544,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   };
@@ -70,6 +85,14 @@ export default function GoogleMapsView({
       }, 1000);
     }
   }, [userLocation, mapReady]);
+
+  // Animate to region when it changes (for destination selection, etc.)
+  useEffect(() => {
+    if (mapReady && region && mapRef.current) {
+      console.log('🎯 Animating map to region:', region);
+      mapRef.current.animateToRegion(region, 1000);
+    }
+  }, [region, mapReady]);
 
   // Get directions when destination changes
   /*
@@ -139,10 +162,10 @@ export default function GoogleMapsView({
   const getIncidentColor = (type: string, severity: string) => {
     const severityColors = {
       high: '#FF3B30',
-      medium: '#FF9500', 
+      medium: '#FF9500',
       low: '#FFCC00'
     };
-    
+
     const typeColors = {
       theft: '#FF9500',
       harassment: '#FF3B30',
@@ -152,9 +175,9 @@ export default function GoogleMapsView({
       emergency: '#FF0000'
     };
 
-    return severityColors[severity as keyof typeof severityColors] || 
-           typeColors[type as keyof typeof typeColors] || 
-           '#FF3B30';
+    return severityColors[severity as keyof typeof severityColors] ||
+      typeColors[type as keyof typeof typeColors] ||
+      '#FF3B30';
   };
 
   const handleMapPress = (event: any) => {
@@ -210,6 +233,7 @@ export default function GoogleMapsView({
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={currentRegion}
+        {...(region && { region })}
         mapType={mapType}
         showsUserLocation={true}
         showsMyLocationButton={false}
@@ -228,7 +252,7 @@ export default function GoogleMapsView({
           }
         ]}
       >
-        {/* User Location Marker - Simple Blue Dot */}
+        {/* User Location Marker - Rotating Direction Arrow */}
         {userLocation && (
           <Marker
             coordinate={userLocation}
@@ -236,7 +260,13 @@ export default function GoogleMapsView({
             description="Current position"
             anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.userDot} />
+            <View style={styles.userLocationContainer}>
+              <View style={styles.directionArrowBackground}>
+                <View style={[styles.directionArrow, { transform: [{ rotate: `${userHeading}deg` }] }]}>
+                  <Ionicons name="navigate" size={16} color="white" />
+                </View>
+              </View>
+            </View>
           </Marker>
         )}
 
@@ -285,10 +315,10 @@ export default function GoogleMapsView({
               styles.incidentMarker,
               { backgroundColor: getIncidentColor(incident.type, incident.severity) }
             ]}>
-              <Ionicons 
-                name={getIncidentIcon(incident.type)} 
-                size={18} 
-                color="white" 
+              <Ionicons
+                name={getIncidentIcon(incident.type)}
+                size={18}
+                color="white"
               />
               {/* Severity indicator ring */}
               <View style={[
@@ -299,17 +329,20 @@ export default function GoogleMapsView({
           </Marker>
         ))}
 
-        {/* Destination Marker - Simple Red Dot */}
+        {/* Destination Marker - Flag Icon */}
         {destination && (
           <Marker
             coordinate={destination}
             title={destination.name || "Destination"}
             description="Your destination"
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={{ x: 0.5, y: 1 }}
           >
-            <View style={styles.destinationDot} />
+            <Ionicons name="flag" size={30} color="#FF3B30" />
+
           </Marker>
         )}
+
+        {/* Route Option Markers - REMOVED */}
 
         {/* Route Polyline - Using new routing system */}
         {routePolyline && routePolyline.length > 0 && (
@@ -394,7 +427,7 @@ export default function GoogleMapsView({
 function getIncidentIcon(type: string): keyof typeof Ionicons.glyphMap {
   const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
     theft: 'briefcase-outline',
-    harassment: 'warning-outline', 
+    harassment: 'warning-outline',
     accident: 'car-outline',
     suspicious: 'eye-outline',
     fire: 'flame-outline',
@@ -402,7 +435,7 @@ function getIncidentIcon(type: string): keyof typeof Ionicons.glyphMap {
     assault: 'person-outline',
     vandalism: 'hammer-outline'
   };
-  
+
   return iconMap[type] || 'alert-circle-outline';
 }
 
@@ -413,7 +446,7 @@ function getSeverityRingColor(severity: string): string {
     medium: '#FF9500',  // Orange  
     low: '#34C759'      // Green
   };
-  
+
   return severityColors[severity] || '#FF9500';
 }
 
@@ -517,6 +550,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  controlButtonActive: {
+    backgroundColor: '#007AFF',
+  },
   mapTypeIndicator: {
     position: 'absolute',
     bottom: 100,
@@ -556,6 +592,21 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  routeOptionMarker: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   safeRouteBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -593,6 +644,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderWidth: 2,
     borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  userLocationContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  directionArrowBackground: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  directionArrow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flagContainer: {
+    backgroundColor: 'white',
+    borderRadius: 18,
+    padding: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

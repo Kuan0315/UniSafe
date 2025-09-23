@@ -136,20 +136,26 @@ export default function MapScreen() {
   const [showSafeRoute, setShowSafeRoute] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
-  const [region, setRegion] = useState(MAPS_CONFIG.DEFAULT_REGION);
+  const [region, setRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | undefined>(undefined);
   const [isFullScreenMap, setIsFullScreenMap] = useState(false);
   const [destination, setDestination] = useState<string>('');
-  const [destinationCoords, setDestinationCoords] = useState<{latitude: number; longitude: number; name?: string} | undefined>();
+  const [destinationCoords, setDestinationCoords] = useState<{ latitude: number; longitude: number; name?: string } | undefined>();
+  const [origin, setOrigin] = useState<string>('');
+  const [originCoords, setOriginCoords] = useState<{ latitude: number; longitude: number; name?: string } | undefined>();
   const [useSafeRoute, setUseSafeRoute] = useState(true);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showLocationPreview, setShowLocationPreview] = useState(false);
-  const [previewLocation, setPreviewLocation] = useState<{latitude: number; longitude: number; name: string; description: string} | null>(null);
+  const [previewLocation, setPreviewLocation] = useState<{ latitude: number; longitude: number; name: string; description: string } | null>(null);
   const [transportMode, setTransportMode] = useState<'driving' | 'motorbike' | 'walking'>('driving');
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const [routeType, setRouteType] = useState<'safest' | 'fastest'>('safest');
+  const [userHeading, setUserHeading] = useState<number>(0);
   const [showTransportSelection, setShowTransportSelection] = useState(false);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
   const [showRouteOptions, setShowRouteOptions] = useState(false);
+  const [showDirections, setShowDirections] = useState(false);
+  const [showFromLocationOptions, setShowFromLocationOptions] = useState(false);
+  const [selectingOriginOnMap, setSelectingOriginOnMap] = useState(false);
   const [availableRoutes, setAvailableRoutes] = useState<any[]>([]);
 
 
@@ -162,14 +168,14 @@ export default function MapScreen() {
 
   // Request location permissions and get current location
   useEffect(() => {
-    let locationSubscription: any;
+    let subscriptions: { location?: any; heading?: any } = {};
 
     const setupLocationTracking = async () => {
       try {
         console.log('Requesting location permissions...');
         const { status } = await Location.requestForegroundPermissionsAsync();
         console.log('Location permission status:', status);
-      
+
         if (status !== 'granted') {
           console.log('Location permission denied');
           speakButtonAction('Location permission denied. Please enable location access in settings.');
@@ -177,12 +183,18 @@ export default function MapScreen() {
           return;
         }
 
+        // Set up heading updates for compass
+        subscriptions.heading = await Location.watchHeadingAsync((heading) => {
+          setUserHeading(heading.trueHeading || heading.magHeading);
+        });
+
         // Set up real-time location updates
-        locationSubscription = await Location.watchPositionAsync(
+        subscriptions.location = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
             timeInterval: 5000,
-            distanceInterval: 10 // Update if user moves 10 meters
+            distanceInterval: 10, // Update if user moves 10 meters
+            mayShowUserSettingsDialog: true
           },
           (location) => {
             console.log('Location update:', location.coords);
@@ -193,6 +205,11 @@ export default function MapScreen() {
               latitudeDelta: 0.01,
               longitudeDelta: 0.01,
             });
+
+            // Update heading if available
+            if (location.coords.heading !== null) {
+              setUserHeading(location.coords.heading);
+            }
           }
         );
 
@@ -202,7 +219,7 @@ export default function MapScreen() {
           accuracy: Location.Accuracy.Balanced
         });
         console.log('Initial location:', initialLocation.coords);
-        
+
         setUserLocation(initialLocation);
         setRegion({
           latitude: initialLocation.coords.latitude,
@@ -220,10 +237,13 @@ export default function MapScreen() {
 
     setupLocationTracking();
 
-    // Cleanup subscription when component unmounts
+    // Cleanup subscriptions when component unmounts
     return () => {
-      if (locationSubscription) {
-        locationSubscription.remove();
+      if (subscriptions.location) {
+        subscriptions.location.remove();
+      }
+      if (subscriptions.heading) {
+        subscriptions.heading.remove();
       }
     };
   }, []);
@@ -285,9 +305,9 @@ export default function MapScreen() {
 
     // sample every Nth point to limit compute cost
     const sampleStep = Math.max(1, Math.floor(routeCoords.length / 200)); // keep up to ~200 samples
-    
+
     console.log(`🔒 Computing safety score for ${routeId || 'route'} with ${routeCoords.length} points (sampling every ${sampleStep})`);
-    
+
     for (let i = 0; i < routeCoords.length; i += sampleStep) {
       const pt = routeCoords[i];
       for (const inc of incidents) {
@@ -298,7 +318,7 @@ export default function MapScreen() {
           const base = PENALTY_BASE[inc.severity];
           const penalty = base * proximityFactor;
           score += penalty;
-          
+
           incidentsNearRoute.push({
             incident: inc.title,
             severity: inc.severity,
@@ -308,13 +328,13 @@ export default function MapScreen() {
         }
       }
     }
-    
+
     console.log(`🔒 ${routeId || 'Route'} safety analysis:`, {
       totalScore: Math.round(score * 100) / 100,
       incidentsNearby: incidentsNearRoute.length,
       details: incidentsNearRoute
     });
-    
+
     return score;
   }
 
@@ -369,7 +389,7 @@ export default function MapScreen() {
     incidents: Incident[]
   ) {
     console.log(`🗺️ Planning ${routeType} route (${mode}) with ${incidents.length} incidents to consider`);
-    
+
     // fetch directions
     const raw = await fetchDirections(originLatLng, destLatLng, mode);
     const candidates = (raw.routes || []).map((r: any, index: number) => {
@@ -412,8 +432,8 @@ export default function MapScreen() {
     console.log('📊 Route Comparison:');
     scored.forEach((route: any, index: number) => {
       console.log(`${route.routeId}:`, {
-        distance: `${Math.round(route.distanceMeters/1000*100)/100} km`,
-        duration: `${Math.ceil((route.travelTime || 0)/60)} mins`,
+        distance: `${Math.round(route.distanceMeters / 1000 * 100) / 100} km`,
+        duration: `${Math.ceil((route.travelTime || 0) / 60)} mins`,
         safetyScore: Math.round(route.safetyScore * 100) / 100,
         polylinePoints: route.coords.length
       });
@@ -428,7 +448,7 @@ export default function MapScreen() {
         return a.safetyScore - b.safetyScore;
       });
       chosen = scored[0];
-      console.log(`🏃 Selected FASTEST route: ${chosen.routeId} (${Math.ceil((chosen.travelTime || 0)/60)} mins, safety: ${Math.round(chosen.safetyScore * 100) / 100})`);
+      console.log(`🏃 Selected FASTEST route: ${chosen.routeId} (${Math.ceil((chosen.travelTime || 0) / 60)} mins, safety: ${Math.round(chosen.safetyScore * 100) / 100})`);
     } else { // safest
       // pick minimum safetyScore; if equal, pick fastest among them
       scored.sort((a: any, b: any) => {
@@ -436,7 +456,7 @@ export default function MapScreen() {
         return (a.travelTime || 0) - (b.travelTime || 0);
       });
       chosen = scored[0];
-      console.log(`🛡️ Selected SAFEST route: ${chosen.routeId} (safety: ${Math.round(chosen.safetyScore * 100) / 100}, ${Math.ceil((chosen.travelTime || 0)/60)} mins)`);
+      console.log(`🛡️ Selected SAFEST route: ${chosen.routeId} (safety: ${Math.round(chosen.safetyScore * 100) / 100}, ${Math.ceil((chosen.travelTime || 0) / 60)} mins)`);
     }
 
     // build route info to give to map UI
@@ -446,10 +466,243 @@ export default function MapScreen() {
       safetyScore: chosen.safetyScore,
       polyline: chosen.coords,
       rawRoute: chosen.raw,
+      steps: chosen.raw.legs[0].steps,
     };
 
     return routeInfo;
   }
+
+  // --- Advanced turn-by-turn navigation ---
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [nextAnnouncementDistance, setNextAnnouncementDistance] = useState<number | null>(null);
+
+  // Function to find which step the user is currently on
+  const findCurrentStep = (userLat: number, userLng: number, steps: any[]) => {
+    if (!steps || steps.length === 0) return 0;
+
+    let closestStepIndex = 0;
+    let minDistance = Infinity;
+
+    // Check distance to each step's start location
+    steps.forEach((step, index) => {
+      if (step.start_location) {
+        const stepLat = step.start_location.lat;
+        const stepLng = step.start_location.lng;
+        const distance = haversineMeters(
+          { latitude: userLat, longitude: userLng },
+          { latitude: stepLat, longitude: stepLng }
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestStepIndex = index;
+        }
+      }
+    });
+
+    // If we're close to the end, consider the last step
+    if (closestStepIndex === steps.length - 1) {
+      const lastStep = steps[steps.length - 1];
+      if (lastStep.end_location) {
+        const endDistance = haversineMeters(
+          { latitude: userLat, longitude: userLng },
+          { latitude: lastStep.end_location.lat, longitude: lastStep.end_location.lng }
+        );
+        // If within 50 meters of destination, navigation is complete
+        if (endDistance < 50) {
+          return -1; // Navigation complete
+        }
+      }
+    }
+
+    return closestStepIndex;
+  };
+
+  // Function to get distance to next turn
+  const getDistanceToNextTurn = (userLat: number, userLng: number, currentStep: any) => {
+    if (!currentStep || !currentStep.start_location) return null;
+
+    return haversineMeters(
+      { latitude: userLat, longitude: userLng },
+      { latitude: currentStep.start_location.lat, longitude: currentStep.start_location.lng }
+    );
+  };
+
+  // Function to get appropriate turn icon based on instruction
+  const getTurnIcon = (step: any) => {
+    if (!step || !step.html_instructions) {
+      return <Ionicons name="arrow-forward" size={24} color="#fff" />;
+    }
+
+    const instruction = step.html_instructions.toLowerCase();
+
+    if (instruction.includes('turn left')) {
+      return <Ionicons name="arrow-back" size={24} color="#fff" style={{ transform: [{ rotate: '90deg' }] }} />;
+    } else if (instruction.includes('turn right')) {
+      return <Ionicons name="arrow-forward" size={24} color="#fff" style={{ transform: [{ rotate: '90deg' }] }} />;
+    } else if (instruction.includes('u-turn') || instruction.includes('make a u-turn')) {
+      return <Ionicons name="refresh" size={24} color="#fff" />;
+    } else if (instruction.includes('roundabout') || instruction.includes('rotary')) {
+      return <Ionicons name="refresh-circle" size={24} color="#fff" />;
+    } else if (instruction.includes('merge')) {
+      return <Ionicons name="git-merge" size={24} color="#fff" />;
+    } else if (instruction.includes('exit')) {
+      return <Ionicons name="log-out" size={24} color="#fff" />;
+    } else {
+      // Default: continue straight
+      return <Ionicons name="arrow-forward" size={24} color="#fff" />;
+    }
+  };
+
+  // Enhanced speak directions with turn-by-turn
+  const startTurnByTurnNavigation = async () => {
+    if (!selectedRoute?.steps || selectedRoute.steps.length === 0 || !userLocation) {
+      Alert.alert('No route', 'Please select a route first');
+      return;
+    }
+
+    setIsNavigating(true);
+    setCurrentStepIndex(0);
+    setIsFullScreenMap(true); // Enable full-screen mode for navigation
+
+    try {
+      // Announce start of navigation
+      await speakPageTitle('Starting navigation. Follow the highlighted route.');
+
+      // Set up location tracking for turn-by-turn updates
+      const navigationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000, // Update every 3 seconds
+          distanceInterval: 5 // Or when moved 5 meters
+        },
+        async (location) => {
+          const userLat = location.coords.latitude;
+          const userLng = location.coords.longitude;
+
+          if (!selectedRoute?.steps || selectedRoute.steps.length === 0) return;
+
+          const currentStep = findCurrentStep(userLat, userLng, selectedRoute.steps);
+
+          if (currentStep === -1) {
+            // Navigation complete
+            await speakPageTitle('You have arrived at your destination.');
+            setIsNavigating(false);
+            navigationSubscription.remove();
+            return;
+          }
+
+          // Update current step if changed
+          if (currentStep !== currentStepIndex) {
+            setCurrentStepIndex(currentStep);
+
+            // Announce the new step
+            const step = selectedRoute.steps[currentStep];
+            const instruction = step.html_instructions.replace(/<[^>]*>/g, '');
+            await speakPageTitle(`Now: ${instruction}`);
+          }
+
+          // Check if we need to announce upcoming turn
+          const distanceToNext = getDistanceToNextTurn(userLat, userLng, selectedRoute.steps[currentStepIndex]);
+
+          if (distanceToNext !== null) {
+            // Announce at 500m, 200m, 100m, 50m, and "now"
+            const announcementDistances = [500, 200, 100, 50, 0];
+
+            for (const announceDist of announcementDistances) {
+              if (distanceToNext <= announceDist &&
+                (nextAnnouncementDistance === null || distanceToNext < nextAnnouncementDistance)) {
+
+                setNextAnnouncementDistance(distanceToNext);
+
+                if (announceDist === 0) {
+                  const step = selectedRoute.steps[currentStepIndex];
+                  const instruction = step.html_instructions.replace(/<[^>]*>/g, '');
+                  await speakPageTitle(`${instruction}`);
+                } else if (announceDist < 500) {
+                  const step = selectedRoute.steps[currentStepIndex];
+                  const instruction = step.html_instructions.replace(/<[^>]*>/g, '');
+                  await speakPageTitle(`In ${announceDist} meters: ${instruction}`);
+                }
+
+                break;
+              }
+            }
+          }
+        }
+      );
+
+      // Store subscription for cleanup
+      (global as any).navigationSubscription = navigationSubscription;
+
+    } catch (error) {
+      console.error('Error starting navigation:', error);
+      Alert.alert('Navigation Error', 'Unable to start turn-by-turn navigation');
+      setIsNavigating(false);
+    }
+  };
+
+  // Stop navigation
+  const stopNavigation = () => {
+    setIsNavigating(false);
+    setCurrentStepIndex(0);
+    setNextAnnouncementDistance(null);
+    setIsFullScreenMap(false); // Disable full-screen mode
+    setShowDirections(false); // Hide directions panel when stopping navigation
+
+    if ((global as any).navigationSubscription) {
+      (global as any).navigationSubscription.remove();
+    }
+  };
+
+  // Speak directions functionality
+  const speakDirections = async () => {
+    if (!selectedRoute?.steps) {
+      Alert.alert('No directions', 'Please select a route first');
+      return;
+    }
+
+    try {
+      let directionsText = 'Starting navigation. ';
+      selectedRoute.steps.forEach((step: any, index: number) => {
+        const instruction = step.html_instructions.replace(/<[^>]*>/g, ''); // Remove HTML tags
+        const distance = step.distance.text;
+        directionsText += `Step ${index + 1}: ${instruction}. ${distance}. `;
+      });
+      directionsText += 'You have arrived at your destination.';
+
+      await speakPageTitle(directionsText);
+    } catch (error) {
+      console.error('Error speaking directions:', error);
+      Alert.alert('Speech Error', 'Unable to speak directions');
+    }
+  };
+
+  // Speak current step
+  const speakCurrentStep = async () => {
+    if (isNavigating && selectedRoute?.steps) {
+      const currentStep = selectedRoute.steps[currentStepIndex];
+      const instruction = currentStep.html_instructions.replace(/<[^>]*>/g, '');
+      await speakPageTitle(`Current instruction: ${instruction}`);
+    }
+  };
+
+  // Get current navigation info
+  const getCurrentNavigationInfo = () => {
+    if (!selectedRoute?.steps || !isNavigating) return null;
+
+    const currentStep = selectedRoute.steps[currentStepIndex];
+    const nextStep = selectedRoute.steps[currentStepIndex + 1];
+
+    return {
+      currentStep,
+      nextStep,
+      currentStepIndex,
+      totalSteps: selectedRoute.steps.length,
+      distanceToNext: nextAnnouncementDistance
+    };
+  };
 
   // --- TEST FUNCTION: Debug routing issues ---
   const testRoute = async () => {
@@ -458,11 +711,17 @@ export default function MapScreen() {
       return;
     }
 
+    const currentOrigin = originCoords || {
+      latitude: userLocation.coords.latitude,
+      longitude: userLocation.coords.longitude,
+      name: 'Current Location'
+    };
+
     try {
-      console.log('🧪 Testing route from:', userLocation.coords, 'to:', previewLocation);
-      
+      console.log('🧪 Testing route from:', currentOrigin, 'to:', previewLocation);
+
       const plan = await planRoutesAndSelect(
-        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: currentOrigin.latitude, lng: currentOrigin.longitude },
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         'walking',
         'fastest',
@@ -471,15 +730,15 @@ export default function MapScreen() {
 
       if (plan) {
         console.log('✅ Route found:', {
-          distance: `${Math.round(plan.distanceMeters/1000*100)/100} km`,
-          duration: `${Math.ceil((plan.durationSecs || 0)/60)} mins`,
+          distance: `${Math.round(plan.distanceMeters / 1000 * 100) / 100} km`,
+          duration: `${Math.ceil((plan.durationSecs || 0) / 60)} mins`,
           polylinePoints: plan.polyline.length,
           firstFewPoints: plan.polyline.slice(0, 3),
           lastFewPoints: plan.polyline.slice(-3),
           safetyScore: plan.safetyScore
         });
-        
-        Alert.alert('Route Test', `Found route!\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nPoints: ${plan.polyline.length}\nSafety Score: ${Math.round(plan.safetyScore * 100) / 100}`);
+
+        Alert.alert('Route Test', `Found route!\nDistance: ${Math.round(plan.distanceMeters / 1000 * 100) / 100} km\nPoints: ${plan.polyline.length}\nSafety Score: ${Math.round(plan.safetyScore * 100) / 100}`);
       } else {
         console.log('❌ No route found');
         Alert.alert('Route Test', 'No route found');
@@ -497,16 +756,22 @@ export default function MapScreen() {
       return;
     }
 
+    const currentOrigin = originCoords || {
+      latitude: userLocation.coords.latitude,
+      longitude: userLocation.coords.longitude,
+      name: 'Current Location'
+    };
+
     try {
       console.log('🔬 COMPREHENSIVE ROUTE TEST - Comparing Fastest vs Safest');
-      console.log('📍 From:', userLocation.coords);
+      console.log('📍 From:', currentOrigin);
       console.log('📍 To:', previewLocation);
       console.log('🚨 Active incidents:', mockIncidents.map(inc => `${inc.title} (${inc.severity}) at ${inc.location.latitude}, ${inc.location.longitude}`));
-      
+
       // Test fastest route
       console.log('\n🏃 TESTING FASTEST ROUTE:');
       const fastestPlan = await planRoutesAndSelect(
-        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: currentOrigin.latitude, lng: currentOrigin.longitude },
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         transportMode === 'motorbike' ? 'driving' : transportMode,
         'fastest',
@@ -516,7 +781,7 @@ export default function MapScreen() {
       // Test safest route
       console.log('\n🛡️ TESTING SAFEST ROUTE:');
       const safestPlan = await planRoutesAndSelect(
-        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+        { lat: currentOrigin.latitude, lng: currentOrigin.longitude },
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         transportMode === 'motorbike' ? 'driving' : transportMode,
         'safest',
@@ -527,24 +792,24 @@ export default function MapScreen() {
       if (fastestPlan && safestPlan) {
         console.log('\n📊 FINAL COMPARISON:');
         console.log('Fastest Route:', {
-          distance: `${Math.round(fastestPlan.distanceMeters/1000*100)/100} km`,
-          duration: `${Math.ceil((fastestPlan.durationSecs || 0)/60)} mins`,
+          distance: `${Math.round(fastestPlan.distanceMeters / 1000 * 100) / 100} km`,
+          duration: `${Math.ceil((fastestPlan.durationSecs || 0) / 60)} mins`,
           safetyScore: Math.round(fastestPlan.safetyScore * 100) / 100,
           polylinePoints: fastestPlan.polyline.length
         });
         console.log('Safest Route:', {
-          distance: `${Math.round(safestPlan.distanceMeters/1000*100)/100} km`,
-          duration: `${Math.ceil((safestPlan.durationSecs || 0)/60)} mins`,
+          distance: `${Math.round(safestPlan.distanceMeters / 1000 * 100) / 100} km`,
+          duration: `${Math.ceil((safestPlan.durationSecs || 0) / 60)} mins`,
           safetyScore: Math.round(safestPlan.safetyScore * 100) / 100,
           polylinePoints: safestPlan.polyline.length
         });
 
-        const timeDiff = Math.ceil(((safestPlan.durationSecs || 0) - (fastestPlan.durationSecs || 0))/60);
+        const timeDiff = Math.ceil(((safestPlan.durationSecs || 0) - (fastestPlan.durationSecs || 0)) / 60);
         const safetyDiff = Math.round((fastestPlan.safetyScore - safestPlan.safetyScore) * 100) / 100;
 
-        Alert.alert('Route Comparison', 
-          `Fastest Route: ${Math.ceil((fastestPlan.durationSecs || 0)/60)} mins, Safety: ${Math.round(fastestPlan.safetyScore * 100) / 100}\n\n` +
-          `Safest Route: ${Math.ceil((safestPlan.durationSecs || 0)/60)} mins, Safety: ${Math.round(safestPlan.safetyScore * 100) / 100}\n\n` +
+        Alert.alert('Route Comparison',
+          `Fastest Route: ${Math.ceil((fastestPlan.durationSecs || 0) / 60)} mins, Safety: ${Math.round(fastestPlan.safetyScore * 100) / 100}\n\n` +
+          `Safest Route: ${Math.ceil((safestPlan.durationSecs || 0) / 60)} mins, Safety: ${Math.round(safestPlan.safetyScore * 100) / 100}\n\n` +
           `Time difference: ${timeDiff > 0 ? '+' : ''}${timeDiff} mins\n` +
           `Safety improvement: ${safetyDiff > 0 ? '+' : ''}${safetyDiff} points\n\n` +
           `Check console for detailed analysis!`
@@ -559,8 +824,8 @@ export default function MapScreen() {
     }
   };
 
-  const filteredIncidents = selectedIncidentType === 'all' 
-    ? mockIncidents 
+  const filteredIncidents = selectedIncidentType === 'all'
+    ? mockIncidents
     : mockIncidents.filter(incident => incident.type === selectedIncidentType);
 
   const handleIncidentPress = (incident: any) => {
@@ -597,6 +862,8 @@ export default function MapScreen() {
   const clearRoute = () => {
     setDestination('');
     setDestinationCoords(undefined);
+    setOrigin('');
+    setOriginCoords(undefined);
     setShowSafeRoute(false);
   };
 
@@ -614,75 +881,152 @@ export default function MapScreen() {
     distanceMeters?: number,
     durationSecs?: number,
     safetyScore?: number,
-    raw?: any
+    raw?: any,
+    steps?: any[]
   }>(null);
 
   return (
-  <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <AppHeader 
-        title="Map" 
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <AppHeader
+        title="Map"
         showFilterButton={true}
         onFilterPress={() => setShowFilterModal(true)}
         hasActiveFilter={selectedIncidentType !== 'all'}
       />
-      
-      {/* Search + Mic Row */}
-      <View style={styles.searchRow}>
+
+      {/* Search Inputs - Hide when directions, route options, or transport selection panels are shown */}
+      {!showDirections && !showRouteOptions && !showTransportSelection && (
         <View style={styles.searchContainer}>
-          <PlacesSearch
-            placeholder="Search destination..."
-            onPlaceSelected={(place) => {
-              console.log('Place selected:', place);
-              
-              // Set preview location data
-              setPreviewLocation({
-                latitude: place.latitude,
-                longitude: place.longitude,
-                name: place.description,
-                description: place.description
-              });
+          {/* From Input */}
+          <View style={[styles.searchRow, { zIndex: 20, marginBottom: 10 }]}>
+            <Ionicons name="location" size={20} color="#007AFF" style={styles.searchIcon} />
+            <View style={styles.searchInputContainer}>
+              <PlacesSearch
+                placeholder="Search starting location..."
+                value={origin}
+                onPlaceSelected={(place) => {
+                  console.log('Origin selected:', place);
 
-              // Focus map on destination
-              setRegion({
-                latitude: place.latitude,
-                longitude: place.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              });
+                  setOrigin(place.description);
+                  setOriginCoords({
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    name: place.description
+                  });
+                  setShowFromLocationOptions(false); // Hide options when place is selected
+                }}
+                onFocus={() => {
+                  // Show location options when focused and no text is entered
+                  if (!origin) {
+                    setShowFromLocationOptions(true);
+                  }
+                }}
+                onChangeText={(text: string) => {
+                  setOrigin(text);
+                  // Hide options when user starts typing
+                  if (text.length > 0) {
+                    setShowFromLocationOptions(false);
+                  } else {
+                    setShowFromLocationOptions(true);
+                  }
+                }}
+                style={styles.placesSearch}
+                suggestionsZIndex={1600}
+              />
+            </View>
+          </View>
 
-              // Show location details first instead of transport selection
-              setShowLocationDetails(true);
-            }}
-            style={styles.placesSearch}
-          />
-          
-          {destination && (
-            <TouchableOpacity
-              style={styles.clearSearchButton}
-              onPress={() => {
-                setDestination('');
-                setDestinationCoords(undefined);
-                setShowSafeRoute(false);
-                setShowTransportSelection(false); // Hide transport panel
-                setPreviewLocation(null); // Clear preview location
-              }}
-            >
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
+          {/* From Location Options - Show when input is focused */}
+          {showFromLocationOptions && (
+            <View style={styles.locationOptionsInline}>
+              <TouchableOpacity
+                style={styles.locationOptionInline}
+                onPress={() => {
+                  if (userLocation) {
+                    setOrigin('Current Location');
+                    setOriginCoords({
+                      latitude: userLocation.coords.latitude,
+                      longitude: userLocation.coords.longitude,
+                      name: 'Current Location'
+                    });
+                    setShowFromLocationOptions(false);
+                  }
+                }}
+              >
+                <Ionicons name="locate" size={20} color="#007AFF" />
+                <Text style={styles.locationOptionInlineText}>Use current location</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.locationOptionInline}
+                onPress={() => {
+                  // Enable map selection mode
+                  setSelectingOriginOnMap(true);
+                  setShowFromLocationOptions(false);
+                  Alert.alert('Choose on Map', 'Tap on the map to select your starting location');
+                }}
+              >
+                <Ionicons name="map" size={20} color="#007AFF" />
+                <Text style={styles.locationOptionInlineText}>Choose on map</Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </View>
 
-        <TouchableOpacity
-          style={styles.micButton}
-          onPress={() => {
-            // Handle speech to text functionality
-            console.log('Microphone pressed for speech to text');
-            // TODO: Implement speech to text here
-          }}
-        >
-          <Ionicons name="mic" size={20} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
+          {/* To Input */}
+          <View style={[styles.searchRow, { zIndex: 10 }]}>
+            <Ionicons name="flag" size={20} color="#007AFF" style={styles.searchIcon} />
+            <View style={styles.searchInputContainer}>
+              <PlacesSearch
+                placeholder="Search destination..."
+                value={destination}
+                onPlaceSelected={(place) => {
+                  console.log('🎯 Destination selected:', place);
+
+                  // Set preview location data
+                  setPreviewLocation({
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    name: place.description,
+                    description: place.description
+                  });
+
+                  // Set destination coordinates for map marker
+                  setDestinationCoords({
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    name: place.description
+                  });
+                  console.log('🚩 Flag should appear at:', { lat: place.latitude, lng: place.longitude });
+
+                  // Focus map on destination
+                  const destinationRegion = {
+                    latitude: place.latitude,
+                    longitude: place.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  };
+                  console.log('🗺️ Setting map region to destination:', destinationRegion);
+                  setRegion(destinationRegion);
+
+                  // Show location details first instead of transport selection
+                  setShowLocationDetails(true);
+                }}
+                onChangeText={(text: string) => {
+                  setDestination(text);
+                  // Clear destination marker when user starts typing new destination
+                  if (!text.trim()) {
+                    setDestinationCoords(undefined);
+                    setPreviewLocation(null);
+                    setShowLocationDetails(false);
+                  }
+                }}
+                style={styles.placesSearch}
+                suggestionsZIndex={1600}
+              />
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Google Maps */}
       <View style={styles.mapContainer}>
@@ -692,31 +1036,59 @@ export default function MapScreen() {
               latitude: userLocation.coords.latitude,
               longitude: userLocation.coords.longitude
             }}
-            region={region}
+            userHeading={userHeading}
+            {...(region && { region })}
             incidents={filteredIncidents}
             showSafeRoute={showSafeRoute}
             destination={destinationCoords}
             useSafeRoute={useSafeRoute}
             onFullscreen={() => setIsFullScreenMap(true)}
             onMapPress={(latitude, longitude) => {
-              console.log('Map clicked at:', { latitude, longitude });
+              if (selectingOriginOnMap) {
+                // Set origin to tapped location
+                setOrigin(`Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+                setOriginCoords({
+                  latitude,
+                  longitude,
+                  name: `Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+                });
+                setSelectingOriginOnMap(false);
+                Alert.alert('Origin Set', 'Starting location has been set to the tapped location on the map.');
+              } else {
+                console.log('Map clicked at:', { latitude, longitude });
+              }
             }}
             routePolyline={selectedRoute?.polyline}
-            routeInfo={{
-              distanceMeters: selectedRoute?.distanceMeters,
-              durationSecs: selectedRoute?.durationSecs,
-              safetyScore: selectedRoute?.safetyScore
+            {...(selectedRoute && availableRoutes.length > 0 && {
+              routeInfo: {
+                distanceMeters: selectedRoute.distanceMeters,
+                durationSecs: selectedRoute.durationSecs,
+                safetyScore: selectedRoute.safetyScore
+              }
+            })}
+            availableRoutes={availableRoutes}
+            onRouteSelect={(route, routeType) => {
+              setSelectedRoute({
+                polyline: route.polyline,
+                distanceMeters: route.distanceMeters,
+                durationSecs: route.durationSecs,
+                safetyScore: route.safetyScore,
+                raw: route.rawRoute,
+                steps: route.steps,
+              });
+              setRouteType(routeType);
+              setUseSafeRoute(routeType === 'safest');
             }}
           />
         ) : (
-            <View style={styles.mapPlaceholder}>
-              <Ionicons name="map" size={64} color="#007AFF" />
-              <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
-              <Text style={styles.mapPlaceholderSubtext}>
-                Requesting location permissions...
-              </Text>
-            </View>
-          )}
+          <View style={styles.mapPlaceholder}>
+            <Ionicons name="map" size={64} color="#007AFF" />
+            <Text style={styles.mapPlaceholderText}>Loading Google Maps...</Text>
+            <Text style={styles.mapPlaceholderSubtext}>
+              Requesting location permissions...
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Location Details Panel - Step 1 */}
@@ -734,7 +1106,7 @@ export default function MapScreen() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.locationDetailsCloseButton}
               onPress={() => {
                 setShowLocationDetails(false);
@@ -744,38 +1116,50 @@ export default function MapScreen() {
               <Ionicons name="close" size={20} color="#666" />
             </TouchableOpacity>
           </View>
-          
+
           <TouchableOpacity
             style={styles.getRouteButton}
             onPress={async () => {
-              if (!userLocation || !previewLocation) return;
-              
+              if (!previewLocation) return;
+
+              const currentOrigin = originCoords || (userLocation ? {
+                latitude: userLocation.coords.latitude,
+                longitude: userLocation.coords.longitude,
+                name: 'Current Location'
+              } : null);
+
+              if (!currentOrigin) {
+                Alert.alert('Error', 'Unable to determine origin location');
+                return;
+              }
+
               setShowLocationDetails(false);
-              
+
               try {
                 // Get all route options for all transport modes
                 const routePromises = [
-                  { mode: 'driving' as const, icon: 'car', label: 'Car' },
-                  { mode: 'walking' as const, icon: 'walk', label: 'Walk' },
-                  { mode: 'bicycling' as const, icon: 'bicycle', label: 'Bike' }
+                  { mode: 'driving' as const, icon: 'car', label: 'Car', transportKey: 'driving' },
+                  { mode: 'driving' as const, icon: 'bicycle', label: 'Motor', transportKey: 'motorbike' },
+                  { mode: 'walking' as const, icon: 'walk', label: 'Walk', transportKey: 'walking' },
+                  { mode: 'bicycling' as const, icon: 'bicycle', label: 'Bike', transportKey: 'bicycling' }
                 ].map(async (transport) => {
                   try {
                     const fastest = await planRoutesAndSelect(
-                      { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                      { lat: currentOrigin.latitude, lng: currentOrigin.longitude },
                       { lat: previewLocation.latitude, lng: previewLocation.longitude },
                       transport.mode,
                       'fastest',
                       mockIncidents
                     );
-                    
+
                     const safest = await planRoutesAndSelect(
-                      { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                      { lat: currentOrigin.latitude, lng: currentOrigin.longitude },
                       { lat: previewLocation.latitude, lng: previewLocation.longitude },
                       transport.mode,
                       'safest',
                       mockIncidents
                     );
-                    
+
                     return {
                       transport,
                       fastest,
@@ -790,11 +1174,35 @@ export default function MapScreen() {
                     };
                   }
                 });
-                
+
                 const routes = await Promise.all(routePromises);
-                setAvailableRoutes(routes.filter(r => r.fastest || r.safest));
-                setShowRouteOptions(true);
-                
+                const validRoutes = routes.filter(r => r.fastest || r.safest);
+                setAvailableRoutes(validRoutes);
+
+                // Automatically show the first available route
+                if (validRoutes.length > 0) {
+                  const firstRoute = validRoutes[0];
+                  if (firstRoute.fastest) {
+                    setSelectedRoute({
+                      polyline: firstRoute.fastest.polyline,
+                      distanceMeters: firstRoute.fastest.distanceMeters,
+                      durationSecs: firstRoute.fastest.durationSecs,
+                      safetyScore: firstRoute.fastest.safetyScore,
+                      raw: firstRoute.fastest.rawRoute,
+                      steps: firstRoute.fastest.steps,
+                    });
+                    setDestination(previewLocation!.name);
+                    setDestinationCoords({
+                      latitude: previewLocation!.latitude,
+                      longitude: previewLocation!.longitude,
+                      name: previewLocation!.name
+                    });
+                    setShowSafeRoute(true);
+                    setUseSafeRoute(false);
+                    setShowTransportSelection(true);
+                  }
+                }
+
               } catch (error) {
                 console.error('Error getting routes:', error);
                 Alert.alert('Error', 'Failed to get route options');
@@ -812,7 +1220,7 @@ export default function MapScreen() {
         <View style={styles.routeOptionsPanel}>
           <View style={styles.routeOptionsHeader}>
             <Text style={styles.routeOptionsTitle}>Choose Your Route</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.routeOptionsCloseButton}
               onPress={() => {
                 setShowRouteOptions(false);
@@ -823,7 +1231,7 @@ export default function MapScreen() {
               <Ionicons name="arrow-back" size={20} color="#666" />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.routeOptionsList} showsVerticalScrollIndicator={false}>
             {availableRoutes.map((routeGroup, index) => (
               <View key={index} style={styles.routeGroupContainer}>
@@ -831,13 +1239,13 @@ export default function MapScreen() {
                   <Ionicons name={routeGroup.transport.icon as any} size={20} color="#007AFF" />
                   <Text style={styles.routeGroupTitle}>{routeGroup.transport.label}</Text>
                 </View>
-                
+
                 {/* Fastest Route Option */}
                 {routeGroup.fastest && (
                   <TouchableOpacity
                     style={styles.routeOptionItem}
                     onPress={() => {
-                      setTransportMode(routeGroup.transport.mode === 'bicycling' ? 'motorbike' : routeGroup.transport.mode);
+                      setTransportMode(routeGroup.transport.transportKey === 'bicycling' ? 'motorbike' : routeGroup.transport.transportKey);
                       setRouteType('fastest');
                       setSelectedRoute({
                         polyline: routeGroup.fastest.polyline,
@@ -845,6 +1253,7 @@ export default function MapScreen() {
                         durationSecs: routeGroup.fastest.durationSecs,
                         safetyScore: routeGroup.fastest.safetyScore,
                         raw: routeGroup.fastest.rawRoute,
+                        steps: routeGroup.fastest.steps,
                       });
                       setDestination(previewLocation!.name);
                       setDestinationCoords({
@@ -864,19 +1273,19 @@ export default function MapScreen() {
                         <Text style={styles.routeOptionType}>Fastest</Text>
                       </View>
                       <View style={styles.routeOptionRight}>
-                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.fastest.durationSecs || 0)/60)} min</Text>
-                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.fastest.distanceMeters || 0)/1000*100)/100} km</Text>
+                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.fastest.durationSecs || 0) / 60)} min</Text>
+                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.fastest.distanceMeters || 0) / 1000 * 100) / 100} km</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
                 )}
-                
+
                 {/* Safest Route Option */}
                 {routeGroup.safest && (
                   <TouchableOpacity
                     style={styles.routeOptionItem}
                     onPress={() => {
-                      setTransportMode(routeGroup.transport.mode === 'bicycling' ? 'motorbike' : routeGroup.transport.mode);
+                      setTransportMode(routeGroup.transport.transportKey === 'bicycling' ? 'motorbike' : routeGroup.transport.transportKey);
                       setRouteType('safest');
                       setSelectedRoute({
                         polyline: routeGroup.safest.polyline,
@@ -884,6 +1293,7 @@ export default function MapScreen() {
                         durationSecs: routeGroup.safest.durationSecs,
                         safetyScore: routeGroup.safest.safetyScore,
                         raw: routeGroup.safest.rawRoute,
+                        steps: routeGroup.safest.steps,
                       });
                       setDestination(previewLocation!.name);
                       setDestinationCoords({
@@ -903,8 +1313,8 @@ export default function MapScreen() {
                         <Text style={styles.routeOptionType}>Safest</Text>
                       </View>
                       <View style={styles.routeOptionRight}>
-                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.safest.durationSecs || 0)/60)} min</Text>
-                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.safest.distanceMeters || 0)/1000*100)/100} km</Text>
+                        <Text style={styles.routeOptionTime}>{Math.ceil((routeGroup.safest.durationSecs || 0) / 60)} min</Text>
+                        <Text style={styles.routeOptionDistance}>{Math.round((routeGroup.safest.distanceMeters || 0) / 1000 * 100) / 100} km</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -926,7 +1336,7 @@ export default function MapScreen() {
                 {previewLocation.name}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.compactCloseButton}
               onPress={() => {
                 // Clear everything when closed
@@ -938,6 +1348,8 @@ export default function MapScreen() {
                 setShowSafeRoute(false);
                 setDestination('');
                 setDestinationCoords(undefined);
+                setOrigin('');
+                setOriginCoords(undefined);
                 setPreviewLocation(null);
               }}
             >
@@ -951,105 +1363,275 @@ export default function MapScreen() {
             <View style={styles.compactTransportModes}>
               <TouchableOpacity
                 style={[styles.compactModeButton, transportMode === 'driving' && styles.compactModeActive]}
-                onPress={() => setTransportMode('driving')}
+                onPress={async () => {
+                  const newMode = 'driving';
+                  setTransportMode(newMode);
+
+                  // If we have a destination, recalculate the route
+                  if (destinationCoords && userLocation) {
+                    try {
+                      const route = await planRoutesAndSelect(
+                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
+                        newMode,
+                        routeType,
+                        mockIncidents
+                      );
+                      if (route) {
+                        setSelectedRoute(route);
+                      }
+                    } catch (error) {
+                      console.error('Error recalculating route:', error);
+                    }
+                  }
+                }}
               >
                 <Ionicons name="car" size={16} color={transportMode === 'driving' ? '#fff' : '#007AFF'} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.compactModeButton, transportMode === 'motorbike' && styles.compactModeActive]}
-                onPress={() => setTransportMode('motorbike')}
+                onPress={async () => {
+                  const newMode = 'bicycling';
+                  setTransportMode('motorbike');
+
+                  // If we have a destination, recalculate the route
+                  if (destinationCoords && userLocation) {
+                    try {
+                      const route = await planRoutesAndSelect(
+                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
+                        newMode,
+                        routeType,
+                        mockIncidents
+                      );
+                      if (route) {
+                        setSelectedRoute(route);
+                      }
+                    } catch (error) {
+                      console.error('Error recalculating route:', error);
+                    }
+                  }
+                }}
               >
                 <Ionicons name="bicycle" size={16} color={transportMode === 'motorbike' ? '#fff' : '#007AFF'} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.compactModeButton, transportMode === 'walking' && styles.compactModeActive]}
-                onPress={() => setTransportMode('walking')}
+                onPress={async () => {
+                  const newMode = 'walking';
+                  setTransportMode(newMode);
+
+                  // If we have a destination, recalculate the route
+                  if (destinationCoords && userLocation) {
+                    try {
+                      const route = await planRoutesAndSelect(
+                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
+                        newMode,
+                        routeType,
+                        mockIncidents
+                      );
+                      if (route) {
+                        setSelectedRoute(route);
+                      }
+                    } catch (error) {
+                      console.error('Error recalculating route:', error);
+                    }
+                  }
+                }}
               >
                 <Ionicons name="walk" size={16} color={transportMode === 'walking' ? '#fff' : '#007AFF'} />
               </TouchableOpacity>
             </View>
 
-            {/* Route type toggle */}
-            <TouchableOpacity
-              style={[styles.compactRouteToggle, routeType === 'safest' ? styles.compactSafestActive : styles.compactFastestActive]}
-              onPress={() => setRouteType(routeType === 'safest' ? 'fastest' : 'safest')}
-            >
-              <Ionicons 
-                name={routeType === 'safest' ? 'shield-checkmark' : 'flash'} 
-                size={14} 
-                color="#fff" 
-              />
-              <Text style={styles.compactRouteText}>
-                {routeType === 'safest' ? 'Safe' : 'Fast'}
-              </Text>
-            </TouchableOpacity>
+            {/* Route type toggle and action buttons */}
+            <View style={styles.compactActionButtons}>
+              <TouchableOpacity
+                style={[styles.compactRouteToggle, routeType === 'safest' ? styles.compactSafestActive : styles.compactFastestActive]}
+                onPress={() => {
+                  const newRouteType = routeType === 'safest' ? 'fastest' : 'safest';
+                  setRouteType(newRouteType);
 
-            {/* Navigate button */}
-            <TouchableOpacity
-              style={styles.compactNavigateButton}
-              onPress={async () => {
-                if (!previewLocation || !userLocation) {
-                  Alert.alert('Error', 'Missing location or destination.');
-                  return;
-                }
+                  // If we have available routes, switch between fastest and safest
+                  if (availableRoutes.length > 0) {
+                    const currentTransportGroup = availableRoutes.find(group =>
+                      (group.transport.mode === 'bicycling' ? 'motorbike' : group.transport.mode) === transportMode
+                    );
 
-                try {
-                  const apiMode: 'driving' | 'bicycling' | 'walking' =
-                    transportMode === 'motorbike' ? 'driving' : transportMode;
-
-                  const plan = await planRoutesAndSelect(
-                    { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
-                    { lat: previewLocation.latitude, lng: previewLocation.longitude },
-                    apiMode,
-                    routeType,
-                    mockIncidents
-                  );
-
-                  if (!plan) {
-                    Alert.alert('No route', 'Could not find any route to the destination.');
-                    return;
+                    if (currentTransportGroup) {
+                      const routeToSelect = currentTransportGroup[newRouteType];
+                      if (routeToSelect) {
+                        setSelectedRoute({
+                          polyline: routeToSelect.polyline,
+                          distanceMeters: routeToSelect.distanceMeters,
+                          durationSecs: routeToSelect.durationSecs,
+                          safetyScore: routeToSelect.safetyScore,
+                          raw: routeToSelect.rawRoute,
+                          steps: routeToSelect.steps,
+                        });
+                      }
+                    }
                   }
+                }}
+              >
+                <Ionicons
+                  name={routeType === 'safest' ? 'shield-checkmark' : 'flash'}
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.compactRouteText}>
+                  {routeType === 'safest' ? 'Safe' : 'Fast'}
+                </Text>
+              </TouchableOpacity>
 
-                  // Set route state
-                  setDestination(previewLocation.name);
-                  setDestinationCoords({
-                    latitude: previewLocation.latitude,
-                    longitude: previewLocation.longitude,
-                    name: previewLocation.name
-                  });
-
-                  setShowSafeRoute(true);
-                  setUseSafeRoute(routeType === 'safest');
-
-                  setSelectedRoute({
-                    polyline: plan.polyline,
-                    distanceMeters: plan.distanceMeters,
-                    durationSecs: plan.durationSecs,
-                    safetyScore: plan.safetyScore,
-                    raw: plan.rawRoute,
-                  });
-
-                  Alert.alert('Route ready', `${routeType === 'fastest' ? 'Fastest' : 'Safest'} route selected.\nDistance: ${Math.round(plan.distanceMeters/1000*100)/100} km\nETA: ${Math.ceil((plan.durationSecs || 0)/60)} mins`);
-
-                } catch (err: any) {
-                  console.error('Routing error', err);
-                  Alert.alert('Routing error', err.message || 'Unexpected error while planning route.');
-                }
-              }}
-            >
-              <Ionicons name="navigate" size={16} color="#fff" />
-              <Text style={styles.compactNavigateText}>Go</Text>
-            </TouchableOpacity>
+              {/* Directions button only */}
+              <TouchableOpacity
+                style={styles.compactDirectionsButton}
+                onPress={() => {
+                  // Show directions instead of navigating
+                  setShowDirections(!showDirections);
+                }}
+              >
+                <Ionicons name="list" size={16} color="#fff" />
+                <Text style={styles.compactDirectionsText}>Directions</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Route info (shown when route is active) */}
           {selectedRoute && (
             <View style={styles.compactRouteInfo}>
               <Text style={styles.compactRouteInfoText}>
-                {Math.round((selectedRoute.distanceMeters || 0)/1000*100)/100} km • {Math.ceil((selectedRoute.durationSecs || 0)/60)} min • Safety: {Math.round((selectedRoute.safetyScore || 0) * 100) / 100}
+                {Math.round((selectedRoute.distanceMeters || 0) / 1000 * 100) / 100} km • {Math.ceil((selectedRoute.durationSecs || 0) / 60)} min • Safety: {Math.round((selectedRoute.safetyScore || 0) * 100) / 100}
               </Text>
+
+              {/* Navigation Controls */}
+              <View style={styles.navigationControls}>
+                {!isNavigating ? (
+                  <TouchableOpacity
+                    style={styles.startNavigationButton}
+                    onPress={startTurnByTurnNavigation}
+                  >
+                    <Ionicons name="navigate" size={16} color="#fff" />
+                    <Text style={styles.startNavigationText}>Start Navigation</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.stopNavigationButton}
+                    onPress={stopNavigation}
+                  >
+                    <Ionicons name="stop" size={16} color="#fff" />
+                    <Text style={styles.stopNavigationText}>Stop Navigation</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Directions list */}
+              {showDirections && selectedRoute.steps && (
+                <View style={styles.directionsContainer}>
+                  <View style={styles.directionsHeader}>
+                    <Text style={styles.directionsTitle}>
+                      {isNavigating ? `Step ${currentStepIndex + 1} of ${selectedRoute.steps.length}` : 'Turn-by-Turn Directions'}
+                    </Text>
+                    <View style={styles.directionsHeaderButtons}>
+                      <TouchableOpacity
+                        style={styles.speakButton}
+                        onPress={async () => {
+                          if (isNavigating && selectedRoute?.steps) {
+                            await speakCurrentStep();
+                          } else if (selectedRoute?.steps) {
+                            await speakDirections();
+                          }
+                        }}
+                      >
+                        <Ionicons name="volume-high" size={16} color="#007AFF" />
+                        <Text style={styles.speakButtonText}>Speak</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => {
+                          // Only stop navigation and close directions panel
+                          if (isNavigating) {
+                            stopNavigation();
+                          }
+                          setShowDirections(false);
+                        }}
+                      >
+                        <Ionicons name="close" size={20} color="#666" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Current step highlight */}
+                  {isNavigating && selectedRoute?.steps && (
+                    <View style={styles.currentStepContainer}>
+                      <View style={styles.currentStepHeader}>
+                        <Ionicons name="location" size={20} color="#007AFF" />
+                        <Text style={styles.currentStepLabel}>Current Step</Text>
+                        {nextAnnouncementDistance !== null && (
+                          <Text style={styles.distanceToNext}>
+                            {Math.round(nextAnnouncementDistance)}m to go
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.currentStepText}>
+                        {selectedRoute.steps[currentStepIndex]?.html_instructions.replace(/<[^>]*>/g, '')}
+                      </Text>
+                    </View>
+                  )}
+
+                  <ScrollView style={styles.directionsList} showsVerticalScrollIndicator={false}>
+                    {selectedRoute?.steps && selectedRoute.steps.map((step: any, index: number) => {
+                      const instruction = step.html_instructions.replace(/<[^>]*>/g, '');
+                      const isCurrentStep = isNavigating && index === currentStepIndex;
+                      const isCompletedStep = isNavigating && index < currentStepIndex;
+
+                      return (
+                        <View key={index} style={[
+                          styles.directionStep,
+                          isCurrentStep && styles.currentDirectionStep,
+                          isCompletedStep && styles.completedDirectionStep
+                        ]}>
+                          <View style={[
+                            styles.stepNumber,
+                            isCurrentStep && styles.currentStepNumber,
+                            isCompletedStep && styles.completedStepNumber
+                          ]}>
+                            {isCompletedStep ? (
+                              <Ionicons name="checkmark" size={12} color="#fff" />
+                            ) : (
+                              <Text style={[
+                                styles.stepNumberText,
+                                isCurrentStep && styles.currentStepNumberText
+                              ]}>
+                                {index + 1}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={styles.stepContent}>
+                            <Text style={[
+                              styles.stepInstruction,
+                              isCurrentStep && styles.currentStepInstruction,
+                              isCompletedStep && styles.completedStepInstruction
+                            ]}>
+                              {instruction}
+                            </Text>
+                            <Text style={[
+                              styles.stepDistance,
+                              isCurrentStep && styles.currentStepDistance,
+                              isCompletedStep && styles.completedStepDistance
+                            ]}>
+                              {step.distance.text}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -1062,50 +1644,46 @@ export default function MapScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedIncident(null)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedIncident?.title}</Text>
-              <TouchableOpacity onPress={() => setSelectedIncident(null)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.modalBody}>
-              <View style={styles.incidentInfo}>
-                <Ionicons 
-                  name={getIncidentIcon(selectedIncident?.type || '')} 
-                  size={24} 
-                  color={getIncidentColor(selectedIncident?.type || '')} 
-                />
-                <Text style={styles.incidentType}>
-                  {selectedIncident?.type ? selectedIncident.type.charAt(0).toUpperCase() + selectedIncident.type.slice(1) : ''}
-                </Text>
-              </View>
-              
-              <Text style={styles.incidentDescription}>{selectedIncident?.description}</Text>
-              <Text style={styles.incidentTime}>Reported: {selectedIncident?.time}</Text>
-              
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="navigate" size={20} color="#007AFF" />
-                  <Text style={styles.actionButtonText}>Navigate</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="share" size={20} color="#34C759" />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="flag" size={20} color="#FF9500" />
-                  <Text style={styles.actionButtonText}>Report</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+        <View style={styles.incidentContainer}>
+          <View style={styles.incidentInfo}>
+            <Ionicons
+              name={getIncidentIcon(selectedIncident?.type || '')}
+              size={24}
+              color={getIncidentColor(selectedIncident?.type || '')}
+            />
+            <Text style={styles.incidentType}>
+              {selectedIncident?.type
+                ? selectedIncident.type.charAt(0).toUpperCase() + selectedIncident.type.slice(1)
+                : ''}
+            </Text>
+          </View>
+
+          <Text style={styles.incidentDescription}>
+            {selectedIncident?.description}
+          </Text>
+          <Text style={styles.incidentTime}>
+            Reported: {selectedIncident?.time}
+          </Text>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.actionButton}>
+              <Ionicons name="navigate" size={20} color="#007AFF" />
+              <Text style={styles.actionButtonText}>Navigate</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton}>
+              <Ionicons name="share" size={20} color="#34C759" />
+              <Text style={styles.actionButtonText}>Share</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton}>
+              <Ionicons name="flag" size={20} color="#FF9500" />
+              <Text style={styles.actionButtonText}>Report</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
 
       {/* Filter Modal */}
       <Modal
@@ -1122,7 +1700,7 @@ export default function MapScreen() {
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.filterList}>
               <TouchableOpacity
                 style={[styles.filterOption, selectedIncidentType === 'all' && styles.filterOptionSelected]}
@@ -1153,9 +1731,9 @@ export default function MapScreen() {
                   <View style={styles.filterOptionContent}>
                     <View style={styles.filterOptionLeft}>
                       <View style={[styles.filterIconContainer, { backgroundColor: getIncidentColor(type) }]}>
-                        <Ionicons 
-                          name={getIncidentIcon(type)} 
-                          size={16} 
+                        <Ionicons
+                          name={getIncidentIcon(type)}
+                          size={16}
                           color="#fff"
                         />
                       </View>
@@ -1195,8 +1773,8 @@ export default function MapScreen() {
         <View style={styles.fullScreenContainer}>
           {/* Close Button */}
           <View style={styles.fullScreenTopBar}>
-            <TouchableOpacity 
-              style={styles.fullScreenCloseButton} 
+            <TouchableOpacity
+              style={styles.fullScreenCloseButton}
               onPress={() => setIsFullScreenMap(false)}
             >
               <Ionicons name="close" size={28} color="#fff" />
@@ -1210,20 +1788,49 @@ export default function MapScreen() {
                 latitude: userLocation.coords.latitude,
                 longitude: userLocation.coords.longitude
               }}
-              region={region}
+              userHeading={userHeading}
+              {...(region && { region })}
               incidents={filteredIncidents}
               showSafeRoute={showSafeRoute}
               destination={destinationCoords}
               useSafeRoute={useSafeRoute}
               onFullscreen={() => setIsFullScreenMap(true)}
               onMapPress={(latitude, longitude) => {
-                console.log('Map clicked at:', { latitude, longitude });
+                if (selectingOriginOnMap) {
+                  // Set origin to tapped location
+                  setOrigin(`Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+                  setOriginCoords({
+                    latitude,
+                    longitude,
+                    name: `Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+                  });
+                  setSelectingOriginOnMap(false);
+                  setIsFullScreenMap(false); // Close fullscreen when origin is set
+                  Alert.alert('Origin Set', 'Starting location has been set to the tapped location on the map.');
+                } else {
+                  console.log('Fullscreen map clicked at:', { latitude, longitude });
+                }
               }}
               routePolyline={selectedRoute?.polyline}
-              routeInfo={{
-                distanceMeters: selectedRoute?.distanceMeters,
-                durationSecs: selectedRoute?.durationSecs,
-                safetyScore: selectedRoute?.safetyScore
+              {...(selectedRoute && availableRoutes.length > 0 && {
+                routeInfo: {
+                  distanceMeters: selectedRoute.distanceMeters,
+                  durationSecs: selectedRoute.durationSecs,
+                  safetyScore: selectedRoute.safetyScore
+                }
+              })}
+              availableRoutes={availableRoutes}
+              onRouteSelect={(route, routeType) => {
+                setSelectedRoute({
+                  polyline: route.polyline,
+                  distanceMeters: route.distanceMeters,
+                  durationSecs: route.durationSecs,
+                  safetyScore: route.safetyScore,
+                  raw: route.rawRoute,
+                  steps: route.steps,
+                });
+                setRouteType(routeType);
+                setUseSafeRoute(routeType === 'safest');
               }}
             />
           ) : (
@@ -1236,8 +1843,52 @@ export default function MapScreen() {
             </View>
           )}
         </View>
+
+        {/* Navigation UI Overlay - Shows during turn-by-turn navigation */}
+        {isNavigating && selectedRoute?.steps && (
+          <View style={styles.navigationOverlay}>
+            <View style={styles.navigationCard}>
+              <View style={styles.navigationHeader}>
+                <View style={styles.stepIndicator}>
+                  <Text style={styles.navigationStepNumber}>{currentStepIndex + 1}</Text>
+                  <Text style={styles.stepTotal}>of {selectedRoute.steps.length}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.navigationCloseButton}
+                  onPress={stopNavigation}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.currentInstruction}>
+                <View style={styles.turnArrowContainer}>
+                  {getTurnIcon(selectedRoute.steps[currentStepIndex])}
+                </View>
+                <View style={styles.instructionTextContainer}>
+                  <Text style={styles.instructionText} numberOfLines={2}>
+                    {selectedRoute.steps[currentStepIndex]?.html_instructions.replace(/<[^>]*>/g, '') || 'Continue straight'}
+                  </Text>
+                  <Text style={styles.distanceText}>
+                    {selectedRoute.steps[currentStepIndex]?.distance?.text || 'Continue'}
+                  </Text>
+                </View>
+              </View>
+
+              {selectedRoute.steps[currentStepIndex + 1] && (
+                <View style={styles.nextInstruction}>
+                  <Ionicons name="arrow-forward" size={16} color="#666" />
+                  <Text style={styles.nextInstructionText} numberOfLines={1}>
+                    Then {selectedRoute.steps[currentStepIndex + 1]?.html_instructions.replace(/<[^>]*>/g, '')}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
       </Modal>
-  </SafeAreaView>
+
+    </SafeAreaView>
   );
 }
 
@@ -1465,6 +2116,18 @@ const styles = StyleSheet.create({
   modalBody: {
     gap: 16,
   },
+  incidentContainer: {
+    margin: 20,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+
   incidentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1532,7 +2195,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems:'center',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   locationStatus: {
@@ -1599,29 +2262,43 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e1e5e9',
+    position: 'relative',
     zIndex: 10, // keep dropdown visible
   },
   searchContainer: {
-    flex: 1, // takes up all space before button
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginHorizontal: 8,
+    marginTop: 16,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 100,
+  },
+  searchIcon: {
+    width: 32,
+    marginRight: 4,
+    alignItems: 'center',
+  },
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f9fb',
-    borderRadius: 25,
+    borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderWidth: 1.5,
+    paddingVertical: 2,
+    borderWidth: 1,
     borderColor: '#e8eaed',
-    marginRight: 12, // spacing before mic button
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    marginRight: 4,
+    flex: 1,
   },
   searchButton: {
     backgroundColor: '#007AFF',
@@ -1634,8 +2311,8 @@ const styles = StyleSheet.create({
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     backgroundColor: 'white',
   },
   suggestionIcon: {
@@ -1654,7 +2331,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  searchIcon: {
+  inputSearchIcon: {
     marginRight: 8,
   },
   clearButton: {
@@ -1663,28 +2340,11 @@ const styles = StyleSheet.create({
   },
   placesSearch: {
     flex: 1,
-    marginRight: 8,
   },
   clearSearchButton: {
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  micButton: {
-    backgroundColor: 'white',
-    borderRadius: 25,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 50,
-    height: 50,
-    borderWidth: 1.5,
-    borderColor: '#e8eaed',
   },
   // Filter Modal Styles
   filterModalContent: {
@@ -2214,5 +2874,372 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  directionsButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 8,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  directionsButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  speakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  speakButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  directionsList: {
+    maxHeight: 150,
+  },
+  directionStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepInstruction: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 18,
+  },
+  stepDistance: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  locationOptionsModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    maxHeight: '70%',
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    marginBottom: 12,
+  },
+  locationOptionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  locationOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  locationOptionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  cancelButton: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  directionsContainer: {
+    marginTop: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    maxHeight: 200,
+  },
+  directionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  directionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  directionsHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  navigationControls: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  startNavigationButton: {
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  startNavigationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  stopNavigationButton: {
+    backgroundColor: '#FF3B30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  stopNavigationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  currentStepContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  currentStepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  currentStepLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    flex: 1,
+  },
+  distanceToNext: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  currentStepText: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 22,
+  },
+  currentDirectionStep: {
+    backgroundColor: '#E3F2FD',
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  completedDirectionStep: {
+    opacity: 0.6,
+  },
+  currentStepNumber: {
+    backgroundColor: '#007AFF',
+  },
+  completedStepNumber: {
+    backgroundColor: '#34C759',
+  },
+  currentStepNumberText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  currentStepInstruction: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  completedStepInstruction: {
+    textDecorationLine: 'line-through',
+    color: '#666',
+  },
+  currentStepDistance: {
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  completedStepDistance: {
+    color: '#666',
+  },
+  locationOptionsInline: {
+    position: 'absolute',
+    top: 60, // Position below the search input
+    left: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1500,
+  },
+  locationOptionInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  locationOptionInlineText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+  },
+  // Navigation UI Styles
+  navigationOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  navigationCard: {
+    backgroundColor: '#fff',
+    margin: 16,
+    marginBottom: 40,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  navigationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  navigationStepNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  stepTotal: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 4,
+  },
+  navigationCloseButton: {
+    padding: 8,
+  },
+  currentInstruction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  turnArrowContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  instructionTextContainer: {
+    flex: 1,
+  },
+  instructionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    lineHeight: 24,
+  },
+  nextInstructionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    flex: 1,
+    marginLeft: 8,
+  },
+  distanceText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  nextInstruction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  compactActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  compactDirectionsButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  compactDirectionsText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
