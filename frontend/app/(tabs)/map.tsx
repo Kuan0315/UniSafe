@@ -156,6 +156,8 @@ export default function MapScreen() {
   const [showDirections, setShowDirections] = useState(false);
   const [showFromLocationOptions, setShowFromLocationOptions] = useState(false);
   const [selectingOriginOnMap, setSelectingOriginOnMap] = useState(false);
+  const [selectingOriginTimestamp, setSelectingOriginTimestamp] = useState<number | null>(null);
+  const [fitToRoute, setFitToRoute] = useState(false);
   const [availableRoutes, setAvailableRoutes] = useState<any[]>([]);
 
 
@@ -185,7 +187,8 @@ export default function MapScreen() {
 
         // Set up heading updates for compass
         subscriptions.heading = await Location.watchHeadingAsync((heading) => {
-          setUserHeading(heading.trueHeading || heading.magHeading);
+          const newHeading = heading.trueHeading || heading.magHeading;
+          setUserHeading(newHeading);
         });
 
         // Set up real-time location updates
@@ -199,17 +202,28 @@ export default function MapScreen() {
           (location) => {
             console.log('Location update:', location.coords);
             setUserLocation(location);
-            setRegion({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            });
+            
+            // Only update region if not showing full route view and no destination is set
+            if (!fitToRoute && !destinationCoords) {
+              setRegion({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              });
+            }
 
             // Update heading if available
             if (location.coords.heading !== null) {
               setUserHeading(location.coords.heading);
             }
+
+            // Check for nearby incidents
+            checkNearbyIncidents(
+              location.coords.latitude,
+              location.coords.longitude,
+              filteredIncidents
+            );
           }
         );
 
@@ -221,12 +235,15 @@ export default function MapScreen() {
         console.log('Initial location:', initialLocation.coords);
 
         setUserLocation(initialLocation);
-        setRegion({
-          latitude: initialLocation.coords.latitude,
-          longitude: initialLocation.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
+        // Only set initial region if not showing full route view and no destination is set
+        if (!fitToRoute && !destinationCoords) {
+          setRegion({
+            latitude: initialLocation.coords.latitude,
+            longitude: initialLocation.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
 
       } catch (error) {
         console.error('Error setting up location tracking:', error);
@@ -519,6 +536,67 @@ export default function MapScreen() {
     return closestStepIndex;
   };
 
+  // Calculate distance between two coordinates in meters
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+  };
+
+  // Check for nearby incidents and alert user
+  const checkNearbyIncidents = (userLat: number, userLng: number, incidents: Incident[]) => {
+    const alertDistance = 200; // Alert when within 200 meters of an incident
+
+    incidents.forEach(incident => {
+      const distance = calculateDistance(
+        userLat, userLng,
+        incident.location.latitude, incident.location.longitude
+      );
+
+      if (distance <= alertDistance) {
+        // Check if we haven't alerted for this incident recently
+        const alertKey = `incident_${incident.id}`;
+        const lastAlert = (global as any)[alertKey];
+
+        if (!lastAlert || (Date.now() - lastAlert) > 300000) { // 5 minutes cooldown
+          (global as any)[alertKey] = Date.now();
+
+          // Show alert
+          Alert.alert(
+            '⚠️ Safety Alert',
+            `${incident.severity.toUpperCase()} INCIDENT NEARBY:\n\n${incident.title}\n${incident.description}\n\nDistance: ${Math.round(distance)}m`,
+            [
+              {
+                text: 'View Details',
+                onPress: () => {
+                  setSelectedIncident(incident);
+                }
+              },
+              {
+                text: 'Dismiss',
+                style: 'cancel'
+              }
+            ]
+          );
+
+          // Speak alert for high severity incidents
+          if (incident.severity === 'high') {
+            speakPageTitle(`Warning: High severity incident nearby. ${incident.title}. ${Math.round(distance)} meters away.`);
+          }
+        }
+      }
+    });
+  };
+
   // Function to get distance to next turn
   const getDistanceToNextTurn = (userLat: number, userLng: number, currentStep: any) => {
     if (!currentStep || !currentStep.start_location) return null;
@@ -565,6 +643,17 @@ export default function MapScreen() {
     setIsNavigating(true);
     setCurrentStepIndex(0);
     setIsFullScreenMap(true); // Enable full-screen mode for navigation
+    setFitToRoute(false); // During navigation, follow user location
+    
+    // Center map on current location for navigation
+    if (userLocation) {
+      setRegion({
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
 
     try {
       // Announce start of navigation
@@ -650,6 +739,7 @@ export default function MapScreen() {
     setNextAnnouncementDistance(null);
     setIsFullScreenMap(false); // Disable full-screen mode
     setShowDirections(false); // Hide directions panel when stopping navigation
+    setFitToRoute(true); // Go back to showing full route when navigation stops
 
     if ((global as any).navigationSubscription) {
       (global as any).navigationSubscription.remove();
@@ -960,8 +1050,9 @@ export default function MapScreen() {
               <TouchableOpacity
                 style={styles.locationOptionInline}
                 onPress={() => {
-                  // Enable map selection mode
+                  console.log('Choose on map pressed, enabling selection mode');
                   setSelectingOriginOnMap(true);
+                  setSelectingOriginTimestamp(Date.now());
                   setShowFromLocationOptions(false);
                   Alert.alert('Choose on Map', 'Tap on the map to select your starting location');
                 }}
@@ -1041,10 +1132,31 @@ export default function MapScreen() {
             incidents={filteredIncidents}
             showSafeRoute={showSafeRoute}
             destination={destinationCoords}
+            origin={originCoords}
             useSafeRoute={useSafeRoute}
             onFullscreen={() => setIsFullScreenMap(true)}
             onMapPress={(latitude, longitude) => {
-              if (selectingOriginOnMap) {
+              const now = Date.now();
+              const timeSinceSelectionEnabled = selectingOriginTimestamp ? now - selectingOriginTimestamp : Infinity;
+              console.log('Map pressed, selectingOriginOnMap:', selectingOriginOnMap, 'time since enabled:', timeSinceSelectionEnabled, 'coords:', { latitude, longitude });
+              
+              // Ignore map presses that happen too soon after enabling selection mode (prevent spurious touches)
+              if (selectingOriginOnMap && timeSinceSelectionEnabled > 500) {
+                // Additional check: ignore presses that are too close to the user's current location
+                // to prevent accidental presses on the user marker
+                if (userLocation) {
+                  const distance = Math.sqrt(
+                    Math.pow(latitude - userLocation.coords.latitude, 2) +
+                    Math.pow(longitude - userLocation.coords.longitude, 2)
+                  );
+                  // If the press is within 0.0001 degrees (~11 meters) of user location, ignore it
+                  if (distance < 0.0001) {
+                    console.log('Ignoring map press too close to user location');
+                    return;
+                  }
+                }
+                
+                console.log('Setting origin from map press');
                 // Set origin to tapped location
                 setOrigin(`Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
                 setOriginCoords({
@@ -1053,12 +1165,16 @@ export default function MapScreen() {
                   name: `Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
                 });
                 setSelectingOriginOnMap(false);
+                setSelectingOriginTimestamp(null);
                 Alert.alert('Origin Set', 'Starting location has been set to the tapped location on the map.');
+              } else if (selectingOriginOnMap) {
+                console.log('Ignoring spurious map press too soon after enabling selection mode');
               } else {
                 console.log('Map clicked at:', { latitude, longitude });
               }
             }}
             routePolyline={selectedRoute?.polyline}
+            fitToRoute={fitToRoute}
             {...(selectedRoute && availableRoutes.length > 0 && {
               routeInfo: {
                 distanceMeters: selectedRoute.distanceMeters,
@@ -1078,6 +1194,7 @@ export default function MapScreen() {
               });
               setRouteType(routeType);
               setUseSafeRoute(routeType === 'safest');
+              setFitToRoute(true); // Fit map to show complete route
             }}
           />
         ) : (
@@ -1191,12 +1308,16 @@ export default function MapScreen() {
                       raw: firstRoute.fastest.rawRoute,
                       steps: firstRoute.fastest.steps,
                     });
+                    setRouteType('fastest');
+                    setUseSafeRoute(false);
+                    setFitToRoute(true); // Show full route view
                     setDestination(previewLocation!.name);
                     setDestinationCoords({
                       latitude: previewLocation!.latitude,
                       longitude: previewLocation!.longitude,
                       name: previewLocation!.name
                     });
+                    setOriginCoords(currentOrigin); // Set origin to show grey dot at route start
                     setShowSafeRoute(true);
                     setUseSafeRoute(false);
                     setShowTransportSelection(true);
@@ -1261,10 +1382,20 @@ export default function MapScreen() {
                         longitude: previewLocation!.longitude,
                         name: previewLocation!.name
                       });
+                      // Set origin coords to show grey dot at route start
+                      const routeOrigin = originCoords || (userLocation ? {
+                        latitude: userLocation.coords.latitude,
+                        longitude: userLocation.coords.longitude,
+                        name: 'Current Location'
+                      } : undefined);
+                      if (routeOrigin) {
+                        setOriginCoords(routeOrigin);
+                      }
                       setShowSafeRoute(true);
                       setUseSafeRoute(false);
                       setShowRouteOptions(false);
                       setShowTransportSelection(true);
+                      setFitToRoute(true); // Show full route view
                     }}
                   >
                     <View style={styles.routeOptionContent}>
@@ -1301,10 +1432,20 @@ export default function MapScreen() {
                         longitude: previewLocation!.longitude,
                         name: previewLocation!.name
                       });
+                      // Set origin coords to show grey dot at route start
+                      const routeOrigin = originCoords || (userLocation ? {
+                        latitude: userLocation.coords.latitude,
+                        longitude: userLocation.coords.longitude,
+                        name: 'Current Location'
+                      } : undefined);
+                      if (routeOrigin) {
+                        setOriginCoords(routeOrigin);
+                      }
                       setShowSafeRoute(true);
                       setUseSafeRoute(true);
                       setShowRouteOptions(false);
                       setShowTransportSelection(true);
+                      setFitToRoute(true); // Show full route view
                     }}
                   >
                     <View style={styles.routeOptionContent}>
@@ -1345,6 +1486,7 @@ export default function MapScreen() {
                 setShowRouteOptions(false);
                 setAvailableRoutes([]);
                 setSelectedRoute(null);
+                setFitToRoute(false); // Reset fit to route
                 setShowSafeRoute(false);
                 setDestination('');
                 setDestinationCoords(undefined);
@@ -1379,6 +1521,7 @@ export default function MapScreen() {
                       );
                       if (route) {
                         setSelectedRoute(route);
+                        setFitToRoute(true); // Show full route view
                       }
                     } catch (error) {
                       console.error('Error recalculating route:', error);
@@ -1407,6 +1550,7 @@ export default function MapScreen() {
                       );
                       if (route) {
                         setSelectedRoute(route);
+                        setFitToRoute(true); // Show full route view
                       }
                     } catch (error) {
                       console.error('Error recalculating route:', error);
@@ -1435,6 +1579,7 @@ export default function MapScreen() {
                       );
                       if (route) {
                         setSelectedRoute(route);
+                        setFitToRoute(true); // Show full route view
                       }
                     } catch (error) {
                       console.error('Error recalculating route:', error);
@@ -1471,6 +1616,7 @@ export default function MapScreen() {
                           raw: routeToSelect.rawRoute,
                           steps: routeToSelect.steps,
                         });
+                        setFitToRoute(true); // Show full route view
                       }
                     }
                   }
@@ -1793,10 +1939,31 @@ export default function MapScreen() {
               incidents={filteredIncidents}
               showSafeRoute={showSafeRoute}
               destination={destinationCoords}
+              origin={originCoords}
               useSafeRoute={useSafeRoute}
               onFullscreen={() => setIsFullScreenMap(true)}
               onMapPress={(latitude, longitude) => {
-                if (selectingOriginOnMap) {
+                const now = Date.now();
+                const timeSinceSelectionEnabled = selectingOriginTimestamp ? now - selectingOriginTimestamp : Infinity;
+                console.log('Fullscreen map pressed, selectingOriginOnMap:', selectingOriginOnMap, 'time since enabled:', timeSinceSelectionEnabled, 'coords:', { latitude, longitude });
+                
+                // Ignore map presses that happen too soon after enabling selection mode (prevent spurious touches)
+                if (selectingOriginOnMap && timeSinceSelectionEnabled > 500) {
+                  // Additional check: ignore presses that are too close to the user's current location
+                  // to prevent accidental presses on the user marker
+                  if (userLocation) {
+                    const distance = Math.sqrt(
+                      Math.pow(latitude - userLocation.coords.latitude, 2) +
+                      Math.pow(longitude - userLocation.coords.longitude, 2)
+                    );
+                    // If the press is within 0.0001 degrees (~11 meters) of user location, ignore it
+                    if (distance < 0.0001) {
+                      console.log('Ignoring fullscreen map press too close to user location');
+                      return;
+                    }
+                  }
+                  
+                  console.log('Setting origin from fullscreen map press');
                   // Set origin to tapped location
                   setOrigin(`Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
                   setOriginCoords({
@@ -1805,13 +1972,17 @@ export default function MapScreen() {
                     name: `Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
                   });
                   setSelectingOriginOnMap(false);
+                  setSelectingOriginTimestamp(null);
                   setIsFullScreenMap(false); // Close fullscreen when origin is set
                   Alert.alert('Origin Set', 'Starting location has been set to the tapped location on the map.');
+                } else if (selectingOriginOnMap) {
+                  console.log('Ignoring spurious fullscreen map press too soon after enabling selection mode');
                 } else {
                   console.log('Fullscreen map clicked at:', { latitude, longitude });
                 }
               }}
               routePolyline={selectedRoute?.polyline}
+              fitToRoute={fitToRoute}
               {...(selectedRoute && availableRoutes.length > 0 && {
                 routeInfo: {
                   distanceMeters: selectedRoute.distanceMeters,
@@ -1831,6 +2002,7 @@ export default function MapScreen() {
                 });
                 setRouteType(routeType);
                 setUseSafeRoute(routeType === 'safest');
+                setFitToRoute(true); // Fit map to show complete route
               }}
             />
           ) : (
@@ -1970,6 +2142,7 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     overflow: 'hidden',
+    marginTop: -120,
   },
   mapContainerNoSpacing: {
     flex: 1,
@@ -2271,10 +2444,12 @@ const styles = StyleSheet.create({
     zIndex: 10, // keep dropdown visible
   },
   searchContainer: {
+    position: 'absolute',
+    top: 70,
+    left: 8,
+    right: 8,
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginHorizontal: 8,
-    marginTop: 16,
     marginBottom: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -2443,19 +2618,19 @@ const styles = StyleSheet.create({
   },
   transportModeButton: {
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: '#007AFF',
     backgroundColor: '#fff',
-    minWidth: 80,
+    minWidth: 70,
   },
   transportModeActive: {
     backgroundColor: '#007AFF',
   },
   transportModeText: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: 6,
+    fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
   },
@@ -2470,13 +2645,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    gap: 6,
   },
   showRouteButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#fff',
   },
@@ -2495,15 +2670,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 10,
-    maxHeight: '40%',
+    maxHeight: '35%',
   },
   bottomLocationInfo: {
     flexDirection: 'row',
@@ -2618,43 +2793,43 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 15,
-    maxHeight: '40%',
+    maxHeight: '30%',
   },
   locationDetailsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   locationDetailsInfo: {
     flexDirection: 'row',
     flex: 1,
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 10,
   },
   locationDetailsText: {
     flex: 1,
   },
   locationDetailsName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 8,
-    lineHeight: 24,
+    marginBottom: 6,
+    lineHeight: 22,
   },
   locationDetailsDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   locationDetailsCloseButton: {
     padding: 4,
@@ -2665,10 +2840,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 6,
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -2676,7 +2851,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   getRouteButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#fff',
   },
@@ -2776,10 +2951,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -2790,7 +2965,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   compactLocationInfo: {
     flexDirection: 'row',
@@ -2799,7 +2974,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   compactLocationName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#333',
     flex: 1,
@@ -2811,16 +2986,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
   compactTransportModes: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   compactModeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3048,9 +3223,9 @@ const styles = StyleSheet.create({
   },
   currentStepContainer: {
     backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
     borderLeftWidth: 4,
     borderLeftColor: '#007AFF',
   },
@@ -3072,9 +3247,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   currentStepText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
-    lineHeight: 22,
+    lineHeight: 18,
   },
   currentDirectionStep: {
     backgroundColor: '#E3F2FD',
@@ -3146,10 +3321,10 @@ const styles = StyleSheet.create({
   },
   navigationCard: {
     backgroundColor: '#fff',
-    margin: 16,
-    marginBottom: 40,
-    borderRadius: 16,
-    padding: 20,
+    margin: 12,
+    marginBottom: 30,
+    borderRadius: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -3160,19 +3335,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   stepIndicator: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   navigationStepNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#007AFF',
   },
   stepTotal: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
     marginLeft: 4,
   },
@@ -3182,11 +3357,11 @@ const styles = StyleSheet.create({
   currentInstruction: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   turnArrowContainer: {
-    width: 60,
-    height: 60,
+    width: 65,
+    height: 65,
     borderRadius: 30,
     backgroundColor: '#007AFF',
     alignItems: 'center',
@@ -3197,28 +3372,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   instructionText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   nextInstructionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#666',
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   distanceText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#007AFF',
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 2,
   },
   nextInstruction: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },

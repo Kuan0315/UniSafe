@@ -22,9 +22,11 @@ interface GoogleMapsViewProps {
   showSafeRoute: boolean;
   onMapPress?: (latitude: number, longitude: number) => void;
   destination?: { latitude: number; longitude: number; name?: string };
+  origin?: { latitude: number; longitude: number; name?: string };
   useSafeRoute?: boolean;
   onFullscreen?: () => void;
   routePolyline?: { latitude: number; longitude: number }[];
+  fitToRoute?: boolean;
   routeInfo?: {
     distanceMeters?: number;
     durationSecs?: number;
@@ -51,9 +53,11 @@ export default function GoogleMapsView({
   onMapPress,
   region,
   destination,
+  origin,
   useSafeRoute = false,
   onFullscreen,
   routePolyline,
+  fitToRoute = false,
   routeInfo,
   availableRoutes = [],
   onRouteSelect,
@@ -74,9 +78,9 @@ export default function GoogleMapsView({
 
   const currentRegion = region || defaultRegion;
 
-  // Center map on user location when it changes
+  // Center map on user location when it changes (but not when showing full route or destination is set)
   useEffect(() => {
-    if (mapReady && userLocation && mapRef.current) {
+    if (mapReady && userLocation && mapRef.current && !fitToRoute && !destination) {
       mapRef.current.animateToRegion({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
@@ -84,15 +88,46 @@ export default function GoogleMapsView({
         longitudeDelta: 0.01,
       }, 1000);
     }
-  }, [userLocation, mapReady]);
+  }, [userLocation, mapReady, fitToRoute, destination]);
 
-  // Animate to region when it changes (for destination selection, etc.)
+  // Animate to region when it changes (for destination selection, etc.) - but not when showing full route
   useEffect(() => {
-    if (mapReady && region && mapRef.current) {
+    if (mapReady && region && mapRef.current && !fitToRoute) {
       console.log('🎯 Animating map to region:', region);
       mapRef.current.animateToRegion(region, 1000);
     }
-  }, [region, mapReady]);
+  }, [region, mapReady, fitToRoute]);
+
+  // Fit map to show entire route when fitToRoute becomes true
+  useEffect(() => {
+    if (fitToRoute && routePolyline && routePolyline.length > 0 && mapReady && mapRef.current) {
+      console.log('🎯 Fitting map to show full route, polyline length:', routePolyline.length);
+      // Use setTimeout to ensure this runs after any other animations
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.fitToCoordinates(routePolyline, {
+            edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
+            animated: true,
+          });
+        }
+      }, 200);
+    }
+  }, [fitToRoute]); // Only depend on fitToRoute to trigger immediately when it becomes true
+
+  // Also fit when routePolyline becomes available while fitToRoute is true
+  useEffect(() => {
+    if (fitToRoute && routePolyline && routePolyline.length > 0 && mapReady && mapRef.current) {
+      console.log('🎯 Fitting map to route (polyline updated), polyline length:', routePolyline.length);
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.fitToCoordinates(routePolyline, {
+            edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
+            animated: true,
+          });
+        }
+      }, 200);
+    }
+  }, [routePolyline]); // Trigger when routePolyline changes
 
   // Get directions when destination changes
   /*
@@ -235,7 +270,7 @@ export default function GoogleMapsView({
         initialRegion={currentRegion}
         {...(region && { region })}
         mapType={mapType}
-        showsUserLocation={true}
+        showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={true}
         showsScale={true}
@@ -252,7 +287,7 @@ export default function GoogleMapsView({
           }
         ]}
       >
-        {/* User Location Marker - Rotating Direction Arrow */}
+        {/* User Location Marker - Blue Dot with Direction Arrow */}
         {userLocation && (
           <Marker
             coordinate={userLocation}
@@ -261,11 +296,13 @@ export default function GoogleMapsView({
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.userLocationContainer}>
-              <View style={styles.directionArrowBackground}>
-                <View style={[styles.directionArrow, { transform: [{ rotate: `${userHeading}deg` }] }]}>
-                  <Ionicons name="navigate" size={16} color="white" />
-                </View>
-              </View>
+              {/* Blue dot in center */}
+              <View style={styles.userLocationDot} />
+              {/* Direction shadow extending from the dot */}
+              <View style={[
+                styles.directionShadow,
+                { transform: [{ rotate: `${userHeading || 0}deg` }] }
+              ]} />
             </View>
           </Marker>
         )}
@@ -311,23 +348,27 @@ export default function GoogleMapsView({
             description={incident.description}
             onPress={() => handleIncidentPress(incident)}
           >
-            <View style={[
-              styles.incidentMarker,
-              { backgroundColor: getIncidentColor(incident.type, incident.severity) }
-            ]}>
-              <Ionicons
-                name={getIncidentIcon(incident.type)}
-                size={18}
-                color="white"
-              />
-              {/* Severity indicator ring */}
-              <View style={[
-                styles.severityRing,
-                { borderColor: getSeverityRingColor(incident.severity) }
-              ]} />
-            </View>
+            <Ionicons
+              name={getIncidentIcon(incident.type)}
+              size={24}
+              color={getIncidentColor(incident.type, incident.severity)}
+            />
           </Marker>
         ))}
+
+        {/* Origin Marker - Grey Dot - positioned at route start when route is active */}
+        {((routePolyline && routePolyline.length > 0) || origin) && (
+          <Marker
+            coordinate={routePolyline && routePolyline.length > 0 ? routePolyline[0] : origin!}
+            title={(routePolyline && routePolyline.length > 0 ? "Route Start" : origin?.name) || "Starting Point"}
+            description="Route starting location"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.originMarker}>
+              <View style={styles.originDot} />
+            </View>
+          </Marker>
+        )}
 
         {/* Destination Marker - Flag Icon */}
         {destination && (
@@ -348,7 +389,7 @@ export default function GoogleMapsView({
         {routePolyline && routePolyline.length > 0 && (
           <Polyline
             coordinates={routePolyline}
-            strokeColor={useSafeRoute ? "#34C759" : "#007AFF"}
+            strokeColor={useSafeRoute ? "#00C853" : "#007AFF"}
             strokeWidth={6}
             geodesic={true}
           />
@@ -490,29 +531,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  incidentMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-  severityRing: {
-    position: 'absolute',
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 2,
-    top: -6,
-    left: -6,
-  },
   destinationMarker: {
     width: 44,
     height: 44,
@@ -531,7 +549,7 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    top: 50,
+    top: 160,
     right: 15,
     flexDirection: 'column',
     gap: 10,
@@ -653,23 +671,51 @@ const styles = StyleSheet.create({
   userLocationContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  directionArrowBackground: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  userLocationDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  arrowBackground: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
     elevation: 5,
   },
-  directionArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  directionShadow: {
+    position: 'absolute',
+    top: 8, // Start from the bottom of the blue dot
+    left: 8, // Center horizontally
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 20, // Length of the shadow
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: 'rgba(0, 122, 255, 0.9)', // More opaque blue for better visibility
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   flagContainer: {
     backgroundColor: 'white',
@@ -693,5 +739,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  originMarker: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#666',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  originDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#666',
+    borderWidth: 1,
+    borderColor: 'white',
   },
 });
