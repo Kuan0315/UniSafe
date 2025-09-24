@@ -25,6 +25,9 @@ interface GoogleMapsViewProps {
   origin?: { latitude: number; longitude: number; name?: string };
   useSafeRoute?: boolean;
   onFullscreen?: () => void;
+  showFilterButton?: boolean;
+  onFilterPress?: () => void;
+  hasActiveFilter?: boolean;
   routePolyline?: { latitude: number; longitude: number }[];
   fitToRoute?: boolean;
   routeInfo?: {
@@ -56,6 +59,9 @@ export default function GoogleMapsView({
   origin,
   useSafeRoute = false,
   onFullscreen,
+  showFilterButton,
+  onFilterPress,
+  hasActiveFilter,
   routePolyline,
   fitToRoute = false,
   routeInfo,
@@ -398,6 +404,19 @@ export default function GoogleMapsView({
 
       {/* Map Controls */}
       <View style={styles.controls}>
+        {showFilterButton && (
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={onFilterPress}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="filter" size={24} color="#007AFF" />
+            {hasActiveFilter && (
+              <View style={styles.filterIndicator} />
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.controlButton}
           onPress={toggleMapType}
@@ -762,5 +781,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#666',
     borderWidth: 1,
     borderColor: 'white',
+  },
+  filterIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF9500',
   },
 });

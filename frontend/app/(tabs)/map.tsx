@@ -979,9 +979,6 @@ export default function MapScreen() {
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <AppHeader
         title="Map"
-        showFilterButton={true}
-        onFilterPress={() => setShowFilterModal(true)}
-        hasActiveFilter={selectedIncidentType !== 'all'}
       />
 
       {/* Search Inputs - Hide when directions, route options, or transport selection panels are shown */}
@@ -1196,6 +1193,9 @@ export default function MapScreen() {
               setUseSafeRoute(routeType === 'safest');
               setFitToRoute(true); // Fit map to show complete route
             }}
+            showFilterButton={true}
+            onFilterPress={() => setShowFilterModal(true)}
+            hasActiveFilter={selectedIncidentType !== 'all'}
           />
         ) : (
           <View style={styles.mapPlaceholder}>
@@ -2004,6 +2004,9 @@ export default function MapScreen() {
                 setUseSafeRoute(routeType === 'safest');
                 setFitToRoute(true); // Fit map to show complete route
               }}
+              showFilterButton={true}
+              onFilterPress={() => setShowFilterModal(true)}
+              hasActiveFilter={selectedIncidentType !== 'all'}
             />
           ) : (
             <View style={styles.mapPlaceholder}>
@@ -2445,7 +2448,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     position: 'absolute',
-    top: 70,
+    top: 50,
     left: 8,
     right: 8,
     backgroundColor: '#fff',
