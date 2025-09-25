@@ -1748,8 +1748,17 @@ export default function MapScreen() {
 
                     {/* Navigation Guardian Mode Button */}
                     <TouchableOpacity
-                      style={[styles.startNavigationButton, { width: 285, alignItems: 'center', backgroundColor: '#34C759' }]}
-                      onPress={startGuardianModeNavigation}
+                      style={[styles.startNavigationButton, { width: 285, alignItems: 'center', backgroundColor: '#34C759', opacity: origin === 'Current Location' ? 1 : 0.5 }]}
+                      onPress={() => {
+                        if (origin === 'Current Location') {
+                          startGuardianModeNavigation();
+                        } else {
+                          Alert.alert(
+                            "Guardian Mode Unavailable",
+                            "You must set your starting location as Current Location to use Guardian Mode."
+                          );
+                        }
+                      }}
                     >
                       <Ionicons name="shield-checkmark" size={16} color="#fff" />
                       <Text style={styles.startNavigationText}>Start Navigation with Guardian Mode</Text>
