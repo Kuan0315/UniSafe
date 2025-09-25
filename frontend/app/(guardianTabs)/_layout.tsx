@@ -15,9 +15,9 @@ export default function GuardianLayout() {
       }}
     >
       <Tabs.Screen
-        name="guardianMode"
+        name="guardianTrackingScreen"
         options={{
-          title: "Guardian Mode",
+          title: "Guardian Tracking",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="shield-outline" size={size} color={color} />
           ),

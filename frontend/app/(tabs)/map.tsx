@@ -744,6 +744,11 @@ export default function MapScreen() {
     if ((global as any).navigationSubscription) {
       (global as any).navigationSubscription.remove();
     }
+
+    if ((global as any).guardianSubscription) {
+      (global as any).guardianSubscription.remove();
+      delete (global as any).guardianSubscription;
+    }
   };
 
   // Speak directions functionality
@@ -792,6 +797,82 @@ export default function MapScreen() {
       totalSteps: selectedRoute.steps.length,
       distanceToNext: nextAnnouncementDistance
     };
+  };
+
+  // Guardian Mode Navigation
+  const startGuardianModeNavigation = async () => {
+    if (!selectedRoute?.steps || selectedRoute.steps.length === 0 || !userLocation) {
+      Alert.alert('No route', 'Please select a route first');
+      return;
+    }
+
+    setIsNavigating(true);
+    setCurrentStepIndex(0);
+    setIsFullScreenMap(true);
+    setFitToRoute(false);
+
+    if (userLocation) {
+      setRegion({
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+
+    try {
+      await speakPageTitle('Starting Guardian Mode Navigation. Safety alerts and live location sharing enabled.');
+
+      // Start tracking location & share with guardian
+      const guardianSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 5000, // send every 5s
+          distanceInterval: 10, // or every 10m
+        },
+        async (location) => {
+          const { latitude, longitude } = location.coords;
+          await shareLocationWithGuardian(latitude, longitude);
+        }
+      );
+
+      // Keep subscription for cleanup
+      (global as any).guardianSubscription = guardianSubscription;
+
+      // Start normal navigation flow
+      startTurnByTurnNavigation();
+
+    } catch (error) {
+      console.error('Error starting Guardian Mode navigation:', error);
+      Alert.alert('Navigation Error', 'Unable to start Guardian Mode navigation');
+      setIsNavigating(false);
+    }
+  };
+
+  // Function to send live location to guardian
+  const shareLocationWithGuardian = async (latitude: number, longitude: number) => {
+    try {
+      const response = await fetch("https://your-api.com/guardian/share-location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: "12345", // Replace with actual logged-in user ID
+          latitude,
+          longitude,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("❌ Failed to share location:", response.statusText);
+      } else {
+        console.log("✅ Location shared with guardian");
+      }
+    } catch (error) {
+      console.error("🚨 Error sharing location:", error);
+    }
   };
 
   // --- TEST FUNCTION: Debug routing issues ---
@@ -1656,13 +1737,24 @@ export default function MapScreen() {
               {/* Navigation Controls */}
               <View style={styles.navigationControls}>
                 {!isNavigating ? (
-                  <TouchableOpacity
-                    style={styles.startNavigationButton}
-                    onPress={startTurnByTurnNavigation}
-                  >
-                    <Ionicons name="navigate" size={16} color="#fff" />
-                    <Text style={styles.startNavigationText}>Start Navigation</Text>
-                  </TouchableOpacity>
+                  <View style={{ alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={[styles.startNavigationButton, { width: 285, alignItems: 'center', marginBottom: 8 }]}
+                      onPress={startTurnByTurnNavigation}
+                    >
+                      <Ionicons name="navigate" size={16} color="#fff" />
+                      <Text style={styles.startNavigationText}>Start Navigation</Text>
+                    </TouchableOpacity>
+
+                    {/* Navigation Guardian Mode Button */}
+                    <TouchableOpacity
+                      style={[styles.startNavigationButton, { width: 285, alignItems: 'center', backgroundColor: '#34C759' }]}
+                      onPress={startGuardianModeNavigation}
+                    >
+                      <Ionicons name="shield-checkmark" size={16} color="#fff" />
+                      <Text style={styles.startNavigationText}>Start Navigation with Guardian Mode</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.stopNavigationButton}
@@ -3199,6 +3291,7 @@ const styles = StyleSheet.create({
   startNavigationButton: {
     backgroundColor: '#007AFF',
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
