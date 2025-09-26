@@ -171,7 +171,7 @@ export default function SignupScreen() {
         <Text style={styles.buttonText}>{isSubmitting ? "Signing up..." : "Sign Up"}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.replace("/")}>
+      <TouchableOpacity onPress={() => router.replace("/login")}>
         <Text style={styles.link}>Already have an account? Log in</Text>
       </TouchableOpacity>
 
