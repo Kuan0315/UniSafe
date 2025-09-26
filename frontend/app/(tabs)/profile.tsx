@@ -50,16 +50,12 @@ export default function ProfileScreen() {
   const [showChatbotModal, setShowChatbotModal] = useState(false);
   const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>('fake-call'); // New alarm type setting
   const [showAlarmTypeDropdown, setShowAlarmTypeDropdown] = useState(false);
-  const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [showThemeModal, setShowThemeModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [chatbotQuery, setChatbotQuery] = useState('');
   const [chatbotResponse, setChatbotResponse] = useState('');
   const [anonymousMode, setAnonymousMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationSharing, setLocationSharing] = useState(true);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [selectedTheme, setSelectedTheme] = useState('Light');
 
   // New contact/emergency form states
   const [newContactName, setNewContactName] = useState('');
@@ -510,9 +506,6 @@ export default function ProfileScreen() {
                 >
                   <Ionicons name="call" size={16} color="#34C759" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.contactActionButton}>
-                  <Ionicons name="location" size={16} color="#007AFF" />
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.contactActionButton}
                   onPress={() => handleRemoveContact(contact.id)}
@@ -529,20 +522,6 @@ export default function ProfileScreen() {
         {/* App Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Settings</Text>
-
-          <TouchableOpacity style={styles.settingButton} onPress={() => setShowLanguageModal(true)}>
-            <Ionicons name="language" size={20} color="#666" />
-            <Text style={styles.settingButtonText}>Language</Text>
-            <Text style={styles.settingValue}>{selectedLanguage}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingButton} onPress={() => setShowThemeModal(true)}>
-            <Ionicons name="color-palette" size={20} color="#666" />
-            <Text style={styles.settingButtonText}>Theme</Text>
-            <Text style={styles.settingValue}>{selectedTheme}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingButton} onPress={() => setShowTermsModal(true)}>
             <Ionicons name="document-text" size={20} color="#666" />
@@ -621,81 +600,6 @@ export default function ProfileScreen() {
       </Modal>
 
 
-
-      {/* Language Modal */}
-      <Modal
-        visible={showLanguageModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Select Language</Text>
-            <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalContent}>
-            {['English', 'Spanish', 'French', 'German', 'Chinese', 'Arabic'].map((language) => (
-              <TouchableOpacity
-                key={language}
-                style={styles.languageOption}
-                onPress={() => {
-                  setSelectedLanguage(language);
-                  setShowLanguageModal(false);
-                }}
-              >
-                <Text style={styles.languageText}>{language}</Text>
-                {selectedLanguage === language && (
-                  <Ionicons name="checkmark" size={20} color="#007AFF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Theme Modal */}
-      <Modal
-        visible={showThemeModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Select Theme</Text>
-            <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalContent}>
-            {['Light', 'Dark', 'Auto'].map((theme) => (
-              <TouchableOpacity
-                key={theme}
-                style={styles.themeOption}
-                onPress={() => {
-                  setSelectedTheme(theme);
-                  setShowThemeModal(false);
-                }}
-              >
-                <View style={[styles.themePreview, { backgroundColor: theme === 'Light' ? '#fff' : theme === 'Dark' ? '#1a1a1a' : '#f0f0f0' }]}>
-                  <View style={[styles.themeDot, { backgroundColor: theme === 'Light' ? '#007AFF' : theme === 'Dark' ? '#fff' : '#007AFF' }]} />
-                </View>
-                <Text style={styles.themeText}>{theme}</Text>
-                {selectedTheme === theme && (
-                  <Ionicons name="checkmark" size={20} color="#007AFF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SafeAreaView>
-      </Modal>
 
       {/* Terms & Privacy Modal */}
       <Modal

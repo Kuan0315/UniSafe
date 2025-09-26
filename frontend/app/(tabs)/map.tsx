@@ -1891,42 +1891,44 @@ export default function MapScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedIncident(null)}
       >
-        <View style={styles.incidentContainer}>
-          <View style={styles.incidentInfo}>
-            <Ionicons
-              name={getIncidentIcon(selectedIncident?.type || '')}
-              size={24}
-              color={getIncidentColor(selectedIncident?.type || '')}
-            />
-            <Text style={styles.incidentType}>
-              {selectedIncident?.type
-                ? selectedIncident.type.charAt(0).toUpperCase() + selectedIncident.type.slice(1)
-                : ''}
+        <View style={styles.modalOverlay}>
+          <View style={styles.incidentContainer}>
+            <View style={styles.incidentInfo}>
+              <Ionicons
+                name={getIncidentIcon(selectedIncident?.type || '')}
+                size={24}
+                color={getIncidentColor(selectedIncident?.type || '')}
+              />
+              <Text style={styles.incidentType}>
+                {selectedIncident?.type
+                  ? selectedIncident.type.charAt(0).toUpperCase() + selectedIncident.type.slice(1)
+                  : ''}
+              </Text>
+            </View>
+
+            <Text style={styles.incidentDescription}>
+              {selectedIncident?.description}
             </Text>
-          </View>
+            <Text style={styles.incidentTime}>
+              Reported: {selectedIncident?.time}
+            </Text>
 
-          <Text style={styles.incidentDescription}>
-            {selectedIncident?.description}
-          </Text>
-          <Text style={styles.incidentTime}>
-            Reported: {selectedIncident?.time}
-          </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="navigate" size={20} color="#007AFF" />
+                <Text style={styles.actionButtonText}>Navigate</Text>
+              </TouchableOpacity>
 
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="navigate" size={20} color="#007AFF" />
-              <Text style={styles.actionButtonText}>Navigate</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="share" size={20} color="#34C759" />
+                <Text style={styles.actionButtonText}>Share</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="share" size={20} color="#34C759" />
-              <Text style={styles.actionButtonText}>Share</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="flag" size={20} color="#FF9500" />
-              <Text style={styles.actionButtonText}>Report</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton}>
+                <Ionicons name="flag" size={20} color="#FF9500" />
+                <Text style={styles.actionButtonText}>Report</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

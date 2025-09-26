@@ -188,13 +188,15 @@ export default function Index() {
               </Text>
             </TouchableOpacity>
 
-            <Text 
-              style={styles.link} 
-              onPress={() => router.push("/(auth)/signup")}
-              accessibilityRole="link"
-            >
-              New to UniSafe? Sign up
-            </Text>
+            {role === "guardian" && (
+              <Text 
+                style={styles.link} 
+                onPress={() => router.push("/(auth)/signup")}
+                accessibilityRole="link"
+              >
+                New to UniSafe? Sign up
+              </Text>
+            )}
           </View>
 
           {/* Footer */}

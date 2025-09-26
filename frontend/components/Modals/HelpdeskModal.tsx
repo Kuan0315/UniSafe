@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 interface HelpdeskModalProps {
   visible: boolean;
   onClose: () => void;
-  onContactHelpdesk: (method: 'call' | 'chat' | 'email') => void;
+  onContactHelpdesk: (method: 'call' | 'email') => void;
 }
 
 const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
@@ -91,7 +91,7 @@ const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
     // Optional: Show brief feedback that email app was opened
   };
 
-  const handleGeneralContact = (method: 'call' | 'chat' | 'email') => {
+  const handleGeneralContact = (method: 'call' | 'email') => {
     onContactHelpdesk(method);
   };
 
@@ -134,13 +134,6 @@ const HelpdeskModal: React.FC<HelpdeskModalProps> = ({
               >
                 <Ionicons name="call" size={24} color="#007AFF" />
                 <Text style={styles.quickContactText}>Call Now</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.quickContactButton}
-                onPress={() => handleGeneralContact('chat')}
-              >
-                <Ionicons name="chatbubbles" size={24} color="#34C759" />
-                <Text style={styles.quickContactText}>Live Chat</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.quickContactButton}
