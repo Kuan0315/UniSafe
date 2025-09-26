@@ -66,7 +66,7 @@ export default function Index() {
       await login({ email, password, role: role as any });
 
       if (role === "guardian") {
-        router.replace("/(guardianTabs)/guardianMode");
+        router.replace("/(guardianTabs)/guardianTrackingScreen");
       } else if (role === "staff") {
         router.replace("/staff/sos-monitoring"); // Redirect staff to staff layout
       } else {

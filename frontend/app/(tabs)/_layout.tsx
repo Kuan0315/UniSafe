@@ -34,9 +34,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="guardian"
+        name="friendTrackingScreen"
         options={{
-          title: "Guardian",
+          title: "Friend Tracking",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="shield-checkmark-outline" color={color} size={size} />
           ),

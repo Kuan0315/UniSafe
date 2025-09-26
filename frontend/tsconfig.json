@@ -6,12 +6,17 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "skipLibCheck": true      // <--- ignore type errors in node_modules
+    "skipLibCheck": true,      // <--- ignore type errors in node_modules
+    "typeRoots": [
+      "./types",
+      "./node_modules/@types"
+    ]
   },
   "include": [
     "env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "types",
     "services/guardianService.js",],
   "exclude": ["node_modules"]
 }
