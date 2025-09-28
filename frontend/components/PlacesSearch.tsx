@@ -4,7 +4,7 @@ import {
   TextInput,
   Text,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   Keyboard,
@@ -323,17 +323,18 @@ export default function PlacesSearch({
         <View 
           style={[styles.suggestionsContainer, { zIndex: suggestionsZIndex }]}
         >
-          <FlatList
-            data={predictions}
-            renderItem={renderPrediction}
-            keyExtractor={(item) => item.place_id}
+          <ScrollView
             style={styles.suggestionsList}
             keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
-            scrollEnabled={true}
-            extraData={predictions}
-          />
+          >
+            {predictions.map((item) => (
+              <React.Fragment key={item.place_id}>
+                {renderPrediction({ item })}
+              </React.Fragment>
+            ))}
+          </ScrollView>
         </View>
       )}
 
