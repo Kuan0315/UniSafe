@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ScrollView, Modal } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from "../../contexts/AuthContext";
-import { University } from "../../types";
+//import { University } from "../../types";
 
+/*
 // Malaysian Universities Data
 const MALAYSIAN_UNIVERSITIES: University[] = [
   {
@@ -64,6 +65,7 @@ const MALAYSIAN_UNIVERSITIES: University[] = [
     coverageRadius: 1,
   }
 ];
+*/
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -72,18 +74,21 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
-  const [showUniversityModal, setShowUniversityModal] = useState(false);
+  //const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+  //const [showUniversityModal, setShowUniversityModal] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function validate(): string | null {
     if (!fullName.trim()) return "Full name is required";
     if (!email.trim()) return "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email";
+    if (!phoneNumber.trim()) return "Phone number is required";
+    if (!/^[0-9]{9,15}$/.test(phoneNumber)) return "Enter a valid phone number";
     if (!password) return "Password is required";
     if (password.length < 6) return "Password must be at least 6 characters";
     if (password !== confirmPassword) return "Passwords do not match";
-    if (!selectedUniversity) return "Please select your university";
+    //if (!selectedUniversity) return "Please select your university";
     return null;
   }
 
@@ -99,10 +104,10 @@ export default function SignupScreen() {
         email,
         password,
         name: fullName,
-        role: 'student', // Default role for signup
-        university: selectedUniversity!,
+        role: 'guardian', // Default role for signup
+        phone: phoneNumber,
       });
-      router.replace("/(tabs)/map");
+      router.replace("/login");
     } catch (e: any) {
       Alert.alert("Sign up failed", e.message || "Please try again.");
     } finally {
@@ -139,16 +144,14 @@ export default function SignupScreen() {
         placeholderTextColor="#999"
       />
 
-      {/* University Selector */}
-      <TouchableOpacity
-        style={styles.universitySelector}
-        onPress={() => setShowUniversityModal(true)}
-      >
-        <Text style={[styles.universitySelectorText, !selectedUniversity && styles.placeholder]}>
-          {selectedUniversity ? selectedUniversity.name : "Select your university"}
-        </Text>
-        <Ionicons name="chevron-down" size={20} color="#666" />
-      </TouchableOpacity>
+      <TextInput
+        style={styles.input}
+        placeholder="Phone number"
+        keyboardType="phone-pad"
+        value={phoneNumber}
+        onChangeText={setPhoneNumber}
+        placeholderTextColor="#999"
+      />
 
       <TextInput
         style={styles.input}
@@ -174,51 +177,6 @@ export default function SignupScreen() {
       <TouchableOpacity onPress={() => router.replace("/login")}>
         <Text style={styles.link}>Already have an account? Log in</Text>
       </TouchableOpacity>
-
-      {/* University Selection Modal */}
-      <Modal
-        visible={showUniversityModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowUniversityModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Your University</Text>
-              <TouchableOpacity onPress={() => setShowUniversityModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.universityList}>
-              {MALAYSIAN_UNIVERSITIES.map((university) => (
-                <TouchableOpacity
-                  key={university.id}
-                  style={[
-                    styles.universityItem,
-                    selectedUniversity?.id === university.id && styles.universityItemSelected
-                  ]}
-                  onPress={() => {
-                    setSelectedUniversity(university);
-                    setShowUniversityModal(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.universityItemText,
-                    selectedUniversity?.id === university.id && styles.universityItemTextSelected
-                  ]}>
-                    {university.name}
-                  </Text>
-                  {selectedUniversity?.id === university.id && (
-                    <Ionicons name="checkmark" size={20} color="#047857" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
     </ScrollView>
   );
