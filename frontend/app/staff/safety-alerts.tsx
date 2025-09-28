@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -15,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import StandardHeader from '../../components/StandardHeader';
+import PlacesSearch from '../../components/PlacesSearch';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface SafetyAlert {
@@ -35,6 +37,14 @@ interface SafetyAlert {
   sendPushNotification: boolean;
   sendEmail: boolean;
   sendSMS: boolean;
+  // New location fields
+  alertScope: 'campus-wide' | 'location-specific';
+  location?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    radius?: number; // Radius in meters for location-based alerts
+  };
 }
 
 export default function SafetyAlerts() {
@@ -55,6 +65,11 @@ export default function SafetyAlerts() {
   const [sendPushNotification, setSendPushNotification] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [sendSMS, setSendSMS] = useState(false);
+  const [alertScope, setAlertScope] = useState<'campus-wide' | 'location-specific'>('campus-wide');
+  const [alertLocation, setAlertLocation] = useState('');
+  const [alertLatitude, setAlertLatitude] = useState<number | null>(null);
+  const [alertLongitude, setAlertLongitude] = useState<number | null>(null);
+  const [alertRadius, setAlertRadius] = useState<number>(200); // Default 200 meters
   
   // Date/Time picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -85,6 +100,7 @@ export default function SafetyAlerts() {
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: true,
+          alertScope: 'campus-wide',
         },
         {
           id: '2',
@@ -103,6 +119,7 @@ export default function SafetyAlerts() {
           sendPushNotification: true,
           sendEmail: false,
           sendSMS: false,
+          alertScope: 'campus-wide',
         },
         {
           id: '3',
@@ -121,6 +138,13 @@ export default function SafetyAlerts() {
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
+          alertScope: 'location-specific',
+          location: {
+            latitude: 3.1201,
+            longitude: 101.6544,
+            address: 'Parking Lot B, University Campus',
+            radius: 200, // 200 meters radius
+          },
         },
         {
           id: '4',
@@ -138,6 +162,7 @@ export default function SafetyAlerts() {
           sendPushNotification: true,
           sendEmail: true,
           sendSMS: false,
+          alertScope: 'campus-wide',
         },
       ];
 
@@ -165,6 +190,11 @@ export default function SafetyAlerts() {
     setSendPushNotification(alert.sendPushNotification);
     setSendEmail(alert.sendEmail);
     setSendSMS(alert.sendSMS);
+    setAlertScope(alert.alertScope);
+    setAlertLocation(alert.location?.address || '');
+    setAlertLatitude(alert.location?.latitude || null);
+    setAlertLongitude(alert.location?.longitude || null);
+    setAlertRadius(alert.location?.radius || 200);
     setEditingAlert(alert);
     setModalVisible(true);
   };
@@ -180,6 +210,11 @@ export default function SafetyAlerts() {
     setSendPushNotification(true);
     setSendEmail(false);
     setSendSMS(false);
+    setAlertScope('campus-wide');
+    setAlertLocation('');
+    setAlertLatitude(null);
+    setAlertLongitude(null);
+    setAlertRadius(200);
   };
 
   const saveAlert = async () => {
@@ -207,6 +242,13 @@ export default function SafetyAlerts() {
         sendPushNotification,
         sendEmail,
         sendSMS,
+        alertScope,
+        location: alertScope === 'location-specific' && alertLatitude && alertLongitude ? {
+          latitude: alertLatitude,
+          longitude: alertLongitude,
+          address: alertLocation || undefined,
+          radius: alertRadius,
+        } : undefined,
       };
 
       if (editingAlert) {
@@ -409,12 +451,24 @@ export default function SafetyAlerts() {
       </View>
 
       {/* Alerts List */}
-      <ScrollView style={styles.alertsList}>
-        <Text style={styles.sectionTitle}>Recent Alerts</Text>
-        
-        {alerts.map((alert) => (
+      <FlatList
+        style={styles.alertsList}
+        data={alerts}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={() => (
+          <Text style={styles.sectionTitle}>Recent Alerts</Text>
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Ionicons name="megaphone-outline" size={64} color="#8E8E93" />
+            <Text style={styles.emptyStateTitle}>No alerts created</Text>
+            <Text style={styles.emptyStateText}>
+              Create your first safety alert to notify campus users.
+            </Text>
+          </View>
+        )}
+        renderItem={({ item: alert }) => (
           <View
-            key={alert.id}
             style={[
               styles.alertCard,
               !alert.isActive && styles.alertCardInactive,
@@ -423,10 +477,10 @@ export default function SafetyAlerts() {
           >
             <View style={styles.alertHeader}>
               <View style={styles.alertTypeIcon}>
-                <Ionicons 
-                  name={getTypeIcon(alert.type)} 
-                  size={24} 
-                  color={getTypeColor(alert.type)} 
+                <Ionicons
+                  name={getTypeIcon(alert.type)}
+                  size={24}
+                  color={getTypeColor(alert.type)}
                 />
               </View>
               <View style={styles.alertInfo}>
@@ -497,10 +551,10 @@ export default function SafetyAlerts() {
                 ]}
                 onPress={() => toggleAlertStatus(alert.id)}
               >
-                <Ionicons 
-                  name={alert.isActive ? "pause-circle" : "play-circle"} 
-                  size={16} 
-                  color={alert.isActive ? "#FF9500" : "#34C759"} 
+                <Ionicons
+                  name={alert.isActive ? "pause-circle" : "play-circle"}
+                  size={16}
+                  color={alert.isActive ? "#FF9500" : "#34C759"}
                 />
                 <Text style={[
                   styles.actionButtonText,
@@ -519,18 +573,8 @@ export default function SafetyAlerts() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
-
-        {alerts.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="megaphone-outline" size={64} color="#8E8E93" />
-            <Text style={styles.emptyStateTitle}>No alerts created</Text>
-            <Text style={styles.emptyStateText}>
-              Create your first safety alert to notify campus users.
-            </Text>
-          </View>
         )}
-      </ScrollView>
+      />
 
       {/* Floating Action Button */}
       <TouchableOpacity style={styles.fab} onPress={openCreateModal}>
@@ -651,6 +695,55 @@ export default function SafetyAlerts() {
                   value={category}
                   onChangeText={setCategory}
                 />
+
+                <Text style={styles.inputLabel}>Alert Scope</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsContainer}>
+                  {(['campus-wide', 'location-specific'] as const).map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.optionButton,
+                        alertScope === option && styles.optionButtonActive,
+                        { backgroundColor: alertScope === option ? '#007AFF' : '#F2F2F7' }
+                      ]}
+                      onPress={() => setAlertScope(option)}
+                    >
+                      <Text style={[
+                        styles.optionButtonText,
+                        alertScope === option && styles.optionButtonTextActive
+                      ]}>
+                        {option === 'campus-wide' ? 'Campus Wide' : 'Location Specific'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {alertScope === 'location-specific' && (
+                  <View style={styles.locationSection}>
+                    <Text style={styles.inputLabel}>Location Address</Text>
+                    <PlacesSearch
+                      placeholder="Search for alert location"
+                      value={alertLocation}
+                      onPlaceSelected={(place) => {
+                        console.log('Alert location selected:', place);
+                        setAlertLocation(place.description);
+                        setAlertLatitude(place.latitude);
+                        setAlertLongitude(place.longitude);
+                      }}
+                      onChangeText={setAlertLocation}
+                      style={styles.locationSearchInput}
+                    />
+
+                    <Text style={styles.inputLabel}>Alert Radius (meters)</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Radius in meters (default: 200)"
+                      value={alertRadius.toString()}
+                      onChangeText={(text) => setAlertRadius(text ? parseInt(text) : 200)}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
 
                 <Text style={styles.inputLabel}>Time Limit (Auto-Deactivation)</Text>
                 <View style={styles.timeLimitContainer}>
@@ -1200,5 +1293,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+  },
+  locationSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  coordinatesContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  locationSearchInput: {
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1a1a1a',
+    backgroundColor: '#f8f9fa',
+    marginBottom: 16,
   },
 });

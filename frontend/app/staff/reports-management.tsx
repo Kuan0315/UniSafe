@@ -965,11 +965,6 @@ export default function ReportsManagement() {
                   <Ionicons name="location" size={16} color="#007AFF" />
                   <Text style={styles.modalLocationText}>{selectedReport.location}</Text>
                 </View>
-                {selectedReport.coordinatesLat && selectedReport.coordinatesLng && (
-                  <Text style={styles.coordinatesText}>
-                    Coordinates: {selectedReport.coordinatesLat.toFixed(6)}, {selectedReport.coordinatesLng.toFixed(6)}
-                  </Text>
-                )}
               </View>
 
               {/* Reporter Information */}

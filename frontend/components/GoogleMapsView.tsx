@@ -19,6 +19,22 @@ interface GoogleMapsViewProps {
     time: string;
     severity: string;
   }>;
+  safetyAlerts?: Array<{
+    id: string;
+    title: string;
+    message: string;
+    type: 'critical' | 'warning' | 'info';
+    priority: 'high' | 'medium' | 'low';
+    alertScope: 'campus-wide' | 'location-specific';
+    location?: {
+      latitude: number;
+      longitude: number;
+      address?: string;
+      radius?: number;
+    };
+    createdAt: Date;
+    isActive: boolean;
+  }>;
   showSafeRoute: boolean;
   onMapPress?: (latitude: number, longitude: number) => void;
   destination?: { latitude: number; longitude: number; name?: string };
@@ -52,6 +68,7 @@ export default function GoogleMapsView({
   userLocation,
   userHeading = 0,
   incidents,
+  safetyAlerts = [],
   showSafeRoute,
   onMapPress,
   region,
@@ -234,6 +251,14 @@ export default function GoogleMapsView({
     );
   };
 
+  const handleSafetyAlertPress = (alert: any) => {
+    Alert.alert(
+      alert.title,
+      `${alert.message}\n\nType: ${alert.type}\nPriority: ${alert.priority}\nTime: ${alert.createdAt}`,
+      [{ text: 'OK' }]
+    );
+  };
+
   const toggleMapType = () => {
     setMapType(current => {
       switch (current) {
@@ -361,6 +386,27 @@ export default function GoogleMapsView({
             />
           </Marker>
         ))}
+
+        {/* Safety Alert Markers */}
+        {safetyAlerts
+          .filter(alert => alert.alertScope === 'location-specific' && alert.location && alert.isActive)
+          .map((alert) => (
+            <Marker
+              key={alert.id}
+              coordinate={alert.location!}
+              title={alert.title}
+              description={alert.message}
+              onPress={() => handleSafetyAlertPress(alert)}
+            >
+              <View style={styles.safetyAlertMarker}>
+                <Ionicons
+                  name={getSafetyAlertIcon(alert.type)}
+                  size={20}
+                  color="white"
+                />
+              </View>
+            </Marker>
+          ))}
 
         {/* Origin Marker - Grey Dot - positioned at route start when route is active */}
         {((routePolyline && routePolyline.length > 0) || origin) && (
@@ -497,6 +543,21 @@ function getIncidentIcon(type: string): keyof typeof Ionicons.glyphMap {
   };
 
   return iconMap[type] || 'alert-circle-outline';
+}
+
+// Helper function to get appropriate icon for safety alert type
+function getSafetyAlertIcon(type: string): keyof typeof Ionicons.glyphMap {
+  const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+    fire: 'flame-outline',
+    weather: 'rainy-outline',
+    security: 'shield-outline',
+    medical: 'medical-outline',
+    evacuation: 'exit-outline',
+    lockdown: 'lock-closed-outline',
+    other: 'warning-outline'
+  };
+
+  return iconMap[type] || 'warning-outline';
 }
 
 // Helper function to get severity ring color
@@ -790,5 +851,20 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#FF9500',
+  },
+  safetyAlertMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
