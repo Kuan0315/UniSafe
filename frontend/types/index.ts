@@ -23,7 +23,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'student' | 'staff' | 'security' | 'admin';
+  role: 'student' | 'staff' | 'security' | 'admin' | 'guardian';
   university?: University;
   avatar?: string;
 }
@@ -31,13 +31,13 @@ export interface User {
 export interface LoginCredentials {
   email: string;
   password: string;
-  role?: 'student' | 'staff' | 'security' | 'admin';
+  role?: 'student' | 'staff' | 'security' | 'admin' | 'guardian';
 }
 
 export interface SignupCredentials {
   email: string;
   password: string;
   name: string;
-  role: 'student' | 'staff' | 'security' | 'admin';
-  university?: University;
+  role: 'student' | 'staff' | 'security' | 'admin' | 'guardian';
+  phone?: string;
 }
