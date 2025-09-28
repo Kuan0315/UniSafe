@@ -22,11 +22,11 @@ import {
 
 import * as ImagePicker from 'expo-image-picker';
 import type { ComponentProps } from "react";
-import { startRecording, stopRecording, convertSpeechToText } from '../../services/speech';
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 import TextInputWithVoice from '../../components/TextInputWithVoice';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
+import speechToTextService from '../../services/SpeechToTextService';
 
 type SortOption = {
   key: string;
@@ -298,6 +298,7 @@ export default function ReportScreen() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [currentReportId, setCurrentReportId] = useState<number | null>(null);
   const [newComment, setNewComment] = useState("");
+  const [noSpeechDetected, setNoSpeechDetected] = useState(false);
   const [replyStates, setReplyStates] = useState<{
     [key: number]: {
       showReplies: boolean;
@@ -341,86 +342,21 @@ export default function ReportScreen() {
   }, [showCommentModal, showReportModal, showSortModal, showSearchModal]);
 
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<any>(null);
-  const [processingSpeech, setProcessingSpeech] = useState(false);
 
-  const recordingRef = useRef<any>(null);
+ 
 
-  {/* Speech-to-text functions */ }
-  const startSpeechToText = async () => {
-    try {
-      {/* Request permissions first */ }
-      const { status } = await ExpoAudio.AudioModule.requestRecordingPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Microphone access is needed for voice search');
-        return;
-      }
-
-      setIsRecording(true);
-      speakButtonAction('Listening... Speak now');
-
-      {/* Start recording using the service function */ }
-      const newRecording = await startRecording();
-      recordingRef.current = newRecording;
-      setRecording(newRecording);
-
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      Alert.alert('Error', 'Failed to start recording. Please try again.');
-      setIsRecording(false);
-    }
-  };
-
-  const stopSpeechToText = async () => {
-    try {
-      if (!recordingRef.current) {
-        setIsRecording(false);
-        return;
-      }
-
-      setIsRecording(false);
-      setProcessingSpeech(true);
-
-      {/* Stop recording and get the URI using the service function */ }
-      const audioUri = await stopRecording(recordingRef.current);
-
-      if (audioUri) {
-        {/* Convert speech to text using the service function */ }
-        const text = await convertSpeechToText(audioUri);
-        setSearchQuery(text);
-        speakButtonAction(`Heard: ${text}`);
-      }
-
-      setProcessingSpeech(false);
-      recordingRef.current = null;
-      setRecording(null);
-
-    } catch (error) {
-      console.error('Failed to process speech:', error);
-      Alert.alert('Error', 'Failed to process speech. Please try again.');
-      setProcessingSpeech(false);
-      setIsRecording(false);
-      recordingRef.current = null;
-      setRecording(null);
-    }
-  };
-
-  const handleMicPress = () => {
-    if (isRecording) {
-      stopSpeechToText();
-    } else {
-      startSpeechToText();
-    }
-  };
-
+  
   {/* Clean up on unmount */ }
   useEffect(() => {
     return () => {
-      if (recordingRef.current) {
-        stopRecording(recordingRef.current).catch(console.error);
-      }
+      // Cleanup if needed
     };
   }, []);
+
+  // Debug logging for noSpeechDetected state
+  useEffect(() => {
+    console.log('noSpeechDetected state changed:', noSpeechDetected);
+  }, [noSpeechDetected]);
 
   const handleCreateReport = () => {
     if (!selectedReportType || !reportDescription.trim() || !reportLocation.trim()) {
@@ -604,6 +540,11 @@ export default function ReportScreen() {
 
 
   const handleSearch = (query: string) => {
+    console.log('handleSearch called with query:', query);
+    console.log('Query type:', typeof query);
+    console.log('Query length:', query.length);
+    console.log('Query trimmed:', query.trim());
+    setNoSpeechDetected(false); // Clear no speech message when user types
     setSearchQuery(query);
     filterAndSortReports(query, selectedDangerType, sortBy);
   };
@@ -636,6 +577,7 @@ export default function ReportScreen() {
 
   {/* Replace filterAndSortReports with memoized version */ }
   const filterAndSortReports = useCallback((query: string, dangerType: string, sort: string) => {
+    console.log('Filtering reports with query:', query, 'dangerType:', dangerType, 'sort:', sort);
     let filtered = mockRecentReports;
 
     if (query.trim() !== '') {
@@ -644,6 +586,7 @@ export default function ReportScreen() {
         report.description.toLowerCase().includes(query.toLowerCase()) ||
         report.location.toLowerCase().includes(query.toLowerCase())
       );
+      console.log('After query filter, results:', filtered.length);
     }
 
     if (dangerType !== 'all') {
@@ -666,6 +609,7 @@ export default function ReportScreen() {
         break;
     }
 
+    console.log('Final filtered results:', filtered.length);
     setFilteredReports(filtered);
   }, [mockRecentReports]);
 
@@ -796,6 +740,53 @@ export default function ReportScreen() {
     setNewComment("");
   };
 
+  const handleMicPress = async () => {
+    setIsRecording(true);
+    
+    try {
+      await speechToTextService.startSpeechRecognition({
+        prompt: 'Search for reports',
+        onResult: (text) => {
+          console.log('Voice input result:', text);
+          console.log('Voice input result length:', text?.length);
+          console.log('Voice input result trimmed:', text?.trim());
+          // Remove trailing punctuation that speech recognition often adds
+          const cleanedText = text?.trim().replace(/[.,!?;]$/, '') || '';
+          console.log('Cleaned resultText:', cleanedText);
+          handleSearch(cleanedText); // This will set searchQuery and trigger search
+          setIsRecording(false);
+        },
+        onNoSpeech: () => {
+          console.log('onNoSpeech callback triggered');
+          console.log('Setting noSpeechDetected to true');
+          setNoSpeechDetected(true);
+          console.log('noSpeechDetected should now be true');
+          
+          // Show alert for better visibility
+          Alert.alert(
+            'No Speech Detected',
+            'Please try speaking louder or closer to the microphone.',
+            [{ text: 'OK' }]
+          );
+          
+          setTimeout(() => {
+            console.log('Clearing noSpeechDetected after timeout');
+            setNoSpeechDetected(false);
+          }, 3000); // Hide message after 3 seconds
+          setIsRecording(false);
+        },
+        onError: (error) => {
+          console.error('Voice input error:', error);
+          setIsRecording(false);
+          Alert.alert('Voice Input Error', 'Unable to process voice input. Please try again or use the keyboard.');
+        }
+      });
+    } catch (error) {
+      setIsRecording(false);
+      console.error('Voice input failed:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Recent Reports Feed */}
@@ -921,14 +912,16 @@ export default function ReportScreen() {
         visible={showSearchModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowSearchModal(false)}
+        onRequestClose={() => {
+          setShowSearchModal(false);
+          setNoSpeechDetected(false);
+        }}
       >
         <SafeAreaView style={styles.searchModalContainer}>
           <View style={styles.searchModalHeader}>
             {/* Back button */}
             <TouchableOpacity
               onPress={() => {
-                if (isRecording) stopSpeechToText();
                 setSearchQuery('');
                 filterAndSortReports('', selectedDangerType, sortBy);
                 setShowSearchModal(false);
@@ -960,22 +953,20 @@ export default function ReportScreen() {
               )}
             </View>
 
+            {/* No speech detected message */}
+            {noSpeechDetected && (
+              <View style={styles.noSpeechMessage}>
+                <Ionicons name="mic-off" size={16} color="#FF9500" />
+                <Text style={styles.noSpeechText}>No speech detected. Please try speaking louder or closer to the microphone.</Text>
+              </View>
+            )}
+
             {/* Voice-to-text button */}
             <TouchableOpacity
               onPress={handleMicPress}
-              style={[
-                styles.voiceSearchButton,
-                isRecording && styles.voiceSearchButtonActive
-              ]}
-              disabled={processingSpeech}
+              style={styles.voiceSearchButton}
             >
-              {processingSpeech ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : isRecording ? (
-                <Ionicons name="stop" size={24} color="#FF3B30" />
-              ) : (
-                <Ionicons name="mic" size={24} color="#007AFF" />
-              )}
+              <Ionicons name="mic" size={24} color={isRecording ? '#FF3B30' : '#007AFF'} />
             </TouchableOpacity>
 
             {/* Search button */}
@@ -995,25 +986,11 @@ export default function ReportScreen() {
                   <View style={styles.recordingDot} />
                   <Text style={styles.recordingText}>Recording... Speak now</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={stopSpeechToText}
-                  style={styles.stopRecordingButton}
-                >
-                  <Text style={styles.stopRecordingText}>Stop Recording</Text>
-                </TouchableOpacity>
               </View>
             )}
 
-            {/* Display processing state */}
-            {processingSpeech && (
-              <View style={styles.processingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.processingText}>Processing your speech...</Text>
-              </View>
-            )}
-
-            {/* Recent Searches (only show when not recording/processing) */}
-            {recentSearches.length > 0 && !isRecording && !processingSpeech && (
+            {/* Recent Searches (only show when not recording) */}
+            {recentSearches.length > 0 && !isRecording && (
               <View style={styles.recentSearchesContainer}>
                 <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
                 {recentSearches.map((search, index) => (
@@ -1038,8 +1015,8 @@ export default function ReportScreen() {
               </View>
             )}
 
-            {/* Search Results (only show when not recording/processing) */}
-            {searchQuery.length > 0 && filteredReports.length > 0 && !isRecording && !processingSpeech && (
+            {/* Search Results (only show when not recording) */}
+            {searchQuery.length > 0 && filteredReports.length > 0 && !isRecording && (
               <View style={styles.searchResultsPreview}>
                 <Text style={styles.searchResultsTitle}>
                   {filteredReports.length} result{filteredReports.length !== 1 ? 's' : ''} found
@@ -1125,7 +1102,7 @@ export default function ReportScreen() {
             )}
 
             {/* No results message */}
-            {searchQuery.length > 0 && filteredReports.length === 0 && !isRecording && !processingSpeech && (
+            {searchQuery.length > 0 && filteredReports.length === 0 && !isRecording && (
               <View style={styles.noResultsContainer}>
                 <Ionicons name="search" size={48} color="#ccc" />
                 <Text style={styles.noResultsText}>No results found</Text>
@@ -1513,7 +1490,11 @@ export default function ReportScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={[styles.modalContent, { flex: 1 }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Report Type Selection */}
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Incident Type *</Text>
@@ -1565,6 +1546,8 @@ export default function ReportScreen() {
                 onChangeText={setReportLocation}
                 placeholder="Where did this happen?"
                 prompt="incident location"
+                multiline
+                numberOfLines={2}
                 inputStyle={styles.locationInput}
               />
             </View>
@@ -2349,5 +2332,21 @@ const styles = StyleSheet.create({
   commentButtonText: {
     color: "#fff",
     fontWeight: "600",
+  },
+  noSpeechMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF3CD",
+    borderColor: "#FFECB5",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  noSpeechText: {
+    color: "#856404",
+    fontSize: 14,
+    flex: 1,
   },
 });

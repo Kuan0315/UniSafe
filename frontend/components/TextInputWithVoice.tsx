@@ -58,6 +58,15 @@ export default function TextInputWithVoice({
           onChangeText(text);
           setIsListening(false);
         },
+        onNoSpeech: () => {
+          console.log('No speech detected in TextInputWithVoice');
+          Alert.alert(
+            'No Speech Detected',
+            'Please try speaking louder or closer to the microphone.',
+            [{ text: 'OK' }]
+          );
+          setIsListening(false);
+        },
         onError: (error) => {
           console.error('Voice input error:', error);
           setIsListening(false);

@@ -11,6 +11,8 @@ interface VoiceInputButtonProps {
   style?: any;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  isRecording?: boolean;
+  isProcessing?: boolean;
 }
 
 export default function VoiceInputButton({

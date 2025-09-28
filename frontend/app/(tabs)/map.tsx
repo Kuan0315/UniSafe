@@ -1181,9 +1181,9 @@ export default function MapScreen() {
                   setShowLocationDetails(true);
                 }}
                 onChangeText={(text: string) => {
-                  setDestination(text);
+                  setDestination(text || '');
                   // Clear destination marker when user starts typing new destination
-                  if (!text.trim()) {
+                  if (!(text || '').trim()) {
                     setDestinationCoords(undefined);
                     setPreviewLocation(null);
                     setShowLocationDetails(false);
@@ -1593,8 +1593,15 @@ export default function MapScreen() {
                   // If we have a destination, recalculate the route
                   if (destinationCoords && userLocation) {
                     try {
+                      const routeOrigin = originCoords ? {
+                        lat: originCoords.latitude,
+                        lng: originCoords.longitude
+                      } : {
+                        lat: userLocation.coords.latitude,
+                        lng: userLocation.coords.longitude
+                      };
                       const route = await planRoutesAndSelect(
-                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        routeOrigin,
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,
@@ -1622,8 +1629,15 @@ export default function MapScreen() {
                   // If we have a destination, recalculate the route
                   if (destinationCoords && userLocation) {
                     try {
+                      const routeOrigin = originCoords ? {
+                        lat: originCoords.latitude,
+                        lng: originCoords.longitude
+                      } : {
+                        lat: userLocation.coords.latitude,
+                        lng: userLocation.coords.longitude
+                      };
                       const route = await planRoutesAndSelect(
-                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        routeOrigin,
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,
@@ -1651,8 +1665,15 @@ export default function MapScreen() {
                   // If we have a destination, recalculate the route
                   if (destinationCoords && userLocation) {
                     try {
+                      const routeOrigin = originCoords ? {
+                        lat: originCoords.latitude,
+                        lng: originCoords.longitude
+                      } : {
+                        lat: userLocation.coords.latitude,
+                        lng: userLocation.coords.longitude
+                      };
                       const route = await planRoutesAndSelect(
-                        { lat: userLocation.coords.latitude, lng: userLocation.coords.longitude },
+                        routeOrigin,
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,

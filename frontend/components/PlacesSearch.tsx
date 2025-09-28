@@ -222,13 +222,23 @@ export default function PlacesSearch({
         prompt: 'Search for a place',
         onResult: (text) => {
           console.log('Voice input result:', text);
+          const resultText = text || '';
           if (value === undefined) {
             // Uncontrolled mode - update internal state
-            setSearchText(text);
+            setSearchText(resultText);
           } else {
             // Controlled mode - notify parent
-            if (onChangeText) onChangeText(text);
+            if (onChangeText) onChangeText(resultText);
           }
+          setIsListening(false);
+        },
+        onNoSpeech: () => {
+          console.log('No speech detected in PlacesSearch');
+          Alert.alert(
+            'No Speech Detected',
+            'Please try speaking louder or closer to the microphone.',
+            [{ text: 'OK' }]
+          );
           setIsListening(false);
         },
         onError: (error) => {
