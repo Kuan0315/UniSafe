@@ -1,0 +1,892 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\User\\Downloads\\Unisafe\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\backend\\.env||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\.env||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\FakeCallScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\FakeCallScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\login.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\login.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\backend\\src\\routes\\auth.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\src\\routes\\auth.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AuthContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\contexts\\AuthContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\api.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\services\\api.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(auth)\\signup.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(auth)\\signup.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\report.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\report.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\reportService.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\services\\reportService.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\emergency.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\emergency.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\friendTrackingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\friendTrackingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\map.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(tabs)\\map.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\metro.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\metro.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\env.d.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\env.d.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eas.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\eas.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\check-torch.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\check-torch.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\baby.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\baby.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\utils\\createAudioFiles.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\utils\\createAudioFiles.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\polyline.d.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\types\\polyline.d.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\index.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\types\\index.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SOSContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\contexts\\SOSContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SettingsContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\contexts\\SettingsContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AlarmContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\contexts\\AlarmContext.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\config\\maps.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\config\\maps.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\PlacesAPITest.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\PlacesAPITest.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\LoadingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\LoadingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\Header.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\Header.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GooglePlacesDebug.tsx||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\GooglePlacesDebug.tsx||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GoogleMapsView.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\GoogleMapsView.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GlobalAlarmStatus.tsx||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\GlobalAlarmStatus.tsx||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\EmergencyChatScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\EmergencyChatScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\AppHeader.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\components\\AppHeader.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\reports-management.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\reports-management.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\safety-alerts.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\safety-alerts.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\sos-monitoring.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\staff\\sos-monitoring.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\usePermissions.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\hooks\\usePermissions.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\useLocation.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\hooks\\useLocation.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\alerts\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\alerts\\index.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\emergency.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(guardianTabs)\\emergency.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(guardianTabs)\\_layout.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\app\\(guardianTabs)\\profile.tsx||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": ".env",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\backend\\.env",
+              "RelativeDocumentMoniker": "backend\\.env",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\backend\\.env",
+              "RelativeToolTip": "backend\\.env",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAABaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-09-28T09:37:19.617Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "auth.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\backend\\src\\routes\\auth.ts",
+              "RelativeDocumentMoniker": "backend\\src\\routes\\auth.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\backend\\src\\routes\\auth.ts",
+              "RelativeToolTip": "backend\\src\\routes\\auth.ts",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:26:50.544Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "login.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\login.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\login.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\login.tsx",
+              "RelativeToolTip": "frontend\\app\\login.tsx",
+              "ViewState": "AgIAAFMBAAAAAAAAAAAUwHgBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:25:49.352Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "AuthContext.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AuthContext.tsx",
+              "RelativeDocumentMoniker": "frontend\\contexts\\AuthContext.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AuthContext.tsx",
+              "RelativeToolTip": "frontend\\contexts\\AuthContext.tsx",
+              "ViewState": "AgIAABYAAAAAAAAAAAAQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:24:46.041Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "FakeCallScreen.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\FakeCallScreen.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\FakeCallScreen.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\FakeCallScreen.tsx",
+              "RelativeToolTip": "frontend\\components\\FakeCallScreen.tsx",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAAHsBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:31:47.598Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "api.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\api.ts",
+              "RelativeDocumentMoniker": "frontend\\services\\api.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\api.ts",
+              "RelativeToolTip": "frontend\\services\\api.ts",
+              "ViewState": "AgIAAC8AAAAAAAAAAAAAwBcAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:24:56.816Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "signup.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(auth)\\signup.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(auth)\\signup.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(auth)\\signup.tsx",
+              "RelativeToolTip": "frontend\\app\\(auth)\\signup.tsx",
+              "ViewState": "AgIAAD4BAAAAAAAAAAAUwGMBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:17:48.672Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "emergency.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\emergency.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\emergency.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\emergency.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\emergency.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:00:48.823Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "profile.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\profile.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\profile.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\profile.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\profile.tsx",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAABEFAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T08:55:13.195Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "report.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\report.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\report.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\report.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\report.tsx",
+              "ViewState": "AgIAAE8DAAAAAAAAAAAUwFoDAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T08:57:21.34Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "reportService.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\reportService.ts",
+              "RelativeDocumentMoniker": "frontend\\services\\reportService.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\services\\reportService.ts",
+              "RelativeToolTip": "frontend\\services\\reportService.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:41:11.04Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "friendTrackingScreen.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\friendTrackingScreen.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\friendTrackingScreen.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\friendTrackingScreen.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\friendTrackingScreen.tsx",
+              "ViewState": "AgIAAHMAAAAAAAAAAAAUwJgAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T09:00:32.11Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "index.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\index.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\index.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\index.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\index.tsx",
+              "ViewState": "AgIAAAQHAAAAAAAAAAAUwCkHAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T08:58:18.794Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "_layout.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\_layout.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\_layout.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\_layout.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\_layout.tsx",
+              "ViewState": "AgIAACcAAAAAAAAAAAAUwEwAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T08:57:00.788Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "map.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\map.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(tabs)\\map.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(tabs)\\map.tsx",
+              "RelativeToolTip": "frontend\\app\\(tabs)\\map.tsx",
+              "ViewState": "AgIAAKENAAAAAAAAAAAUwMYNAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T08:56:38.775Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\package.json",
+              "RelativeDocumentMoniker": "frontend\\package.json",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\package.json",
+              "RelativeToolTip": "frontend\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-09-28T05:04:23.054Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "tsconfig.json",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\tsconfig.json",
+              "RelativeDocumentMoniker": "frontend\\tsconfig.json",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\tsconfig.json",
+              "RelativeToolTip": "frontend\\tsconfig.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-09-28T04:49:05.602Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "metro.config.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\metro.config.js",
+              "RelativeDocumentMoniker": "frontend\\metro.config.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\metro.config.js",
+              "RelativeToolTip": "frontend\\metro.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:48:46.901Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "eslint.config.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eslint.config.js",
+              "RelativeDocumentMoniker": "frontend\\eslint.config.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eslint.config.js",
+              "RelativeToolTip": "frontend\\eslint.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:48:12.446Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "env.d.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\env.d.ts",
+              "RelativeDocumentMoniker": "frontend\\env.d.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\env.d.ts",
+              "RelativeToolTip": "frontend\\env.d.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:47:56.652Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "eas.json",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eas.json",
+              "RelativeDocumentMoniker": "frontend\\eas.json",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\eas.json",
+              "RelativeToolTip": "frontend\\eas.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-09-28T04:47:26.064Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "check-torch.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\check-torch.js",
+              "RelativeDocumentMoniker": "frontend\\check-torch.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\check-torch.js",
+              "RelativeToolTip": "frontend\\check-torch.js",
+              "ViewState": "AgIAADUAAAAAAAAAAAAUwFoAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:47:05.703Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "baby.config.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\baby.config.js",
+              "RelativeDocumentMoniker": "frontend\\baby.config.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\baby.config.js",
+              "RelativeToolTip": "frontend\\baby.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:46:17.52Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "app.config.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.config.js",
+              "RelativeDocumentMoniker": "frontend\\app.config.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.config.js",
+              "RelativeToolTip": "frontend\\app.config.js",
+              "ViewState": "AgIAADUAAAAAAAAAAAAUwFoAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:46:05.371Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "app.json",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.json",
+              "RelativeDocumentMoniker": "frontend\\app.json",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app.json",
+              "RelativeToolTip": "frontend\\app.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-09-28T04:45:45.3Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "createAudioFiles.js",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\utils\\createAudioFiles.js",
+              "RelativeDocumentMoniker": "frontend\\utils\\createAudioFiles.js",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\utils\\createAudioFiles.js",
+              "RelativeToolTip": "frontend\\utils\\createAudioFiles.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEwAAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-28T04:44:33.682Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "polyline.d.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\polyline.d.ts",
+              "RelativeDocumentMoniker": "frontend\\types\\polyline.d.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\polyline.d.ts",
+              "RelativeToolTip": "frontend\\types\\polyline.d.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:44:09.145Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "index.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\index.ts",
+              "RelativeDocumentMoniker": "frontend\\types\\index.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\types\\index.ts",
+              "RelativeToolTip": "frontend\\types\\index.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:43:30.425Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "SOSContext.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SOSContext.tsx",
+              "RelativeDocumentMoniker": "frontend\\contexts\\SOSContext.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SOSContext.tsx",
+              "RelativeToolTip": "frontend\\contexts\\SOSContext.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAADEAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:40:12.527Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "SettingsContext.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SettingsContext.tsx",
+              "RelativeDocumentMoniker": "frontend\\contexts\\SettingsContext.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\SettingsContext.tsx",
+              "RelativeToolTip": "frontend\\contexts\\SettingsContext.tsx",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAAwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:39:45.733Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "AlarmContext.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AlarmContext.tsx",
+              "RelativeDocumentMoniker": "frontend\\contexts\\AlarmContext.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\contexts\\AlarmContext.tsx",
+              "RelativeToolTip": "frontend\\contexts\\AlarmContext.tsx",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAUwEcAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:39:37.792Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "maps.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\config\\maps.ts",
+              "RelativeDocumentMoniker": "frontend\\config\\maps.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\config\\maps.ts",
+              "RelativeToolTip": "frontend\\config\\maps.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAACAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:38:49.992Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "PlacesAPITest.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\PlacesAPITest.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\PlacesAPITest.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\PlacesAPITest.tsx",
+              "RelativeToolTip": "frontend\\components\\PlacesAPITest.tsx",
+              "ViewState": "AgIAADMAAAAAAAAAAAAUwFgAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:35:45.483Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "LoadingScreen.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\LoadingScreen.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\LoadingScreen.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\LoadingScreen.tsx",
+              "RelativeToolTip": "frontend\\components\\LoadingScreen.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:35:12.667Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 34,
+              "Title": "Header.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\Header.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\Header.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\Header.tsx",
+              "RelativeToolTip": "frontend\\components\\Header.tsx",
+              "ViewState": "AgIAAHIAAAAAAAAAAAAUwJcAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:35:02.668Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 35,
+              "Title": "GooglePlacesDebug.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GooglePlacesDebug.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\GooglePlacesDebug.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GooglePlacesDebug.tsx",
+              "RelativeToolTip": "frontend\\components\\GooglePlacesDebug.tsx",
+              "ViewState": "AgIAAEwAAAAAAAAAAAAUwHEAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:34:20.136Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 37,
+              "Title": "GlobalAlarmStatus.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GlobalAlarmStatus.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\GlobalAlarmStatus.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GlobalAlarmStatus.tsx",
+              "RelativeToolTip": "frontend\\components\\GlobalAlarmStatus.tsx",
+              "ViewState": "AgIAAHoAAAAAAAAAAAAIwJ4AAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:32:48.304Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 36,
+              "Title": "GoogleMapsView.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GoogleMapsView.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\GoogleMapsView.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\GoogleMapsView.tsx",
+              "RelativeToolTip": "frontend\\components\\GoogleMapsView.tsx",
+              "ViewState": "AgIAAPQCAAAAAAAAAAAUwBkDAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:30:31.465Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
+              "Title": "EmergencyChatScreen.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\EmergencyChatScreen.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\EmergencyChatScreen.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\EmergencyChatScreen.tsx",
+              "RelativeToolTip": "frontend\\components\\EmergencyChatScreen.tsx",
+              "ViewState": "AgIAAD8BAAAAAAAAAAAUwGQBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:31:24.125Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 39,
+              "Title": "AppHeader.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\AppHeader.tsx",
+              "RelativeDocumentMoniker": "frontend\\components\\AppHeader.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\components\\AppHeader.tsx",
+              "RelativeToolTip": "frontend\\components\\AppHeader.tsx",
+              "ViewState": "AgIAAK8AAAAAAAAAAAAUwNQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:30:24.224Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 43,
+              "Title": "profile.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\profile.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\profile.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\profile.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\profile.tsx",
+              "ViewState": "AgIAAG8BAAAAAAAAAAAUwJQBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:24:44.958Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 42,
+              "Title": "index.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\index.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\index.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\index.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\index.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:24:37.539Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 41,
+              "Title": "_layout.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\_layout.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\_layout.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\_layout.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\_layout.tsx",
+              "ViewState": "AgIAABcAAAAAAAAAAAAUwDwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:24:26.148Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 40,
+              "Title": "_layout.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\_layout.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\_layout.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\_layout.tsx",
+              "RelativeToolTip": "frontend\\app\\_layout.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:21:37.688Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 44,
+              "Title": "reports-management.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\reports-management.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\reports-management.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\reports-management.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\reports-management.tsx",
+              "ViewState": "AgIAAI8EAAAAAAAAAAAIwLMEAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:24:55.824Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 45,
+              "Title": "safety-alerts.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\safety-alerts.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\safety-alerts.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\safety-alerts.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\safety-alerts.tsx",
+              "ViewState": "AgIAAI8EAAAAAAAAAAAIwLMEAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:25:06.337Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 46,
+              "Title": "sos-monitoring.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\sos-monitoring.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\staff\\sos-monitoring.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\staff\\sos-monitoring.tsx",
+              "RelativeToolTip": "frontend\\app\\staff\\sos-monitoring.tsx",
+              "ViewState": "AgIAADgGAAAAAAAAAAAUwF0GAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:25:16.534Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 47,
+              "Title": "usePermissions.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\usePermissions.ts",
+              "RelativeDocumentMoniker": "frontend\\app\\hooks\\usePermissions.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\usePermissions.ts",
+              "RelativeToolTip": "frontend\\app\\hooks\\usePermissions.ts",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAUwDQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:23:38.963Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 48,
+              "Title": "useLocation.ts",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\useLocation.ts",
+              "RelativeDocumentMoniker": "frontend\\app\\hooks\\useLocation.ts",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\hooks\\useLocation.ts",
+              "RelativeToolTip": "frontend\\app\\hooks\\useLocation.ts",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAUwDIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:23:24.397Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 49,
+              "Title": "index.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\alerts\\index.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\alerts\\index.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\alerts\\index.tsx",
+              "RelativeToolTip": "frontend\\app\\alerts\\index.tsx",
+              "ViewState": "AgIAAKcBAAAAAAAAAAAUwMwBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:22:51.76Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 50,
+              "Title": "emergency.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\emergency.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(guardianTabs)\\emergency.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\emergency.tsx",
+              "RelativeToolTip": "frontend\\app\\(guardianTabs)\\emergency.tsx",
+              "ViewState": "AgIAAOcAAAAAAAAAAAAUwAwBAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:21:00.228Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 51,
+              "Title": "guardianTrackingScreen.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx",
+              "RelativeToolTip": "frontend\\app\\(guardianTabs)\\guardianTrackingScreen.tsx",
+              "ViewState": "AgIAAIgAAAAAAAAAAAAAAJgAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:19:05.397Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 53,
+              "Title": "profile.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\profile.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(guardianTabs)\\profile.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\profile.tsx",
+              "RelativeToolTip": "frontend\\app\\(guardianTabs)\\profile.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAGABAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:17:08.22Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 52,
+              "Title": "_layout.tsx",
+              "DocumentMoniker": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\_layout.tsx",
+              "RelativeDocumentMoniker": "frontend\\app\\(guardianTabs)\\_layout.tsx",
+              "ToolTip": "C:\\Users\\User\\Downloads\\Unisafe\\frontend\\app\\(guardianTabs)\\_layout.tsx",
+              "RelativeToolTip": "frontend\\app\\(guardianTabs)\\_layout.tsx",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAC8AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2025-09-28T04:14:36.249Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
