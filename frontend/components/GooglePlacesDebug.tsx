@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import React, { useEffect } from 'react';
+=======
+import React, { useEffect } from 'react';
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { MAPS_CONFIG } from '../config/maps';
 

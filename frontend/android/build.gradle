@@ -12,6 +12,7 @@ buildscript {
   }
 }
 
+<<<<<<< HEAD
 def reactNativeAndroidDir = new File(
   providers.exec {
     workingDir(rootDir)
@@ -27,6 +28,10 @@ allprojects {
       url(reactNativeAndroidDir)
     }
 
+=======
+allprojects {
+  repositories {
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
@@ -35,3 +40,33 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+<<<<<<< HEAD
+=======
+
+allprojects {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
+}
+
+subprojects { subproject ->
+    if (subproject.hasProperty("android")) {
+        subproject.android {
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+    }
+
+    subproject.plugins.withId("org.jetbrains.kotlin.android") {
+        subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+}
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8

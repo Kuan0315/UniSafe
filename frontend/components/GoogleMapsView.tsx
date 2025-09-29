@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ﻿import React, { useRef, useEffect, useState } from 'react';
+=======
+import React, { useRef, useEffect, useState } from 'react';
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
 import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, Polyline, Circle, Polygon, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
