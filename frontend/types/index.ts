@@ -24,9 +24,13 @@ export interface User {
   email: string;
   name: string;
   role: 'student' | 'staff' | 'security' | 'admin' | 'guardian';
+<<<<<<< HEAD
   phone: string;
   studentId: string;
   //university?: University;
+=======
+  university?: University;
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
   avatar?: string;
 }
 
@@ -41,5 +45,9 @@ export interface SignupCredentials {
   password: string;
   name: string;
   role: 'student' | 'staff' | 'security' | 'admin' | 'guardian';
+<<<<<<< HEAD
   phone: string;
+=======
+  phone?: string;
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
 }

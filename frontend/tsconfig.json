@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+<<<<<<< HEAD
     "paths": {
       "@/*": ["./*"]
     },
@@ -12,5 +13,23 @@
     "**/*.tsx",
     "services/guardianService.js",
    "app/(tabs)/TrustedContactsScreen"  ],
+=======
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "skipLibCheck": true,      // <--- ignore type errors in node_modules
+    "typeRoots": [
+      "./types",
+      "./node_modules/@types"
+    ]
+  },
+  "include": [
+    "env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "types",
+    "services/guardianService.js",],
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
   "exclude": ["node_modules"]
 }

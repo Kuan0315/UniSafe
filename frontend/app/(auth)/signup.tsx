@@ -178,7 +178,10 @@ export default function SignupScreen() {
         <Text style={styles.link}>Already have an account? Log in</Text>
       </TouchableOpacity>
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
     </ScrollView>
   );
 }
@@ -311,3 +314,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
