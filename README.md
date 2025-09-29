@@ -11,14 +11,23 @@ Youtube presentation link -> https://youtu.be/aCrNtWJechs
 Demo video -> https://drive.google.com/file/d/1SVP0GNse8_tPDcw2o2KVaev3BUa2t3o9/view?usp=drive_link
 
 Terminal Command:
+
 (backend)
+
 cd backend
+
 npm install
+
 npm run dev
+
 (frontend)
+
 cd frontend
+
 npm install
+
 $env:EXPO_PUBLIC_API_BASE_URL="http://YOUR_PC_IPV4:4000"; npm start
+
 
 # UniSafe - Campus Safety Companion 
 
