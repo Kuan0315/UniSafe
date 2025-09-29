@@ -1,321 +1,198 @@
+// SignupScreen.tsx
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ScrollView, Modal } from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from "../../contexts/AuthContext";
-//import { University } from "../../types";
-
-/*
-// Malaysian Universities Data
-const MALAYSIAN_UNIVERSITIES: University[] = [
-  {
-    id: 'um',
-    name: 'University of Malaya',
-    location: { latitude: 3.1201, longitude: 101.6544 },
-    center: { latitude: 3.1201, longitude: 101.6544 },
-    coverageRadius: 2,
-  },
-  {
-    id: 'upm',
-    name: 'Universiti Putra Malaysia', 
-    location: { latitude: 2.9447, longitude: 101.6904 },
-    center: { latitude: 2.9447, longitude: 101.6904 },
-    coverageRadius: 3,
-  },
-  {
-    id: 'ukm',
-    name: 'Universiti Kebangsaan Malaysia',
-    location: { latitude: 2.9214, longitude: 101.7758 },
-    center: { latitude: 2.9214, longitude: 101.7758 },
-    coverageRadius: 2.5,
-  },
-  {
-    id: 'utm',
-    name: 'Universiti Teknologi Malaysia',
-    location: { latitude: 1.5583, longitude: 103.6370 },
-    center: { latitude: 1.5583, longitude: 103.6370 },
-    coverageRadius: 4,
-  },
-  {
-    id: 'usm',
-    name: 'Universiti Sains Malaysia',
-    location: { latitude: 5.3568, longitude: 100.3012 },
-    center: { latitude: 5.3568, longitude: 100.3012 },
-    coverageRadius: 3,
-  },
-  {
-    id: 'utp',
-    name: 'Universiti Teknologi PETRONAS',
-    location: { latitude: 4.3896, longitude: 100.9740 },
-    center: { latitude: 4.3896, longitude: 100.9740 },
-    coverageRadius: 1.5,
-  },
-  {
-    id: 'mmu',
-    name: 'Multimedia University',
-    location: { latitude: 2.9268, longitude: 101.8715 },
-    center: { latitude: 2.9268, longitude: 101.8715 },
-    coverageRadius: 2,
-  },
-  {
-    id: 'taylor',
-    name: "Taylor's University",
-    location: { latitude: 3.0653, longitude: 101.6008 },
-    center: { latitude: 3.0653, longitude: 101.6008 },
-    coverageRadius: 1,
-  }
-];
-*/
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signup } = useAuth();
-  const [fullName, setFullName] = useState("");
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  //const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
-  //const [showUniversityModal, setShowUniversityModal] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [university, setUniversity] = useState("");
+  const [showUniversityModal, setShowUniversityModal] = useState(false);
 
-  function validate(): string | null {
-    if (!fullName.trim()) return "Full name is required";
-    if (!email.trim()) return "Email is required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email";
-    if (!phoneNumber.trim()) return "Phone number is required";
-    if (!/^[0-9]{9,15}$/.test(phoneNumber)) return "Enter a valid phone number";
-    if (!password) return "Password is required";
-    if (password.length < 6) return "Password must be at least 6 characters";
-    if (password !== confirmPassword) return "Passwords do not match";
-    //if (!selectedUniversity) return "Please select your university";
-    return null;
-  }
+  const universities = [
+    "University of Malaya",
+    "Taylor’s University",
+    "Sunway University",
+    "Monash University Malaysia",
+    "INTI International University",
+  ];
 
-  async function onSubmit() {
-    const error = validate();
-    if (error) {
-      Alert.alert("Invalid input", error);
+  const handleSignup = () => {
+    if (!name || !email || !password || !university) {
+      alert("Please fill all fields");
       return;
     }
-    try {
-      setIsSubmitting(true);
-      await signup({
-        email,
-        password,
-        name: fullName,
-        role: 'guardian', // Default role for signup
-        phone: phoneNumber,
-      });
-      router.replace("/login");
-    } catch (e: any) {
-      Alert.alert("Sign up failed", e.message || "Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+    alert(`Signup successful!\nName: ${name}\nUniversity: ${university}`);
+    router.replace("/dashboard");
+  };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.hero}>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Create your account</Text>
-        <Text style={styles.subtitle}>Join your campus community</Text>
-      </View>
-      
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
+
+      {/* Name */}
       <TextInput
         style={styles.input}
-        placeholder="Full name"
-        value={fullName}
-        onChangeText={setFullName}
-        placeholderTextColor="#999"
+        placeholder="Full Name"
+        value={name}
+        onChangeText={setName}
       />
+
+      {/* Email */}
       <TextInput
         style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
+        placeholder="Email Address"
         value={email}
         onChangeText={setEmail}
-        placeholderTextColor="#999"
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Phone number"
-        keyboardType="phone-pad"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
-        placeholderTextColor="#999"
-      />
-
+      {/* Password */}
       <TextInput
         style={styles.input}
         placeholder="Password"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
-        placeholderTextColor="#999"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm password"
         secureTextEntry
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        placeholderTextColor="#999"
       />
 
-      <TouchableOpacity style={[styles.button, isSubmitting && styles.buttonDisabled]} onPress={onSubmit} disabled={isSubmitting}>
-        <Text style={styles.buttonText}>{isSubmitting ? "Signing up..." : "Sign Up"}</Text>
+      {/* University Selection */}
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setShowUniversityModal(true)}
+      >
+        <Text style={{ color: university ? "#000" : "#888" }}>
+          {university || "Select University"}
+        </Text>
       </TouchableOpacity>
 
+      {/* Signup button */}
+      <TouchableOpacity style={styles.button} onPress={handleSignup}>
+        <Text style={styles.buttonText}>Sign Up</Text>
+      </TouchableOpacity>
+
+      {/* Login link */}
       <TouchableOpacity onPress={() => router.replace("/login")}>
         <Text style={styles.link}>Already have an account? Log in</Text>
       </TouchableOpacity>
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
+      {/* University Modal */}
+      <Modal
+        visible={showUniversityModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowUniversityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Your University</Text>
+            {universities.map((uni) => (
+              <TouchableOpacity
+                key={uni}
+                style={styles.modalOption}
+                onPress={() => {
+                  setUniversity(uni);
+                  setShowUniversityModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{uni}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowUniversityModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+    padding: 20,
     backgroundColor: "#fff",
-  },
-  contentContainer: {
-    padding: 24,
     justifyContent: "center",
-    minHeight: "100%",
-  },
-  hero: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontSize: 26,
+    fontWeight: "bold",
     textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-    textAlign: "center",
+    marginBottom: 30,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
-  },
-  universitySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
-    backgroundColor: "#fafafa",
-  },
-  universitySelectorText: {
-    fontSize: 16,
-    color: "#000",
-  },
-  placeholder: {
-    color: "#999",
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
   },
   button: {
-    backgroundColor: "#047857",
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: "#007bff",
+    padding: 15,
+    borderRadius: 8,
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+    marginVertical: 15,
   },
   buttonText: {
     color: "#fff",
-    fontWeight: "600",
     fontSize: 16,
+    fontWeight: "bold",
   },
   link: {
-    color: "#1e40af",
     textAlign: "center",
-    fontSize: 14,
+    color: "#007bff",
+    marginTop: 10,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
     padding: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    width: "80%",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
   },
-  universityList: {
-    maxHeight: 400,
-  },
-  universityItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
+  modalOption: {
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#eee",
   },
-  universityItemSelected: {
-    backgroundColor: '#f0f9ff',
-  },
-  universityItemText: {
+  modalOptionText: {
     fontSize: 16,
-    color: '#333',
   },
-  universityItemTextSelected: {
-    color: '#047857',
-    fontWeight: '600',
+  modalCloseButton: {
+    marginTop: 15,
+    alignItems: "center",
+  },
+  modalCloseText: {
+    color: "#007bff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
