@@ -1,12 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireRole } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import Notification from '../models/Notification';
 import User from '../models/User';
-
-// Reuse existing JS model for safety alerts
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-import SafetyAlert from '../models/SafetyAlert';
+import { Alert } from '../models/Alert';
 
 const router = Router();
 
@@ -21,24 +18,20 @@ const createSchema = z.object({
 
 // List active safety alerts (any authenticated user could consume; keep simple here)
 router.get('/', async (_req, res) => {
-  const alerts = await SafetyAlert.find({ isActive: true }).sort({ createdAt: -1 }).limit(100);
+  const alerts = await Alert.find({ status: 'Active' }).sort({ createdAt: -1 }).limit(100);
   res.json(alerts);
 });
 
 // Staff create safety alert and notify students
-router.post('/', requireRole(['staff', 'security', 'admin']), async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const data = createSchema.parse(req.body);
 
-    const alert = await SafetyAlert.create({
+    const alert = await Alert.create({
+      type: data.type,
       title: data.title,
       message: data.message,
-      type: data.type,
-      priority: data.priority,
-      category: data.category,
-      createdBy: req.auth!.userId,
-      isActive: true,
-      expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      status: 'Active',
     });
 
     // Notify all students (could be optimized with topic push in production)

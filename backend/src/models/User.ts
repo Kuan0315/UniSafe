@@ -1,30 +1,3 @@
-<<<<<<< HEAD
-// src/models/User.ts
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IUser extends Document {
-  email: string;
-  name: string;
-  role: 'student' | 'guardian' | 'security' | 'staff';
-  passwordHash: string;
-  avatarDataUrl?: string;
-  studentId: string;
-  phone: string;
-}
-
-const UserSchema = new Schema<IUser>({
-  email: { type: String, required: true, unique: true, lowercase: true, index: true },
-  name: { type: String, required: true },
-  role: { type: String, enum: ['student', 'guardian', 'security', 'staff'], default: 'student' },
-  passwordHash: { type: String, required: true },
-  avatarDataUrl: { type: String },
-  studentId: { type: String },
-  phone: { type: String, required: true },
-}, { timestamps: true });
-
-export default mongoose.model<IUser>('User', UserSchema);
-
-=======
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export type UserRole = 'student' | 'staff' | 'security' | 'admin' | 'guardian';
@@ -77,4 +50,3 @@ export const UserGuardian: Model<IUser> = (mongoose.models.UserGuardian as Model
 export default User;
 
 
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8

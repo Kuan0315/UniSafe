@@ -1,8 +1,9 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+// @ts-ignore
 import Staff from '../models/Staff';
-import authMiddleware from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'secretkey';
@@ -55,16 +56,16 @@ router.post('/login', async (req, res) => {
 });
 
 // Get/Update Staff Profile (Protected)
-router.get('/profile', authMiddleware, async (req, res) => {
-    const staff = await Staff.findById(req.userId);
+router.get('/profile', requireAuth, async (req, res) => {
+    const staff = await Staff.findById(req.auth!.userId);
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
     res.json({ staff });
 });
 
-router.post('/profile', authMiddleware, async (req, res) => {
+router.post('/profile', requireAuth, async (req, res) => {
     try {
         const updates = req.body;
-        const staff = await Staff.findByIdAndUpdate(req.userId, updates, { new: true });
+        const staff = await Staff.findByIdAndUpdate(req.auth!.userId, updates, { new: true });
         res.json({ staff });
     } catch (err) {
         console.log(err);

@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import React, { useState, useEffect, useCallback } from 'react';
-=======
 import React, { useState, useEffect, useCallback } from 'react';
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,

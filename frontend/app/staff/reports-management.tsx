@@ -2154,8 +2154,4 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     lineHeight: 18,
   },
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8

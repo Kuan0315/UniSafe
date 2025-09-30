@@ -9,6 +9,8 @@ export interface IGuardianSession extends Document {
     trustedContacts: Types.ObjectId[];
     checkInIntervalMinutes: number;
     lastCheckInAt?: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 const RoutePointSchema = new Schema({

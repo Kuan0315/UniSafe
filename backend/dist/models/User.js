@@ -33,11 +33,28 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.UserGuardian = exports.UserStaff = exports.UserStudent = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const UserSchema = new mongoose_1.Schema({
-    email: { type: String, required: true, unique: true, lowercase: true, index: true },
     name: { type: String, required: true },
-    role: { type: String, enum: ['student', 'guardian', 'security', 'staff'], default: 'student' },
-    passwordHash: { type: String, required: true },
+    email: { type: String, unique: true, required: true, index: true },
+    passwordHash: { type: String },
+    role: { type: String, enum: ['student', 'staff', 'security', 'admin', 'guardian'], default: 'student', index: true },
+    avatarDataUrl: { type: String },
+    studentId: { type: String, default: '' },
+    anonymousMode: { type: Boolean, default: false },
+    notificationsEnabled: { type: Boolean, default: true },
+    locationSharing: { type: Boolean, default: true },
+    ttsEnabled: { type: Boolean, default: true },
+    autoCaptureSOS: { type: Boolean, default: false },
+    alarmType: { type: String, enum: ['fake-call', 'ring'], default: 'fake-call' },
+    isVerified: { type: Boolean, default: false, index: true },
+    verificationToken: { type: String },
+    verificationTokenExpires: { type: Date },
 }, { timestamps: true });
-exports.default = mongoose_1.default.model('User', UserSchema);
+const User = mongoose_1.default.models.User || mongoose_1.default.model('User', UserSchema);
+// Convenience role-specific models pointing to same collection for clarity in code and queries
+exports.UserStudent = mongoose_1.default.models.UserStudent || mongoose_1.default.model('UserStudent', UserSchema, 'users');
+exports.UserStaff = mongoose_1.default.models.UserStaff || mongoose_1.default.model('UserStaff', UserSchema, 'users');
+exports.UserGuardian = mongoose_1.default.models.UserGuardian || mongoose_1.default.model('UserGuardian', UserSchema, 'users');
+exports.default = User;

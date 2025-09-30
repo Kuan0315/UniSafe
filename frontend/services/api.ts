@@ -65,8 +65,14 @@ export const Api = {
     post(path: string, body?: any) {
         return this.request(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
     },
+    put(path: string, body?: any) {
+        return this.request(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined });
+    },
     del(path: string) {
         return this.request(path, { method: 'DELETE' });
+    },
+    delete(path: string) {
+        return this.del(path);
     }
 };
 

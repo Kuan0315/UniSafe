@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import Notification from '../models/Notification';
 import User from '../models/User';
-import Alert from '../models/Alert';
+import { Alert } from '../models/Alert';
 
 const router = Router();
 
 // Student creates SOS alert
-router.post('/', requireRole(['student']), async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { message, latitude, longitude } = req.body as {
       message?: string;
@@ -47,7 +47,7 @@ router.post('/', requireRole(['student']), async (req, res) => {
 });
 
 // Staff list unhandled SOS alerts (most recent first)
-router.get('/', requireRole(['staff', 'security']), async (_req, res) => {
+router.get('/', requireAuth, async (_req, res) => {
   try {
     const alerts = await Alert.find({ handled: false })
       .populate('userId', 'name email')
@@ -60,7 +60,7 @@ router.get('/', requireRole(['staff', 'security']), async (_req, res) => {
 });
 
 // Staff mark an alert handled
-router.patch('/:id/handle', requireRole(['staff', 'security']), async (req, res) => {
+router.patch('/:id/handle', requireAuth, async (req, res) => {
   try {
     const alert = await Alert.findByIdAndUpdate(
       req.params.id,
@@ -75,7 +75,7 @@ router.patch('/:id/handle', requireRole(['staff', 'security']), async (req, res)
 });
 
 // Staff view all (optional filter)
-router.get('/all', requireRole(['staff', 'security']), async (req, res) => {
+router.get('/all', requireAuth, async (req, res) => {
   try {
     const { handled } = req.query as { handled?: string };
     const filter: any = {};

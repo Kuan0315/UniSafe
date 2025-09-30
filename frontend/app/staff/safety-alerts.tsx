@@ -18,6 +18,7 @@ import { router } from 'expo-router';
 import StandardHeader from '../../components/StandardHeader';
 import PlacesSearch from '../../components/PlacesSearch';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Api } from "../../services/api";
 
 interface SafetyAlert {
   id: string;
@@ -80,7 +81,7 @@ export default function SafetyAlerts() {
     loadAlerts();
   }, []);
 
-  const loadAlerts = async () => {
+  /*const loadAlerts = async () => {
     try {
       // Simulate API call - replace with actual API
       const mockAlerts: SafetyAlert[] = [
@@ -171,7 +172,17 @@ export default function SafetyAlerts() {
       console.error('Error loading alerts:', error);
       Alert.alert('Error', 'Failed to load alerts');
     }
-  };
+  };*/
+  const loadAlerts = async () => {
+  try {
+    const response = await Api.get("/alerts"); // call backend
+    setAlerts(response.data); // backend returns the list of alerts
+  } catch (error) {
+    console.error("Error loading alerts:", error);
+    Alert.alert("Error", "Failed to load alerts from backend");
+  }
+};
+
 
   const openCreateModal = () => {
     resetForm();
@@ -217,7 +228,7 @@ export default function SafetyAlerts() {
     setAlertRadius(200);
   };
 
-  const saveAlert = async () => {
+  /*const saveAlert = async () => {
     if (!title.trim() || !message.trim()) {
       Alert.alert('Error', 'Please fill in title and message');
       return;
@@ -276,7 +287,64 @@ export default function SafetyAlerts() {
     } catch (error) {
       Alert.alert('Error', 'Failed to save alert');
     }
+  };*/
+  const saveAlert = async () => {
+  if (!title.trim() || !message.trim()) {
+    Alert.alert("Error", "Please fill in title and message");
+    return;
+  }
+
+  const alertData: SafetyAlert = {
+    id: editingAlert?.id || Date.now().toString(),
+    title: title.trim(),
+    message: message.trim(),
+    type,
+    priority,
+    category,
+    createdBy: "Current Staff Member",
+    createdAt: editingAlert?.createdAt || new Date(),
+    expiresAt: expiresAt || undefined,
+    scheduledAt: scheduledAt || undefined,
+    isActive: !isScheduled,
+    timeLimit,
+    isAutoDeactivated: timeLimit !== null && timeLimit !== undefined,
+    isScheduled,
+    sendPushNotification,
+    sendEmail,
+    sendSMS,
+    alertScope,
+    location:
+      alertScope === "location-specific" && alertLatitude && alertLongitude
+        ? {
+            latitude: alertLatitude,
+            longitude: alertLongitude,
+            address: alertLocation || undefined,
+            radius: alertRadius,
+          }
+        : undefined,
   };
+
+  try {
+    if (editingAlert) {
+      // update existing alert
+      await Api.put(`/alerts/${editingAlert.id}`, alertData);
+      setAlerts(prev => prev.map(a => a.id === editingAlert.id ? alertData : a));
+      Alert.alert("Success", "Alert updated successfully");
+    } else {
+      // create new alert
+      await Api.post("/alerts", alertData);
+      setAlerts(prev => [alertData, ...prev]);
+      Alert.alert("Success", "Alert published successfully");
+    }
+
+    setModalVisible(false);
+    resetForm();
+  } catch (error) {
+    console.error("Save error:", error);
+    Alert.alert("Error", "Failed to save alert to backend");
+  }
+};
+
 
   const toggleAlertStatus = async (alertId: string) => {
     try {
@@ -332,7 +400,7 @@ export default function SafetyAlerts() {
     setShowDatePicker(true);
   };
 
-  const deleteAlert = async (alertId: string) => {
+  /*const deleteAlert = async (alertId: string) => {
     Alert.alert(
       'Delete Alert',
       'Are you sure you want to delete this alert?',
@@ -348,7 +416,27 @@ export default function SafetyAlerts() {
         }
       ]
     );
-  };
+  };*/
+  const deleteAlert = async (alertId: string) => {
+  Alert.alert("Delete Alert", "Are you sure?", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: async () => {
+        try {
+          await Api.delete(`/alerts/${alertId}`);
+          setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+          Alert.alert("Success", "Alert deleted");
+        } catch (error) {
+          console.error("Delete error:", error);
+          Alert.alert("Error", "Failed to delete alert");
+        }
+      },
+    },
+  ]);
+};
+
 
   const getTypeColor = (alertType: string) => {
     switch (alertType) {

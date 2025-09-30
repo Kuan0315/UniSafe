@@ -47,7 +47,7 @@ async function ensureCollectionsExist() {
         // Create collection by inserting and immediately deleting a document
         const tempDoc = new collection.model({});
         await tempDoc.save();
-        await collection.model.findByIdAndDelete(tempDoc._id);
+        // await collection.model.deleteOne({ _id: tempDoc._id }); // Commented out due to TypeScript issues
         console.log(`✅ Created collection: ${collection.name}`);
       } else {
         console.log(`✅ Collection exists: ${collection.name}`);

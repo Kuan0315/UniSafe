@@ -111,7 +111,7 @@ async function calculateAverageSessionDuration() {
     if (sessions.length === 0) return 0;
 
     const totalDuration = sessions.reduce((sum, session) => {
-      const duration = session.updatedAt.getTime() - session.createdAt.getTime();
+      const duration = (session as any).updatedAt.getTime() - (session as any).createdAt.getTime();
       return sum + duration;
     }, 0);
 

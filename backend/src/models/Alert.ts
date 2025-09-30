@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-import mongoose, { Schema, Document, Types } from 'mongoose';
+/*import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IAlert extends Document {
   userId: Types.ObjectId;
@@ -21,47 +20,42 @@ const AlertSchema = new Schema<IAlert>({
   handled: { type: Boolean, default: false },
 }, { timestamps: true });
 
-export default mongoose.model<IAlert>('Alert', AlertSchema);
+export default mongoose.model<IAlert>('Alert', AlertSchema);*/
 
-=======
-import mongoose, { Document, Schema } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 export interface IAlert extends Document {
-    title: string;
-    message: string;
-    type: 'critical' | 'warning' | 'info';
-    priority: 'high' | 'medium' | 'low';
-    category: string;
-    createdBy: string;
-    createdAt: Date;
-    expiresAt?: Date;
-    scheduledAt?: Date;
-    isActive: boolean;
-    isAutoDeactivated: boolean;
-    isScheduled: boolean;
-    sendPushNotification: boolean;
-    sendEmail: boolean;
-    sendSMS: boolean;
+  type: string;
+  title: string;
+  message: string;
+  schedule?: Date;
+  autoDeactivate?: boolean;
+  status: "Active" | "Inactive";
+  scope?: "Campus Wide" | "Building Specific";
+  location?: string;
+  deliveryMethods?: string[];
 }
 
-const AlertSchema: Schema = new Schema({
+const alertSchema = new Schema<IAlert>(
+  {
+    type: { type: String, required: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
-    type: { type: String, enum: ['critical', 'warning', 'info'], default: 'info' },
-    priority: { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
-    category: { type: String, default: '' },
-    createdBy: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date },
-    scheduledAt: { type: Date },
-    isActive: { type: Boolean, default: true },
-    isAutoDeactivated: { type: Boolean, default: false },
-    isScheduled: { type: Boolean, default: false },
-    sendPushNotification: { type: Boolean, default: true },
-    sendEmail: { type: Boolean, default: false },
-    sendSMS: { type: Boolean, default: false },
-});
+    schedule: Date,
+    autoDeactivate: Boolean,
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Inactive",
+    },
+    scope: {
+      type: String,
+      enum: ["Campus Wide", "Building Specific"],
+    },
+    location: String,
+    deliveryMethods: [String],
+  },
+  { timestamps: true }
+);
 
-export default mongoose.model<IAlert>('Alert', AlertSchema);
-
->>>>>>> 441d99cd00a666d82e26351ff32ea84d8b1e8ff8
+export const Alert = model<IAlert>("Alert", alertSchema);
