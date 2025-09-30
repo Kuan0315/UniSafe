@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import Notification from '../models/Notification';
-import User from '../models/User';
-import { Alert } from '../models/Alert';
+import { requireAuth } from '../middleware/auth.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import { Alert } from '../models/Alert.js';
 
 const router = Router();
 

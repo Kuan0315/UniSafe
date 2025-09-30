@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getSOSChatMessages, sendStaffSOSMessage } from '../services/SOSService';
 
 interface Message {
   id: string;
@@ -42,7 +43,50 @@ const StaffEmergencyChat: React.FC<StaffEmergencyChatProps> = ({
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Fetch messages from the API
+  const fetchMessages = async () => {
+    if (!alertId) return; // Don't fetch if alertId is not available
+    
+    try {
+      const chatMessages = await getSOSChatMessages(alertId);
+      
+      // Convert API messages to component format
+      const formattedMessages: Message[] = [
+        // Keep the initial system message
+        {
+          id: '1',
+          text: `SOS Alert activated by ${studentName}. Emergency services have been notified.`,
+          sender: 'staff',
+          timestamp: new Date(),
+          senderName: 'Security System'
+        },
+        // Add real messages from API
+        ...chatMessages.map((msg, index) => ({
+          id: `msg-${msg.timestamp.getTime()}-${index}`,
+          text: msg.message,
+          sender: (msg.senderRole === 'student' ? 'student' : 'staff') as 'staff' | 'student',
+          timestamp: msg.timestamp,
+          senderName: msg.senderRole === 'student' ? studentName : 
+                     msg.senderRole === 'security' ? 'Security Staff' : 'Campus Security'
+        }))
+      ];
+      
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error fetching chat messages:', error);
+    }
+  };
+
+  // Fetch messages on mount and set up polling
+  useEffect(() => {
+    fetchMessages();
+    // Set up polling for new messages every 5 seconds
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [alertId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -51,67 +95,38 @@ const StaffEmergencyChat: React.FC<StaffEmergencyChatProps> = ({
     }, 100);
   }, [messages]);
 
-  // Simulate student responses for demonstration
-  const simulateStudentResponse = (staffMessage: string) => {
-    const responses = [
-      "I'm okay now, thank you for checking",
-      "Still need help, please come quickly",
-      "The situation has escalated, urgent assistance needed",
-      "False alarm, sorry for the confusion",
-      "Medical emergency, need ambulance",
-      "Someone is following me, I'm scared",
-      "I'm in the library basement, can't find exit",
-      "Everything is fine now, thanks for responding"
-    ];
+  const sendMessage = async () => {
+    if (inputText.trim() === '' || isLoading || !alertId) return;
 
-    // Simple keyword-based response selection
-    let response = responses[0]; // default
+    setIsLoading(true);
     
-    if (staffMessage.toLowerCase().includes('status') || staffMessage.toLowerCase().includes('okay')) {
-      response = Math.random() > 0.5 ? responses[0] : responses[1];
-    } else if (staffMessage.toLowerCase().includes('help') || staffMessage.toLowerCase().includes('assist')) {
-      response = responses[1];
-    } else if (staffMessage.toLowerCase().includes('location') || staffMessage.toLowerCase().includes('where')) {
-      response = responses[6];
-    } else if (staffMessage.toLowerCase().includes('medical') || staffMessage.toLowerCase().includes('hurt')) {
-      response = responses[4];
-    } else {
-      response = responses[Math.floor(Math.random() * responses.length)];
-    }
+    try {
+      // Send message via API
+      await sendStaffSOSMessage(alertId, inputText.trim(), 'text');
+      
+      // Add message to local state for immediate UI update
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        text: inputText.trim(),
+        sender: 'staff',
+        timestamp: new Date(),
+        senderName: 'Campus Security'
+      };
 
-    setTimeout(() => {
-      setIsTyping(true);
+      setMessages(prev => [...prev, newMessage]);
+      setInputText('');
+      
+      // Fetch updated messages to ensure sync
       setTimeout(() => {
-        setIsTyping(false);
-        const newMessage: Message = {
-          id: Date.now().toString(),
-          text: response,
-          sender: 'student',
-          timestamp: new Date(),
-          senderName: studentName
-        };
-        setMessages(prev => [...prev, newMessage]);
-      }, 1500);
-    }, 1000);
-  };
-
-  const sendMessage = () => {
-    if (inputText.trim() === '') return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      sender: 'staff',
-      timestamp: new Date(),
-      senderName: 'Campus Security'
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    
-    // Simulate student response
-    simulateStudentResponse(inputText.trim());
-    
-    setInputText('');
+        fetchMessages();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const generateConciseSummary = () => {

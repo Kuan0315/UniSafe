@@ -57,10 +57,10 @@ export class LocationService {
       return {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        accuracy: location.coords.accuracy,
+        accuracy: location.coords.accuracy || undefined,
         timestamp: location.timestamp,
-        heading: location.coords.heading,
-        speed: location.coords.speed,
+        heading: location.coords.heading || undefined,
+        speed: location.coords.speed || undefined,
       };
     } catch (error) {
       console.error('Error getting current location:', error);
@@ -91,16 +91,15 @@ export class LocationService {
           accuracy: Location.Accuracy.High,
           timeInterval: this.updateInterval,
           distanceInterval: 10,
-          showsBackgroundLocationIndicator: true,
         },
         (location) => {
           const locationData: LocationData = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
-            accuracy: location.coords.accuracy,
+            accuracy: location.coords.accuracy || undefined,
             timestamp: location.timestamp,
-            heading: location.coords.heading,
-            speed: location.coords.speed,
+            heading: location.coords.heading || undefined,
+            speed: location.coords.speed || undefined,
           };
 
           const locationUpdate: LocationUpdate = {

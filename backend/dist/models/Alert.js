@@ -1,4 +1,3 @@
-"use strict";
 /*import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IAlert extends Document {
@@ -22,10 +21,8 @@ const AlertSchema = new Schema<IAlert>({
 }, { timestamps: true });
 
 export default mongoose.model<IAlert>('Alert', AlertSchema);*/
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Alert = void 0;
-const mongoose_1 = require("mongoose");
-const alertSchema = new mongoose_1.Schema({
+import { Schema, model } from "mongoose";
+const alertSchema = new Schema({
     type: { type: String, required: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
@@ -43,4 +40,4 @@ const alertSchema = new mongoose_1.Schema({
     location: String,
     deliveryMethods: [String],
 }, { timestamps: true });
-exports.Alert = (0, mongoose_1.model)("Alert", alertSchema);
+export const Alert = model("Alert", alertSchema);

@@ -1,44 +1,53 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = __importStar(require("mongoose"));
-const SOSSchema = new mongoose_1.Schema({
-    userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+import mongoose, { Schema } from 'mongoose';
+const SOSSchema = new Schema({
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    studentInfo: {
+        name: { type: String, required: true },
+        email: { type: String, required: true },
+        phone: String,
+        studentId: { type: String, required: true }
+    },
     timestamp: { type: Date, default: Date.now },
-    location: { latitude: Number, longitude: Number, address: String },
-    media: { photo: String, video: String },
-    type: { type: String, enum: ['emergency', 'discreet'], default: 'emergency' }
-});
-exports.default = mongoose_1.default.model('SOS', SOSSchema);
+    status: { type: String, enum: ['active', 'resolved', 'false_alarm'], default: 'active' },
+    priority: { type: String, enum: ['high', 'medium', 'low'], default: 'high' },
+    type: { type: String, enum: ['emergency', 'discreet'], default: 'emergency' },
+    currentLocation: {
+        latitude: { type: Number, required: true },
+        longitude: { type: Number, required: true },
+        address: String,
+        accuracy: Number,
+        timestamp: { type: Date, default: Date.now }
+    },
+    locationHistory: [{
+            latitude: { type: Number, required: true },
+            longitude: { type: Number, required: true },
+            address: String,
+            timestamp: { type: Date, default: Date.now }
+        }],
+    media: [{
+            type: { type: String, enum: ['photo', 'video'], required: true },
+            url: { type: String, required: true },
+            timestamp: { type: Date, default: Date.now },
+            isAutoCaptured: { type: Boolean, default: false }
+        }],
+    chatMessages: [{
+            senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+            senderRole: { type: String, enum: ['student', 'staff', 'security'], required: true },
+            message: { type: String, required: true },
+            timestamp: { type: Date, default: Date.now },
+            messageType: { type: String, enum: ['text', 'location_update', 'media_shared'], default: 'text' },
+            mediaUrl: String
+        }],
+    assignedStaff: { type: Schema.Types.ObjectId, ref: 'User' },
+    responders: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    followedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    resolutionNote: String,
+    resolvedAt: Date,
+    responseTime: Number, // in minutes
+    autoVideoEnabled: { type: Boolean, default: false },
+    liveLocationEnabled: { type: Boolean, default: true },
+    initialMessage: String,
+    category: String
+}, { timestamps: true });
+export default mongoose.model('SOS', SOSSchema);

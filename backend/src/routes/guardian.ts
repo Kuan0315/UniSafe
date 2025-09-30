@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import GuardianSession from '../models/GuardianSession';
-import Notification from '../models/Notification';
-import User from '../models/User';
-import Contact from '../models/Contact';
+import { requireAuth } from '../middleware/auth.js';
+import GuardianSession from '../models/GuardianSession.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import Contact from '../models/Contact.js';
 
 const router = Router();
 

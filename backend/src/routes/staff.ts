@@ -2,8 +2,8 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 // @ts-ignore
-import Staff from '../models/Staff';
-import { requireAuth } from '../middleware/auth';
+import Staff from '../models/Staff.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'secretkey';

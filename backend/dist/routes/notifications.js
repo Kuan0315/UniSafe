@@ -1,17 +1,12 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const auth_1 = require("../middleware/auth");
-const Notification_1 = __importDefault(require("../models/Notification"));
-const router = (0, express_1.Router)();
-router.use(auth_1.requireAuth);
+import { Router } from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import Notification from '../models/Notification.js';
+const router = Router();
+router.use(requireAuth);
 // Get notifications for the authenticated user (guardian)
 router.get('/', async (req, res) => {
     try {
-        const notifications = await Notification_1.default.find({
+        const notifications = await Notification.find({
             recipientId: req.auth.userId
         })
             .populate('senderId', 'name email')
@@ -27,7 +22,7 @@ router.get('/', async (req, res) => {
 // Get unread notifications count
 router.get('/unread-count', async (req, res) => {
     try {
-        const count = await Notification_1.default.countDocuments({
+        const count = await Notification.countDocuments({
             recipientId: req.auth.userId,
             isRead: false
         });
@@ -40,7 +35,7 @@ router.get('/unread-count', async (req, res) => {
 // Mark notification as read
 router.patch('/:id/read', async (req, res) => {
     try {
-        const notification = await Notification_1.default.findOneAndUpdate({
+        const notification = await Notification.findOneAndUpdate({
             _id: req.params.id,
             recipientId: req.auth.userId
         }, {
@@ -59,7 +54,7 @@ router.patch('/:id/read', async (req, res) => {
 // Mark all notifications as read
 router.patch('/mark-all-read', async (req, res) => {
     try {
-        await Notification_1.default.updateMany({
+        await Notification.updateMany({
             recipientId: req.auth.userId,
             isRead: false
         }, {
@@ -76,7 +71,7 @@ router.patch('/mark-all-read', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { recipientId, senderId, sessionId, type, title, message, location, destination, data } = req.body;
-        const notification = await Notification_1.default.create({
+        const notification = await Notification.create({
             recipientId,
             senderId,
             sessionId,
@@ -98,4 +93,4 @@ router.post('/', async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
-exports.default = router;
+export default router;

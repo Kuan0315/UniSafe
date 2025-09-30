@@ -4,7 +4,7 @@ export interface INotification extends Document {
   recipientId: Types.ObjectId; // Guardian who receives the notification
   senderId: Types.ObjectId; // Student who started guardian mode
   sessionId: Types.ObjectId; // Guardian session reference
-  type: 'guardian_mode_started' | 'location_update' | 'check_in_reminder' | 'session_ended';
+  type: 'guardian_mode_started' | 'location_update' | 'check_in_reminder' | 'session_ended' | 'sos_alert';
   title: string;
   message: string;
   location?: {
@@ -31,7 +31,7 @@ const NotificationSchema = new Schema<INotification>({
   sessionId: { type: Schema.Types.ObjectId, ref: 'GuardianSession' },
   type: { 
     type: String, 
-    enum: ['guardian_mode_started', 'location_update', 'check_in_reminder', 'session_ended'],
+    enum: ['guardian_mode_started', 'location_update', 'check_in_reminder', 'session_ended', 'sos_alert'],
     required: true 
   },
   title: { type: String, required: true },

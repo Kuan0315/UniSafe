@@ -23,7 +23,8 @@ export const capturePhoto = async (): Promise<string | null> => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
-      quality: 0.8
+      quality: 0.8,
+      base64: false // Don't use base64 for photos - use file URI like videos
     });
     
     if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -64,7 +65,8 @@ export const captureVideo = async (): Promise<string | null> => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: false,
-      videoMaxDuration: 30
+      videoMaxDuration: 30,
+      base64: false // Videos use file URI (base64 would be too large)
     });
     
     if (result.canceled || !result.assets || result.assets.length === 0) {

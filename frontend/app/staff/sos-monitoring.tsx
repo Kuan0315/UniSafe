@@ -20,54 +20,8 @@ import StandardHeader from '../../components/StandardHeader';
 import StaffEmergencyChat from '../../components/StaffEmergencyChat';
 import { Video, ResizeMode } from 'expo-av';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
-
-interface SOSAlert {
-    id: string;
-    userId: string;
-    userName: string;
-    userPhone: string;
-    userPhoto?: string;
-    timestamp: Date;
-    location: {
-        latitude: number;
-        longitude: number;
-        address: string;
-    };
-    locationHistory: Array<{
-        latitude: number;
-        longitude: number;
-        timestamp: Date;
-    }>;
-    lastLocationUpdate: Date;
-    isMoving: boolean;
-    batteryLevel?: number;
-    status: 'active' | 'following' | 'responding' | 'resolved' | 'false_alarm';
-    priority: 'critical' | 'high' | 'medium';
-    emergencyType: 'general_emergency' | 'medical' | 'fire' | 'security' | 'assault' | 'harassment';
-    mediaAttached: boolean;
-    mediaUrls?: {
-        url: string;
-        type: 'image' | 'video';
-        thumbnail?: string;
-    }[];
-    description?: string;
-    chatSummary?: string;
-    emergencyContacts?: string[];
-    responseTime?: number;
-    followedBy?: {
-        staffId: string;
-        staffName: string;
-        followedAt: Date;
-        phone?: string;
-    };
-    respondingStaff?: Array<{
-        staffId: string;
-        staffName: string;
-        role: string;
-        eta?: string;
-        phone?: string;
-    }>;
-}
+import { getActiveSOSAlerts, assignSOSAlert, updateSOSStatus, getSOSLocationHistory, getSOSMedia, SOSAlert } from '../../services/SOSService';
+import { Api } from '../../services/api';
 
 export default function SOSMonitoring() {
     const [sosAlerts, setSosAlerts] = useState<SOSAlert[]>([]);
@@ -97,121 +51,8 @@ export default function SOSMonitoring() {
 
     const loadSOSAlerts = async () => {
         try {
-            // Simulate API call - replace with actual API
-            const mockAlerts: SOSAlert[] = [
-                {
-                    id: '1',
-                    userId: 'user123',
-                    userName: 'John Doe',
-                    userPhone: '+60123456789',
-                    userPhoto: 'https://picsum.photos/100/100?random=1',
-                    timestamp: new Date(Date.now() - 300000), // 5 mins ago
-                    location: {
-                        latitude: 3.1319,
-                        longitude: 101.6841,
-                        address: 'Main Campus Library, University of Malaya'
-                    },
-                    locationHistory: [
-                        { latitude: 3.1317, longitude: 101.6839, timestamp: new Date(Date.now() - 400000) },
-                        { latitude: 3.1318, longitude: 101.6840, timestamp: new Date(Date.now() - 350000) },
-                        { latitude: 3.1319, longitude: 101.6841, timestamp: new Date(Date.now() - 300000) },
-                    ],
-                    lastLocationUpdate: new Date(Date.now() - 60000), // 1 minute ago
-                    isMoving: true,
-                    batteryLevel: 85,
-                    status: 'active',
-                    priority: 'critical',
-                    emergencyType: 'general_emergency',
-                    mediaAttached: true,
-                    mediaUrls: [
-                        {
-                            url: 'https://picsum.photos/400/300?random=1',
-                            type: 'image'
-                        },
-                        {
-                            url: 'https://picsum.photos/400/300?random=2',
-                            type: 'image'
-                        },
-                        {
-                            url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-                            type: 'video',
-                            thumbnail: 'https://picsum.photos/400/300?random=4'
-                        }
-                    ],
-                    description: 'Emergency situation near the library entrance, someone following me',
-                    chatSummary: 'Student reports being followed - security threat',
-                    emergencyContacts: ['+60198765432', '+60187654321'],
-                },
-                {
-                    id: '2',
-                    userId: 'user456',
-                    userName: 'Jane Smith',
-                    userPhone: '+60123456790',
-                    userPhoto: 'https://picsum.photos/100/100?random=2',
-                    timestamp: new Date(Date.now() - 900000), // 15 mins ago
-                    location: {
-                        latitude: 3.1325,
-                        longitude: 101.6850,
-                        address: 'Engineering Faculty, University of Malaya'
-                    },
-                    locationHistory: [
-                        { latitude: 3.1325, longitude: 101.6850, timestamp: new Date(Date.now() - 900000) },
-                    ],
-                    lastLocationUpdate: new Date(Date.now() - 300000), // 5 minutes ago
-                    isMoving: false,
-                    batteryLevel: 45,
-                    status: 'following',
-                    priority: 'high',
-                    emergencyType: 'medical',
-                    mediaAttached: true,
-                    mediaUrls: [
-                        {
-                            url: 'https://picsum.photos/400/300?random=3',
-                            type: 'image'
-                        }
-                    ],
-                    description: 'Having chest pain, need medical help urgently',
-                    chatSummary: 'Medical emergency - student requires medical assistance',
-                    responseTime: 12,
-                    followedBy: {
-                        staffId: 'MED001',
-                        staffName: 'Dr. Lisa Wong',
-                        followedAt: new Date(Date.now() - 600000),
-                        phone: '+60123456800',
-                    },
-                    respondingStaff: [
-                        { staffId: 'MED001', staffName: 'Dr. Lisa Wong', role: 'medical', eta: '2 minutes', phone: '+60123456800' },
-                        { staffId: 'SEC001', staffName: 'Ahmad Rahman', role: 'security', eta: '3 minutes', phone: '+60123456801' },
-                    ],
-                },
-                {
-                    id: '3',
-                    userId: 'user789',
-                    userName: 'Bob Wilson',
-                    userPhone: '+60123456791',
-                    timestamp: new Date(Date.now() - 1800000), // 30 mins ago
-                    location: {
-                        latitude: 3.1315,
-                        longitude: 101.6845,
-                        address: 'Student Residence Hall A'
-                    },
-                    locationHistory: [
-                        { latitude: 3.1315, longitude: 101.6845, timestamp: new Date(Date.now() - 1800000) },
-                    ],
-                    lastLocationUpdate: new Date(Date.now() - 1800000),
-                    isMoving: false,
-                    batteryLevel: 92,
-                    status: 'false_alarm',
-                    priority: 'medium',
-                    emergencyType: 'general_emergency',
-                    mediaAttached: false,
-                    description: 'Accidentally triggered SOS while jogging',
-                    chatSummary: 'False alarm - accidental activation confirmed',
-                    responseTime: 8,
-                },
-            ];
-
-            setSosAlerts(mockAlerts);
+            const alerts = await getActiveSOSAlerts();
+            setSosAlerts(alerts);
         } catch (error) {
             console.error('Error loading SOS alerts:', error);
             Alert.alert('Error', 'Failed to load SOS alerts');
@@ -232,7 +73,7 @@ export default function SOSMonitoring() {
         setRefreshing(false);
     };
 
-    const handleAlertPress = (alert: SOSAlert) => {
+    const handleAlertPress = async (alert: SOSAlert) => {
         setSelectedAlert(alert);
         setModalVisible(true);
         // Initialize messageSummary with existing chatSummary if available
@@ -241,9 +82,20 @@ export default function SOSMonitoring() {
         } else {
             setMessageSummary('');
         }
+        
+        // Fetch latest media for this alert
+        try {
+            const latestMedia = await getSOSMedia(alert.id);
+            setSelectedAlert(prev => prev ? {
+                ...prev,
+                media: latestMedia
+            } : null);
+        } catch (error) {
+            console.error('Error fetching latest media:', error);
+        }
     };
 
-    const openImageViewer = (mediaItem: { url: string; type: 'image' | 'video'; thumbnail?: string }) => {
+    const openImageViewer = (mediaItem: { url: string; type: 'photo' | 'video'; thumbnail?: string }) => {
         setSelectedImageUrl(mediaItem.url);
         setImageViewerVisible(true);
     };
@@ -255,7 +107,10 @@ export default function SOSMonitoring() {
 
     const updateAlertStatus = async (alertId: string, newStatus: SOSAlert['status']) => {
         try {
-            // Simulate API call
+            // Call backend API to update status
+            await Api.put(`/sos/${alertId}/status`, { status: newStatus });
+
+            // Update local state to reflect the change
             setSosAlerts(prev =>
                 prev.map(alert =>
                     alert.id === alertId
@@ -266,12 +121,17 @@ export default function SOSMonitoring() {
             setModalVisible(false);
             Alert.alert('Success', `Alert marked as ${newStatus}`);
         } catch (error) {
+            console.error('Error updating alert status:', error);
             Alert.alert('Error', 'Failed to update alert status');
         }
     };
 
     const followSOSAlert = async (alertId: string) => {
         try {
+            // Call backend API to follow the alert
+            await Api.post(`/sos/${alertId}/follow`);
+
+            // Update local state to reflect the change
             const updatedAlerts = sosAlerts.map(alert =>
                 alert.id === alertId
                     ? {
@@ -297,12 +157,17 @@ export default function SOSMonitoring() {
 
             Alert.alert('Success', 'You are now following this SOS alert');
         } catch (error) {
+            console.error('Error following alert:', error);
             Alert.alert('Error', 'Failed to follow alert');
         }
     };
 
     const respondToSOS = async (alertId: string) => {
         try {
+            // Call backend API to respond to the alert
+            await Api.post(`/sos/${alertId}/respond`);
+
+            // Update local state to reflect the change
             const updatedAlerts = sosAlerts.map(alert =>
                 alert.id === alertId
                     ? {
@@ -313,8 +178,7 @@ export default function SOSMonitoring() {
                             {
                                 staffId: 'CURRENT_STAFF_ID',
                                 staffName: 'Current Staff Member',
-                                role: 'security',
-                                eta: '5 minutes',
+                                joinedAt: new Date(),
                                 phone: '+60123456999',
                             }
                         ]
@@ -332,6 +196,7 @@ export default function SOSMonitoring() {
 
             Alert.alert('Success', 'You are now responding to this SOS alert');
         } catch (error) {
+            console.error('Error responding to alert:', error);
             Alert.alert('Error', 'Failed to respond to alert');
         }
     };
@@ -457,7 +322,6 @@ export default function SOSMonitoring() {
                 ))}
             </ScrollView>
 
-            {/* SOS Alerts List */}
             <ScrollView
                 style={styles.alertsList}
                 refreshControl={
@@ -469,69 +333,72 @@ export default function SOSMonitoring() {
                     />
                 }
             >
-                {filteredAlerts.map((alert) => (
-                    <TouchableOpacity
-                        key={alert.id}
-                        style={[
-                            styles.alertCard,
-                            alert.status === 'active' && styles.alertCardActive
-                        ]}
-                        onPress={() => handleAlertPress(alert)}
-                    >
-                        <View style={styles.alertHeader}>
-                            <View style={styles.alertUser}>
-                                <Ionicons name="person-circle" size={32} color="#007AFF" />
-                                <View style={styles.alertUserInfo}>
-                                    <Text style={styles.alertUserName}>{alert.userName}</Text>
-                                    <Text style={styles.alertTime}>{formatTimeAgo(alert.timestamp)}</Text>
+                <>
+                    {filteredAlerts.length > 0 ? (
+                        filteredAlerts.map((alert) => (
+                            <TouchableOpacity
+                                key={alert.id}
+                                style={[
+                                    styles.alertCard,
+                                    alert.status === 'active' && styles.alertCardActive
+                                ]}
+                                onPress={() => handleAlertPress(alert)}
+                            >
+                            <View style={styles.alertHeader}>
+                                <View style={styles.alertUser}>
+                                    <Ionicons name="person-circle" size={32} color="#007AFF" />
+                                    <View style={styles.alertUserInfo}>
+                                        <Text style={styles.alertUserName}>{alert.userName}</Text>
+                                        <Text style={styles.alertTime}>{formatTimeAgo(alert.timestamp)}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.alertBadges}>
+                                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(alert.priority) }]}>
+                                        <Text style={styles.badgeText}>{alert.priority.toUpperCase()}</Text>
+                                    </View>
+                                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(alert.status) }]}>
+                                        <Text style={styles.badgeText}>{alert.status.replace('_', ' ').toUpperCase()}</Text>
+                                    </View>
                                 </View>
                             </View>
-                            <View style={styles.alertBadges}>
-                                <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(alert.priority) }]}>
-                                    <Text style={styles.badgeText}>{alert.priority.toUpperCase()}</Text>
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(alert.status) }]}>
-                                    <Text style={styles.badgeText}>{alert.status.replace('_', ' ').toUpperCase()}</Text>
-                                </View>
-                            </View>
-                        </View>
 
-                        <Text style={styles.alertLocation}>{alert.location.address}</Text>
+                            {alert.location?.address && (
+                                <Text style={styles.alertLocation}>{alert.location.address}</Text>
+                            )}
 
-                        {alert.chatSummary && (
-                            <Text style={styles.alertDescription}>{alert.chatSummary}</Text>
-                        )}
+                            {alert.chatSummary && (
+                                <Text style={styles.alertDescription}>{alert.chatSummary}</Text>
+                            )}
 
-                        <View style={styles.alertMeta}>
-                            <View style={styles.alertMetaItem}>
-                                <Ionicons name="location" size={16} color="#8E8E93" />
-                                <Text style={styles.alertMetaText}>
-                                    {alert.location.latitude.toFixed(4)}, {alert.location.longitude.toFixed(4)}
-                                </Text>
-                            </View>
-                            {alert.mediaAttached && (
+                            <View style={styles.alertMeta}>
                                 <View style={styles.alertMetaItem}>
-                                    <Ionicons name="camera" size={16} color="#007AFF" />
+                                    <Ionicons name="location" size={16} color="#8E8E93" />
                                     <Text style={styles.alertMetaText}>
-                                        {alert.mediaUrls && alert.mediaUrls.length > 0
-                                            ? `${alert.mediaUrls.length} file(s) - ${alert.mediaUrls.filter(m => m.type === 'image').length} img, ${alert.mediaUrls.filter(m => m.type === 'video').length} vid`
-                                            : 'Media attached'
-                                        }
+                                        {alert.location?.latitude?.toFixed(4) || 'N/A'}, {alert.location?.longitude?.toFixed(4) || 'N/A'}
                                     </Text>
                                 </View>
-                            )}
-                            {alert.responseTime && (
-                                <View style={styles.alertMetaItem}>
-                                    <Ionicons name="time" size={16} color="#34C759" />
-                                    <Text style={styles.alertMetaText}>{alert.responseTime}m response</Text>
-                                </View>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-
-                {filteredAlerts.length === 0 && (
-                    <View style={styles.emptyState}>
+                                {alert.media && alert.media.length > 0 && (
+                                    <View style={styles.alertMetaItem}>
+                                        <Ionicons name="camera" size={16} color="#007AFF" />
+                                        <Text style={styles.alertMetaText}>
+                                            {alert.media.length > 0
+                                                ? `${alert.media.length} file(s) - ${alert.media.filter(m => m.type === 'photo').length} img, ${alert.media.filter(m => m.type === 'video').length} vid`
+                                                : 'Media attached'
+                                            }
+                                        </Text>
+                                    </View>
+                                )}
+                                {alert.responseTime && (
+                                    <View style={styles.alertMetaItem}>
+                                        <Ionicons name="time" size={16} color="#34C759" />
+                                        <Text style={styles.alertMetaText}>{alert.responseTime}m response</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </TouchableOpacity>
+                    ))
+                ) : (
+                    <View key="empty-state" style={styles.emptyState}>
                         <Ionicons name="document-outline" size={64} color="#8E8E93" />
                         <Text style={styles.emptyStateTitle}>No SOS alerts</Text>
                         <Text style={styles.emptyStateText}>
@@ -542,6 +409,7 @@ export default function SOSMonitoring() {
                         </Text>
                     </View>
                 )}
+                </>
             </ScrollView>
 
             {/* Alert Detail Modal - Full Screen */}
@@ -576,27 +444,28 @@ export default function SOSMonitoring() {
                                     <Text style={styles.modalSectionTitle}>Live Location Tracking</Text>
 
                                     {/* Live Map View */}
-                                    <View style={styles.mapContainer}>
-                                        <MapView
-                                            provider={PROVIDER_GOOGLE}
-                                            style={styles.miniMap}
-                                            initialRegion={{
-                                                latitude: selectedAlert.location.latitude,
-                                                longitude: selectedAlert.location.longitude,
-                                                latitudeDelta: 0.005,
-                                                longitudeDelta: 0.005,
-                                            }}
-                                            showsUserLocation={false}
-                                            scrollEnabled={true}
-                                            zoomEnabled={true}
-                                        >
-                                            {/* Current Location Marker */}
-                                            <Marker
-                                                coordinate={selectedAlert.location}
-                                                title={selectedAlert.userName}
-                                                description="Current Location"
+                                    {selectedAlert.location && (
+                                        <View style={styles.mapContainer}>
+                                            <MapView
+                                                provider={PROVIDER_GOOGLE}
+                                                style={styles.miniMap}
+                                                initialRegion={{
+                                                    latitude: selectedAlert.location.latitude,
+                                                    longitude: selectedAlert.location.longitude,
+                                                    latitudeDelta: 0.005,
+                                                    longitudeDelta: 0.005,
+                                                }}
+                                                showsUserLocation={false}
+                                                scrollEnabled={true}
+                                                zoomEnabled={true}
                                             >
-                                                <View style={[styles.userMarker, { backgroundColor: selectedAlert.isMoving ? '#fd7e14' : '#28a745' }]}>
+                                                {/* Current Location Marker */}
+                                                <Marker
+                                                    coordinate={selectedAlert.location}
+                                                    title={selectedAlert.userName}
+                                                    description="Current Location"
+                                                >
+                                                    <View style={[styles.userMarker, { backgroundColor: selectedAlert.isMoving ? '#fd7e14' : '#28a745' }]}>
                                                     <Ionicons
                                                         name="person"
                                                         size={16}
@@ -622,10 +491,10 @@ export default function SOSMonitoring() {
                                             {/* Historical markers */}
                                             {selectedAlert.locationHistory.slice(0, -1).map((location, index) => (
                                                 <Marker
-                                                    key={index}
+                                                    key={`location-${location.timestamp?.getTime() || index}`}
                                                     coordinate={location}
                                                     title={`Location ${index + 1}`}
-                                                    description={location.timestamp.toLocaleTimeString()}
+                                                    description={location.timestamp ? location.timestamp.toLocaleTimeString() : 'Unknown time'}
                                                 >
                                                     <View style={styles.historyMarker}>
                                                         <Text style={styles.historyMarkerText}>{index + 1}</Text>
@@ -634,6 +503,7 @@ export default function SOSMonitoring() {
                                             ))}
                                         </MapView>
                                     </View>
+                                    )}
 
                                     {/* Location Status Info */}
                                     <View style={styles.locationInfo}>
@@ -642,7 +512,7 @@ export default function SOSMonitoring() {
                                                 <Ionicons name="location" size={16} color="#007bff" />
                                                 <Text style={styles.locationInfoLabel}>Address:</Text>
                                             </View>
-                                            <Text style={styles.locationInfoValue}>{selectedAlert.location.address}</Text>
+                                            <Text style={styles.locationInfoValue}>{selectedAlert.location?.address || 'Address not available'}</Text>
                                         </View>
 
                                         <View style={styles.locationInfoRow}>
@@ -651,7 +521,7 @@ export default function SOSMonitoring() {
                                                 <Text style={styles.locationInfoLabel}>Coordinates:</Text>
                                             </View>
                                             <Text style={styles.locationInfoValue}>
-                                                {selectedAlert.location.latitude.toFixed(6)}, {selectedAlert.location.longitude.toFixed(6)}
+                                                {selectedAlert.location?.latitude?.toFixed(6) || 'N/A'}, {selectedAlert.location?.longitude?.toFixed(6) || 'N/A'}
                                             </Text>
                                         </View>
 
@@ -675,7 +545,7 @@ export default function SOSMonitoring() {
                                                 <Text style={styles.locationInfoLabel}>Last Update:</Text>
                                             </View>
                                             <Text style={styles.locationInfoValue}>
-                                                {selectedAlert.lastLocationUpdate.toLocaleString()}
+                                                {selectedAlert.lastLocationUpdate?.toLocaleString()}
                                             </Text>
                                         </View>
 
@@ -700,15 +570,17 @@ export default function SOSMonitoring() {
                                         )}
                                     </View>
 
-                                    <TouchableOpacity
-                                        style={[styles.cardButton, styles.mapCardButton]}
-                                        onPress={() => openMaps(selectedAlert.location.latitude, selectedAlert.location.longitude)}
-                                    >
-                                        <View style={styles.cardButtonContent}>
-                                            <Ionicons name="map" size={20} color="#007AFF" />
-                                            <Text style={[styles.cardButtonText, { color: '#007AFF' }]}>Open in External Maps</Text>
-                                        </View>
-                                    </TouchableOpacity>
+                                    {selectedAlert.location && (
+                                        <TouchableOpacity
+                                            style={[styles.cardButton, styles.mapCardButton]}
+                                            onPress={() => openMaps(selectedAlert.location!.latitude, selectedAlert.location!.longitude)}
+                                        >
+                                            <View style={styles.cardButtonContent}>
+                                                <Ionicons name="map" size={20} color="#007AFF" />
+                                                <Text style={[styles.cardButtonText, { color: '#007AFF' }]}>Open in External Maps</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
 
                                 {/* Emergency Summary */}
@@ -731,17 +603,21 @@ export default function SOSMonitoring() {
                                     />
                                 </View>
 
-                                {selectedAlert.mediaAttached && selectedAlert.mediaUrls && selectedAlert.mediaUrls.length > 0 && (
+                                {selectedAlert.media && selectedAlert.media.length > 0 && (
                                     <View style={styles.modalSection}>
                                         <Text style={styles.modalSectionTitle}>Attached Media</Text>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScrollView}>
-                                            {selectedAlert.mediaUrls.map((mediaItem, index) => (
+                                            {selectedAlert.media.map((mediaItem, index) => (
                                                 <TouchableOpacity
-                                                    key={index}
+                                                    key={`media-${mediaItem.url}-${index}`}
                                                     style={styles.mediaContainer}
-                                                    onPress={() => openImageViewer(mediaItem)}
+                                                    onPress={() => openImageViewer({
+                                                        url: mediaItem.url,
+                                                        type: mediaItem.type,
+                                                        thumbnail: mediaItem.type === 'video' ? undefined : mediaItem.url
+                                                    })}
                                                 >
-                                                    {mediaItem.type === 'image' ? (
+                                                    {mediaItem.type === 'photo' ? (
                                                         <Image
                                                             source={{ uri: mediaItem.url }}
                                                             style={styles.mediaImage}
@@ -750,7 +626,7 @@ export default function SOSMonitoring() {
                                                     ) : (
                                                         <View style={styles.videoThumbnailContainer}>
                                                             <Image
-                                                                source={{ uri: mediaItem.thumbnail || 'https://picsum.photos/120/90?random=video' }}
+                                                                source={{ uri: mediaItem.url }}
                                                                 style={styles.mediaImage}
                                                                 resizeMode="cover"
                                                             />
@@ -761,7 +637,7 @@ export default function SOSMonitoring() {
                                                     )}
                                                     <View style={styles.mediaOverlay}>
                                                         <Ionicons
-                                                            name={mediaItem.type === 'image' ? "expand-outline" : "videocam-outline"}
+                                                            name={mediaItem.type === 'photo' ? "expand-outline" : "videocam-outline"}
                                                             size={20}
                                                             color="#fff"
                                                         />
@@ -770,8 +646,8 @@ export default function SOSMonitoring() {
                                             ))}
                                         </ScrollView>
                                         <Text style={styles.mediaHint}>
-                                            Tap to view full size • {selectedAlert.mediaUrls.length} file(s) attached
-                                            ({selectedAlert.mediaUrls.filter(m => m.type === 'image').length} images, {selectedAlert.mediaUrls.filter(m => m.type === 'video').length} videos)
+                                            Tap to view full size • {selectedAlert.media.length} file(s) attached
+                                            ({selectedAlert.media.filter(m => m.type === 'photo').length} images, {selectedAlert.media.filter(m => m.type === 'video').length} videos)
                                         </Text>
                                     </View>
                                 )}
@@ -813,7 +689,7 @@ export default function SOSMonitoring() {
                                             <View style={styles.staffSection}>
                                                 <Text style={styles.staffSectionTitle}>Responding Staff</Text>
                                                 {selectedAlert.respondingStaff.map((staff, index) => (
-                                                    <View key={index} style={styles.respondingStaff}>
+                                                    <View key={`staff-${staff.staffId}-${index}`} style={styles.respondingStaff}>
                                                         <Ionicons name="person" size={16} color="#28a745" />
                                                         <View style={styles.staffInfo}>
                                                             <Text style={styles.staffName}>
@@ -823,8 +699,7 @@ export default function SOSMonitoring() {
                                                                 )}
                                                             </Text>
                                                             <View style={styles.staffDetails}>
-                                                                <Text style={styles.staffRole}>({staff.role})</Text>
-                                                                <Text style={styles.staffEta}>ETA: {staff.eta}</Text>
+                                                                <Text style={styles.staffRole}>(Security)</Text>
                                                             </View>
                                                         </View>
                                                         {staff.phone && staff.staffName !== 'Current Staff Member' && (
@@ -858,7 +733,7 @@ export default function SOSMonitoring() {
 
                                         <TouchableOpacity
                                             style={[styles.cardButton, styles.callCardButton, styles.halfWidthButton]}
-                                            onPress={() => makeCall(selectedAlert.userPhone)}
+                                            onPress={() => selectedAlert.userPhone && makeCall(selectedAlert.userPhone)}
                                         >
                                             <View style={styles.cardButtonContent}>
                                                 <Ionicons name="call" size={20} color="#3182CE" />

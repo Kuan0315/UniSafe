@@ -9,6 +9,7 @@ export interface IUser extends Document {
   role: UserRole;
   avatarDataUrl?: string;
   studentId?: string;
+  phone?: string;
   anonymousMode?: boolean;
   notificationsEnabled?: boolean;
   locationSharing?: boolean;
@@ -29,6 +30,7 @@ const UserSchema = new Schema<IUser>({
   role: { type: String, enum: ['student', 'staff', 'security', 'admin', 'guardian'], default: 'student', index: true },
   avatarDataUrl: { type: String },
   studentId: { type: String, default: '' },
+  phone: { type: String },
   anonymousMode: { type: Boolean, default: false },
   notificationsEnabled: { type: Boolean, default: true },
   locationSharing: { type: Boolean, default: true },

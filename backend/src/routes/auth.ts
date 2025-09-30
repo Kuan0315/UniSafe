@@ -3,8 +3,8 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import User from '../models/User';
-import { requireAuth } from '../middleware/auth';
+import User from '../models/User.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 

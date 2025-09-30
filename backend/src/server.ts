@@ -5,13 +5,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
 
-import authRouter from './routes/auth';
-import contactsRouter from './routes/contacts';
-import guardianRouter from './routes/guardian';
-import locationsRouter from './routes/locations';
-import universitiesRouter from './routes/universities';
-import reportsRouter from './routes/reports';
-import alertsRouter from "./routes/alerts";
+import authRouter from './routes/auth.js';
+import contactsRouter from './routes/contacts.js';
+import guardianRouter from './routes/guardian.js';
+import locationsRouter from './routes/locations.js';
+import universitiesRouter from './routes/universities.js';
+import reportsRouter from './routes/reports.js';
+import alertsRouter from "./routes/alerts.js";
+import sosRouter from './routes/sos.js';
 
 dotenv.config();
 // Fallback defaults so it runs without .env creation
@@ -26,7 +27,7 @@ const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:19006';
 
 app.use(helmet());
 // Allow mobile (no Origin header) and any dev web origin
-app.use(cors({ origin: (_origin, cb) => cb(null, true), credentials: true }));
+app.use(cors({ origin: (_origin: any, cb: any) => cb(null, true), credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
@@ -40,6 +41,7 @@ app.use('/api/guardian', guardianRouter);
 app.use('/api/locations', locationsRouter);
 app.use('/api/universities', universitiesRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/sos', sosRouter);
 app.use("/alerts", alertsRouter);
 
 async function start() {

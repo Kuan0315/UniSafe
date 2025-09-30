@@ -12,12 +12,15 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getSOSChatMessages, sendSOSMessage } from '../services/SOSService';
 
 interface Message {
-  id: string;
-  text: string;
-  sender: 'student' | 'security';
+  senderId: string;
+  senderRole: 'student' | 'staff' | 'security';
+  message: string;
   timestamp: Date;
+  messageType: 'text' | 'location_update' | 'media_shared';
+  mediaUrl?: string;
 }
 
 interface EmergencyChatScreenProps {
@@ -32,16 +35,20 @@ export default function EmergencyChatScreen({
   emergencyId 
 }: EmergencyChatScreenProps) {
   const [messageText, setMessageText] = useState('');
-  const [chatMessages, setChatMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: "Emergency alert received. Campus security is responding. How can we assist you?",
-      sender: 'security',
-      timestamp: new Date(),
-    }
-  ]);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Fetch messages when component becomes visible or emergencyId changes
+  useEffect(() => {
+    if (visible && emergencyId) {
+      fetchMessages();
+      // Set up polling for new messages every 5 seconds
+      const interval = setInterval(fetchMessages, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [visible, emergencyId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -50,45 +57,31 @@ export default function EmergencyChatScreen({
     }
   }, [chatMessages]);
 
+  const fetchMessages = async () => {
+    if (!emergencyId) return;
+    
+    try {
+      setIsLoadingMessages(true);
+      const messages = await getSOSChatMessages(emergencyId);
+      setChatMessages(messages);
+    } catch (error) {
+      console.error('Error fetching chat messages:', error);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!messageText.trim() || isSendingMessage) return;
+    if (!messageText.trim() || isSendingMessage || !emergencyId) return;
     
     setIsSendingMessage(true);
     
     try {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        text: messageText.trim(),
-        sender: 'student',
-        timestamp: new Date(),
-      };
-      
-      setChatMessages(prev => [...prev, newMessage]);
+      await sendSOSMessage(emergencyId, messageText.trim(), 'text');
       setMessageText('');
       
-      // Here you would send the message to your backend/campus security system
-      console.log('Sending emergency message to campus security:', newMessage.text);
-      
-      // Simulate a response from campus security (in real app, this would come from backend)
-      setTimeout(() => {
-        const responses = [
-          "Message received. What is your exact location?",
-          "Help is on the way. Stay calm and stay in a safe location.",
-          "Can you provide more details about the situation?",
-          "Security team dispatched to your location. ETA 3 minutes.",
-          "Please remain where you are. Do not leave the area unless unsafe.",
-        ];
-        
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        
-        const securityResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: randomResponse,
-          sender: 'security',
-          timestamp: new Date(),
-        };
-        setChatMessages(prev => [...prev, securityResponse]);
-      }, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+      // Refresh messages to show the sent message
+      await fetchMessages();
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -100,32 +93,39 @@ export default function EmergencyChatScreen({
 
   const renderMessage = (item: Message, index: number) => (
     <View
-      key={item.id}
+      key={`${item.senderId}-${item.timestamp.getTime()}`}
       style={[
         styles.messageContainer,
-        item.sender === 'student' ? styles.studentMessage : styles.securityMessage
+        item.senderRole === 'student' ? styles.studentMessage : styles.securityMessage
       ]}
     >
       <View style={styles.messageHeader}>
         <Text style={[
           styles.senderName,
-          item.sender === 'security' && { color: '#666666' }
+          item.senderRole !== 'student' && { color: '#666666' }
         ]}>
-          {item.sender === 'student' ? 'You' : 'Campus Security'}
+          {item.senderRole === 'student' ? 'You' : 
+           item.senderRole === 'staff' ? 'Staff' : 'Campus Security'}
         </Text>
         <Text style={[
           styles.messageTime,
-          item.sender === 'security' && { color: '#666666', opacity: 1 }
+          item.senderRole !== 'student' && { color: '#666666', opacity: 1 }
         ]}>
-          {item.timestamp.toLocaleTimeString()}
+          {item.timestamp ? item.timestamp.toLocaleTimeString() : 'Unknown time'}
         </Text>
       </View>
       <Text style={[
         styles.messageText,
-        item.sender === 'security' && { color: '#000000' }
+        item.senderRole !== 'student' && { color: '#000000' }
       ]}>
-        {item.text}
+        {item.message}
       </Text>
+      {item.messageType === 'location_update' && (
+        <Text style={styles.locationUpdateText}>📍 Location shared</Text>
+      )}
+      {item.messageType === 'media_shared' && item.mediaUrl && (
+        <Text style={styles.mediaSharedText}>📎 Media shared</Text>
+      )}
     </View>
   );
 
@@ -308,6 +308,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFFFFF',
     opacity: 0.8,
+  },
+  locationUpdateText: {
+    fontSize: 14,
+    color: '#34C759',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  mediaSharedText: {
+    fontSize: 14,
+    color: '#FF9500',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   inputContainer: {
     backgroundColor: '#FFFFFF',

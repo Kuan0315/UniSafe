@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
-import Notification from '../models/Notification';
-import User from '../models/User';
-import GuardianSession from '../models/GuardianSession';
+import { requireAuth } from '../middleware/auth.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import GuardianSession from '../models/GuardianSession.js';
 
 const router = Router();
 

@@ -15,12 +15,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LocationObject } from 'expo-location';
 import { capturePhoto, captureVideo } from '../../services/SimpleCaptureService';
+import { uploadSOSMedia } from '../../services/SOSService';
 import EmergencyChatScreen from '../EmergencyChatScreen';
 
 interface SOSModalProps {
   visible: boolean;
   onClose: () => void;
   onMinimize?: () => void; // New prop for minimizing SOS modal
+  emergencyId?: string | null;
   sosStartTime: Date | null;
   capturedMedia: { photo?: string; video?: string };
   currentLocation: LocationObject | null;
@@ -31,7 +33,7 @@ interface SOSModalProps {
   handleCancelSOS?: () => void;
   handleEndEmergency?: () => void;
   handleMistakeActivation?: () => void;
-  onMediaUpdated?: () => void; // callback to notify parent when media may have been updated
+  onMediaUpdated?: (type: 'photo' | 'video', uri: string) => void; // callback to notify parent when media may have been updated
   speakNotification?: (text: string) => void;
   takePicture?: () => Promise<void>;
 }
@@ -40,6 +42,7 @@ export default function SOSModal({
   visible,
   onClose,
   onMinimize,
+  emergencyId,
   sosStartTime,
   capturedMedia,
   currentLocation,
@@ -77,14 +80,49 @@ export default function SOSModal({
       
       if (!uri) {
         console.log(`${type} capture was canceled or failed`);
+        Alert.alert(
+          'Capture Failed',
+          `Failed to capture ${type}. Please try again.`,
+          [{ text: 'OK' }]
+        );
         return;
       }
       
       console.log(`📸 Emergency ${type} captured:`, uri);
+      console.log(`URI starts with file://:`, uri.startsWith('file://'));
+      console.log(`Emergency ID available:`, emergencyId);
+      
+      // Upload media to SOS alert if we have an emergency ID
+      if (emergencyId) {
+        try {
+          console.log(`Uploading ${type} to SOS alert ${emergencyId}...`);
+          await uploadSOSMedia(emergencyId, type, uri, false); // false = not auto-captured
+          console.log(`${type} uploaded successfully to SOS alert`);
+          
+          // Show success message
+          Alert.alert(
+            'Media Uploaded',
+            `Emergency ${type} has been uploaded to your SOS alert.`,
+            [{ text: 'OK' }]
+          );
+        } catch (uploadError) {
+          console.error(`Failed to upload ${type} to SOS alert:`, uploadError);
+          setMediaSaveError(`Media captured but failed to upload. Please try again.`);
+          setShowMediaError(true);
+          setTimeout(() => setShowMediaError(false), 5000);
+        }
+      } else {
+        console.log(`No emergency ID available for ${type} upload`);
+        Alert.alert(
+          'SOS Not Active',
+          `Cannot upload ${type} - no active emergency alert.`,
+          [{ text: 'OK' }]
+        );
+      }
       
       // Notify parent component about the captured media
       if (onMediaUpdated) {
-        onMediaUpdated();
+        onMediaUpdated(type, uri);
         console.log('Parent notified of media capture');
       }
       
@@ -366,7 +404,7 @@ export default function SOSModal({
       <EmergencyChatScreen 
         visible={showChatScreen} 
         onClose={() => setShowChatScreen(false)}
-        emergencyId="current-emergency"
+        emergencyId={emergencyId || undefined}
       />
     </Modal>
   );

@@ -1,8 +1,8 @@
 // backend/src/routes/reports.ts
 import { Router } from 'express';
 import { z } from 'zod';
-import Report from '../models/Report';
-import { requireAuth } from '../middleware/auth';
+import Report from '../models/Report.js';
+import { requireAuth } from '../middleware/auth.js';
 import { Types } from 'mongoose';
 
 const router = Router();

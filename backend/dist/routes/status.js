@@ -1,36 +1,31 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const mongoose_1 = __importDefault(require("mongoose"));
-const User_1 = __importDefault(require("../models/User"));
-const Notification_1 = __importDefault(require("../models/Notification"));
-const GuardianSession_1 = __importDefault(require("../models/GuardianSession"));
-const Contact_1 = __importDefault(require("../models/Contact"));
-const router = (0, express_1.Router)();
+import { Router } from 'express';
+import mongoose from 'mongoose';
+import User from '../models/User';
+import Notification from '../models/Notification';
+import GuardianSession from '../models/GuardianSession';
+import Contact from '../models/Contact';
+const router = Router();
 // Database status endpoint
 router.get('/database', async (req, res) => {
     try {
-        const dbState = mongoose_1.default.connection.readyState;
+        const dbState = mongoose.connection.readyState;
         const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
         // Get collection statistics
         const stats = {
-            users: await User_1.default.countDocuments(),
-            notifications: await Notification_1.default.countDocuments(),
-            guardianSessions: await GuardianSession_1.default.countDocuments(),
-            contacts: await Contact_1.default.countDocuments(),
-            activeSessions: await GuardianSession_1.default.countDocuments({ isActive: true }),
-            unreadNotifications: await Notification_1.default.countDocuments({ isRead: false })
+            users: await User.countDocuments(),
+            notifications: await Notification.countDocuments(),
+            guardianSessions: await GuardianSession.countDocuments(),
+            contacts: await Contact.countDocuments(),
+            activeSessions: await GuardianSession.countDocuments({ isActive: true }),
+            unreadNotifications: await Notification.countDocuments({ isRead: false })
         };
         res.json({
             status: 'ok',
             database: {
                 status: dbStatus,
-                name: mongoose_1.default.connection.name,
-                host: mongoose_1.default.connection.host,
-                port: mongoose_1.default.connection.port,
+                name: mongoose.connection.name,
+                host: mongoose.connection.host,
+                port: mongoose.connection.port,
                 collections: stats
             },
             timestamp: new Date().toISOString()
@@ -48,15 +43,15 @@ router.get('/database', async (req, res) => {
 router.get('/notifications', async (req, res) => {
     try {
         const notificationStats = {
-            total: await Notification_1.default.countDocuments(),
-            unread: await Notification_1.default.countDocuments({ isRead: false }),
+            total: await Notification.countDocuments(),
+            unread: await Notification.countDocuments({ isRead: false }),
             byType: {
-                guardian_mode_started: await Notification_1.default.countDocuments({ type: 'guardian_mode_started' }),
-                location_update: await Notification_1.default.countDocuments({ type: 'location_update' }),
-                check_in_reminder: await Notification_1.default.countDocuments({ type: 'check_in_reminder' }),
-                session_ended: await Notification_1.default.countDocuments({ type: 'session_ended' })
+                guardian_mode_started: await Notification.countDocuments({ type: 'guardian_mode_started' }),
+                location_update: await Notification.countDocuments({ type: 'location_update' }),
+                check_in_reminder: await Notification.countDocuments({ type: 'check_in_reminder' }),
+                session_ended: await Notification.countDocuments({ type: 'session_ended' })
             },
-            recent: await Notification_1.default.countDocuments({
+            recent: await Notification.countDocuments({
                 createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
             })
         };
@@ -78,9 +73,9 @@ router.get('/notifications', async (req, res) => {
 router.get('/guardian-mode', async (req, res) => {
     try {
         const guardianStats = {
-            activeSessions: await GuardianSession_1.default.countDocuments({ isActive: true }),
-            totalSessions: await GuardianSession_1.default.countDocuments(),
-            recentSessions: await GuardianSession_1.default.countDocuments({
+            activeSessions: await GuardianSession.countDocuments({ isActive: true }),
+            totalSessions: await GuardianSession.countDocuments(),
+            recentSessions: await GuardianSession.countDocuments({
                 createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
             }),
             averageSessionDuration: await calculateAverageSessionDuration()
@@ -101,7 +96,7 @@ router.get('/guardian-mode', async (req, res) => {
 });
 async function calculateAverageSessionDuration() {
     try {
-        const sessions = await GuardianSession_1.default.find({
+        const sessions = await GuardianSession.find({
             isActive: false,
             createdAt: { $exists: true },
             updatedAt: { $exists: true }
@@ -118,4 +113,4 @@ async function calculateAverageSessionDuration() {
         return 0;
     }
 }
-exports.default = router;
+export default router;

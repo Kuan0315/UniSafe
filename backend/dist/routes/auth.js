@@ -1,31 +1,26 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 // src/routes/auth.ts
-const express_1 = require("express");
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const zod_1 = require("zod");
-const User_1 = __importDefault(require("../models/User"));
-const auth_1 = require("../middleware/auth");
-const router = (0, express_1.Router)();
-const signupSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
-    name: zod_1.z.string().min(1),
-    role: zod_1.z.enum(['student', 'guardian', 'staff']).optional().default('guardian'),
-    password: zod_1.z.string().min(6),
+import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import User from '../models/User.js';
+import { requireAuth } from '../middleware/auth.js';
+const router = Router();
+const signupSchema = z.object({
+    email: z.string().email(),
+    name: z.string().min(1),
+    role: z.enum(['student', 'guardian', 'staff']).optional().default('guardian'),
+    password: z.string().min(6),
 });
 router.post('/signup', async (req, res) => {
     try {
         const data = signupSchema.parse(req.body);
-        const existing = await User_1.default.findOne({ email: data.email });
+        const existing = await User.findOne({ email: data.email });
         if (existing)
             return res.status(409).json({ error: 'Email already in use' });
-        const passwordHash = await bcryptjs_1.default.hash(data.password, 10);
+        const passwordHash = await bcrypt.hash(data.password, 10);
         //const studentId = data.email.split('@')[0];
-        const user = await User_1.default.create({
+        const user = await User.create({
             email: data.email,
             name: data.name,
             role: data.role,
@@ -40,20 +35,20 @@ router.post('/signup', async (req, res) => {
         return res.status(400).json({ error: err.message || 'Invalid data' });
     }
 });
-const loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
-    password: zod_1.z.string().min(6),
-    role: zod_1.z.enum(['student', 'guardian', 'staff']),
+const loginSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(6),
+    role: z.enum(['student', 'guardian', 'staff']),
 });
 router.post('/login', async (req, res) => {
     try {
         const { email, password, role } = loginSchema.parse(req.body);
-        const user = await User_1.default.findOne({ email });
+        const user = await User.findOne({ email });
         if (!user)
             return res.status(401).json({ error: 'Invalid credentials' });
         if (!user.passwordHash)
             return res.status(401).json({ error: 'Please use Google login for this account' });
-        const ok = await bcryptjs_1.default.compare(password, user.passwordHash);
+        const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok)
             return res.status(401).json({ error: 'Invalid credentials' });
         if (user.role !== role) {
@@ -66,17 +61,17 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ error: err.message || 'Invalid data' });
     }
 });
-router.get('/me', auth_1.requireAuth, async (req, res) => {
-    const user = await User_1.default.findById(req.auth.userId);
+router.get('/me', requireAuth, async (req, res) => {
+    const user = await User.findById(req.auth.userId);
     if (!user)
         return res.status(404).json({ error: 'Not found' });
     return res.json(safeUser(user));
 });
-router.put('/me/avatar', auth_1.requireAuth, async (req, res) => {
+router.put('/me/avatar', requireAuth, async (req, res) => {
     const { avatarDataUrl } = req.body;
     if (!avatarDataUrl)
         return res.status(400).json({ error: 'avatarDataUrl required' });
-    const user = await User_1.default.findById(req.auth.userId);
+    const user = await User.findById(req.auth.userId);
     if (!user)
         return res.status(404).json({ error: 'Not found' });
     user.avatarDataUrl = avatarDataUrl;
@@ -87,7 +82,7 @@ function createToken(userId) {
     const secret = process.env.JWT_SECRET;
     if (!secret)
         throw new Error('JWT_SECRET not set');
-    return jsonwebtoken_1.default.sign({ userId }, secret, { expiresIn: '30d' });
+    return jwt.sign({ userId }, secret, { expiresIn: '30d' });
 }
 function safeUser(user, token) {
     return {
@@ -100,4 +95,4 @@ function safeUser(user, token) {
         token,
     };
 }
-exports.default = router;
+export default router;

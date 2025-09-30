@@ -33,7 +33,7 @@ import usePermissions from '../hooks/usePermissions';
 import { soundAlarmService } from '../../services/SoundAlarmService';
 import useLocation from '../hooks/useLocation';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
-import { triggerSOSActions, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery } from '../../services/SOSService';
+import { triggerSOS, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery, uploadSOSMedia } from '../../services/SOSService';
 import { useSOSContext } from '../../contexts/SOSContext';
 import { useAlarmContext } from '../../contexts/AlarmContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -226,6 +226,7 @@ function HomeScreen() {
     const [unreadCount, setUnreadCount] = useState(3);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [isSOSActivated, setIsSOSActivated] = useState(false);
+    const [currentSOSId, setCurrentSOSId] = useState<string | null>(null);
     const [capturedMedia, setCapturedMedia] = useState<{ photo?: string; video?: string }>({});
     const [autoCaptureSOS, setAutoCaptureSOS] = useState(true); // Enable auto-capture by default
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -486,8 +487,13 @@ function HomeScreen() {
     };
 
     const handleMinimizeSOS = () => {
+        // Minimize should also cancel the SOS emergency
+        setIsSOSActivated(false);
+        setIsSOSActive(false);
         setShowSOSModal(false);
-        console.log('SOS minimized - continuing in background');
+        setSosStartTime(null);
+        setCurrentSOSId(null);
+        console.log('SOS minimized and cancelled');
     };
 
     // Function to manually take a photo during SOS
@@ -867,6 +873,12 @@ function HomeScreen() {
     };
 
     const activateSOS = async () => {
+        // Prevent multiple simultaneous activations
+        if (isSOSActive) {
+            console.log('SOS already active, ignoring duplicate activation');
+            return;
+        }
+
         try {
             // Using SimpleCaptureService that doesn't need MediaLibrary permissions
             console.log('Using SimpleCaptureService for media capture, no MediaLibrary permissions needed');
@@ -896,8 +908,18 @@ function HomeScreen() {
             // Get trusted contacts from profile (mockTrustedCircle in the mock data)
             const trustedContacts = ['Mom', 'Dad', 'Campus Security'];
 
-            // Send emergency location to trusted contacts
-            await triggerSOSActions(location, trustedContacts);
+            // Send emergency location to trusted contacts and create SOS alert in database
+            const sosId = await triggerSOS(
+                location,
+                'Emergency SOS activated - please respond immediately',
+                'emergency',
+                autoCaptureSOS,
+                true,
+                'emergency'
+            );
+            
+            // Store the SOS ID for chat and other operations
+            setCurrentSOSId(sosId);
 
             // Alert to show user what's happening
             Alert.alert(
@@ -923,6 +945,17 @@ function HomeScreen() {
                             );
                         } else {
                             setCapturedMedia(prev => ({ ...prev, video: videoUri }));
+                            
+                            // Upload the auto-captured video to the SOS alert
+                            if (sosId) {
+                                try {
+                                    await uploadSOSMedia(sosId, 'video', videoUri, true);
+                                    console.log('Auto-captured video uploaded to SOS alert');
+                                } catch (uploadError) {
+                                    console.error('Failed to upload auto-captured video:', uploadError);
+                                }
+                            }
+                            
                             Alert.alert(
                                 'Video Captured',
                                 canSaveToGallery ?
@@ -1169,6 +1202,7 @@ function HomeScreen() {
                 visible={showSOSModal}
                 onClose={handleCancelSOS}
                 onMinimize={handleMinimizeSOS}
+                emergencyId={currentSOSId}
                 handleCancelSOS={handleCancelSOS}
                 handleEndEmergency={handleEndEmergency}
                 handleMistakeActivation={handleMistakeActivation}
@@ -1178,11 +1212,35 @@ function HomeScreen() {
                 locationAddress={locationAddress}
                 autoCaptureSOS={autoCaptureSOS}
                 requestLocationPermission={requestLocationPermission}
-                onMediaUpdated={() => {
-                    console.log('Media updated callback received');
-                    setTimeout(() => {
-                        Alert.alert('Media Update', 'New emergency media has been captured');
-                    }, 500);
+                onMediaUpdated={async (type, uri) => {
+                    console.log('Media updated callback received:', type, uri);
+                    
+                    // Upload the captured media to the SOS alert if we have an active SOS
+                    if (currentSOSId) {
+                        try {
+                            await uploadSOSMedia(currentSOSId, type, uri, false);
+                            console.log(`Successfully uploaded ${type} to SOS alert`);
+                            
+                            // Update local state
+                            setCapturedMedia(prev => ({ ...prev, [type]: uri }));
+                            
+                            setTimeout(() => {
+                                Alert.alert('Media Captured', `Emergency ${type} has been captured and uploaded to your SOS alert.`);
+                            }, 500);
+                        } catch (error) {
+                            console.error(`Failed to upload ${type} to SOS alert:`, error);
+                            setTimeout(() => {
+                                Alert.alert('Upload Failed', `Failed to upload ${type} to SOS alert. Please try again.`);
+                            }, 500);
+                        }
+                    } else {
+                        console.log('No active SOS ID, storing media locally');
+                        setCapturedMedia(prev => ({ ...prev, [type]: uri }));
+                        
+                        setTimeout(() => {
+                            Alert.alert('Media Captured', `Emergency ${type} has been captured locally.`);
+                        }, 500);
+                    }
                 }}
                 handleEmergencyCall={(type) => {
                     const phoneNumbers = {

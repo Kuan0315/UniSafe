@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import Contact from '../models/Contact';
+import { requireAuth } from '../middleware/auth.js';
+import Contact from '../models/Contact.js';
 
 const router = Router();
 

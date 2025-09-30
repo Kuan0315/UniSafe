@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import GuardianSession from '../models/GuardianSession';
+import { requireAuth } from '../middleware/auth.js';
+import GuardianSession from '../models/GuardianSession.js';
 
 const router = Router();
 
