@@ -346,7 +346,14 @@ export default function SOSMonitoring() {
                             >
                             <View style={styles.alertHeader}>
                                 <View style={styles.alertUser}>
-                                    <Ionicons name="person-circle" size={32} color="#007AFF" />
+                                    {alert.studentInfo?.avatarDataUrl ? (
+                                        <Image 
+                                            source={{ uri: alert.studentInfo.avatarDataUrl }} 
+                                            style={styles.alertUserAvatar} 
+                                        />
+                                    ) : (
+                                        <Ionicons name="person-circle" size={32} color="#007AFF" />
+                                    )}
                                     <View style={styles.alertUserInfo}>
                                         <Text style={styles.alertUserName}>{alert.userName}</Text>
                                         <Text style={styles.alertTime}>{formatTimeAgo(alert.timestamp)}</Text>
@@ -362,12 +369,39 @@ export default function SOSMonitoring() {
                                 </View>
                             </View>
 
-                            {alert.location?.address && (
-                                <Text style={styles.alertLocation}>{alert.location.address}</Text>
+                            {/* Emergency Communications Summary */}
+                            {alert.chatSummary ? (
+                                <Text style={styles.emergencySummaryText}>{alert.chatSummary}</Text>
+                            ) : alert.chatMessages && alert.chatMessages.length > 0 ? (
+                                <Text style={styles.emergencySummaryText}>
+                                    {(() => {
+                                        const studentMessages = alert.chatMessages.filter(msg => msg.senderRole === 'student');
+                                        if (studentMessages.length > 0) {
+                                            const lastMessage = studentMessages[studentMessages.length - 1];
+                                            return lastMessage.message.length > 50
+                                                ? `${lastMessage.message.substring(0, 50)}...`
+                                                : lastMessage.message;
+                                        }
+                                        return `${alert.chatMessages.length} message${alert.chatMessages.length !== 1 ? 's' : ''} exchanged`;
+                                    })()}
+                                </Text>
+                            ) : null}
+
+                            {(alert.status === 'resolved' || alert.status === 'false_alarm') && alert.resolutionNote && (
+                                <View style={styles.resolutionNoteCard}>
+                                    <Ionicons
+                                        name={alert.status === 'resolved' ? "checkmark-circle" : "close-circle"}
+                                        size={16}
+                                        color={alert.status === 'resolved' ? "#34C759" : "#8E8E93"}
+                                    />
+                                    <Text style={styles.resolutionNoteCardText}>
+                                        {alert.status === 'resolved' ? 'Resolved: ' : 'False Alarm: '}{alert.resolutionNote}
+                                    </Text>
+                                </View>
                             )}
 
-                            {alert.chatSummary && (
-                                <Text style={styles.alertDescription}>{alert.chatSummary}</Text>
+                            {alert.location?.address && (
+                                <Text style={styles.alertLocation}>{alert.location.address}</Text>
                             )}
 
                             <View style={styles.alertMeta}>
@@ -435,6 +469,7 @@ export default function SOSMonitoring() {
                                 <View style={styles.modalSection}>
                                     <Text style={styles.modalSectionTitle}>User Information</Text>
                                     <Text style={styles.modalText}>Name: {selectedAlert.userName}</Text>
+                                    <Text style={styles.modalText}>Email: {selectedAlert.studentInfo?.email}</Text>
                                     <Text style={styles.modalText}>Phone: {selectedAlert.userPhone}</Text>
                                     <Text style={styles.modalText}>Time: {selectedAlert.timestamp.toLocaleString()}</Text>
                                 </View>
@@ -744,29 +779,30 @@ export default function SOSMonitoring() {
 
                                     {selectedAlert.emergencyContacts && selectedAlert.emergencyContacts.length > 0 && (
                                         <View style={styles.buttonRow}>
-                                            <TouchableOpacity
-                                                style={[styles.cardButton, styles.contactCardButton, styles.halfWidthButton]}
-                                                onPress={() => selectedAlert.emergencyContacts?.[0] && makeCall(selectedAlert.emergencyContacts[0])}
-                                            >
-                                                <View style={styles.cardButtonContent}>
-                                                    <Ionicons name="people" size={20} color="#38A169" />
-                                                    <Text style={[styles.cardButtonText, { color: '#38A169' }]}>Contact 1</Text>
-                                                </View>
-                                            </TouchableOpacity>
-
-                                            {selectedAlert.emergencyContacts && selectedAlert.emergencyContacts[1] ? (
+                                            {selectedAlert.emergencyContacts.slice(0, 2).map((contact, index) => (
                                                 <TouchableOpacity
-                                                    style={[styles.cardButton, styles.contact2CardButton, styles.halfWidthButton]}
-                                                    onPress={() => selectedAlert.emergencyContacts?.[1] && makeCall(selectedAlert.emergencyContacts[1])}
+                                                    key={index}
+                                                    style={[
+                                                        styles.cardButton,
+                                                        index === 0 ? styles.contactCardButton : styles.contact2CardButton,
+                                                        styles.halfWidthButton
+                                                    ]}
+                                                    onPress={() => makeCall(contact.phone)}
                                                 >
                                                     <View style={styles.cardButtonContent}>
-                                                        <Ionicons name="people" size={20} color="#805AD5" />
-                                                        <Text style={[styles.cardButtonText, { color: '#805AD5' }]}>Contact 2</Text>
+                                                        <Ionicons name="people" size={20} color={index === 0 ? "#38A169" : "#805AD5"} />
+                                                        <View style={styles.contactTextContainer}>
+                                                            <Text style={[styles.cardButtonText, { color: index === 0 ? "#38A169" : "#805AD5" }]}>
+                                                                {contact.name}
+                                                            </Text>
+                                                            <Text style={[styles.cardButtonSubText, { color: index === 0 ? "#38A169" : "#805AD5" }]}>
+                                                                {contact.relationship}
+                                                            </Text>
+                                                        </View>
                                                     </View>
                                                 </TouchableOpacity>
-                                            ) : (
-                                                <View style={styles.halfWidthButton} />
-                                            )}
+                                            ))}
+                                            {selectedAlert.emergencyContacts.length === 1 && <View style={styles.halfWidthButton} />}
                                         </View>
                                     )}
                                 </View>
@@ -830,6 +866,46 @@ export default function SOSMonitoring() {
                                                     <Text style={[styles.cardButtonText, { color: '#8E8E93' }]}>False Alarm</Text>
                                                 </View>
                                             </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Resolution Information */}
+                                {(selectedAlert.status === 'resolved' || selectedAlert.status === 'false_alarm') && (
+                                    <View style={styles.modalSection}>
+                                        <Text style={styles.modalSectionTitle}>
+                                            {selectedAlert.status === 'resolved' ? 'Resolution Details' : 'False Alarm Details'}
+                                        </Text>
+                                        <View style={styles.resolutionContainer}>
+                                            <View style={styles.resolutionRow}>
+                                                <Ionicons
+                                                    name={selectedAlert.status === 'resolved' ? "checkmark-circle" : "close-circle"}
+                                                    size={20}
+                                                    color={selectedAlert.status === 'resolved' ? "#34C759" : "#8E8E93"}
+                                                />
+                                                <View style={styles.resolutionInfo}>
+                                                    <Text style={styles.resolutionStatus}>
+                                                        {selectedAlert.status === 'resolved' ? 'Marked as Resolved' : 'Marked as False Alarm'}
+                                                    </Text>
+                                                    <Text style={styles.resolutionTime}>
+                                                        {selectedAlert.resolvedAt?.toLocaleString() || 'Time not available'}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            {selectedAlert.resolutionNote && (
+                                                <View style={styles.resolutionNoteContainer}>
+                                                    <Text style={styles.resolutionNoteLabel}>Reason:</Text>
+                                                    <Text style={styles.resolutionNoteText}>{selectedAlert.resolutionNote}</Text>
+                                                </View>
+                                            )}
+                                            {selectedAlert.responseTime && (
+                                                <View style={styles.responseTimeContainer}>
+                                                    <Ionicons name="time" size={16} color="#666" />
+                                                    <Text style={styles.responseTimeText}>
+                                                        Response time: {selectedAlert.responseTime} minutes
+                                                    </Text>
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
                                 )}
@@ -985,12 +1061,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 12,
+        marginBottom: 6,
     },
     alertUser: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+    },
+    alertUserAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
     },
     alertUserInfo: {
         marginLeft: 12,
@@ -1431,11 +1512,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        flex: 1,
     },
     cardButtonText: {
         fontSize: 16,
         fontWeight: '600',
         flex: 1,
+    },
+    cardButtonSubText: {
+        fontSize: 12,
+        fontWeight: '400',
+        opacity: 0.8,
+    },
+    contactTextContainer: {
+        flex: 1,
+        flexDirection: 'column',
     },
     // Specific card button color variations
     emergencyCardButton: {
@@ -1506,5 +1597,88 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 8,
         marginTop: 2,
+    },
+    resolutionContainer: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
+        padding: 12,
+        marginTop: 8,
+    },
+    resolutionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    resolutionInfo: {
+        flex: 1,
+        marginLeft: 8,
+    },
+    resolutionStatus: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 2,
+    },
+    resolutionTime: {
+        fontSize: 14,
+        color: '#666',
+    },
+    resolutionNoteContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 6,
+        padding: 10,
+        marginTop: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#007bff',
+    },
+    resolutionNoteLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 4,
+    },
+    resolutionNoteText: {
+        fontSize: 14,
+        color: '#555',
+        lineHeight: 20,
+    },
+    responseTimeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+    },
+    responseTimeText: {
+        fontSize: 14,
+        color: '#666',
+        marginLeft: 6,
+    },
+    resolutionNoteCard: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: '#f8f9fa',
+        borderRadius: 6,
+        padding: 8,
+        marginTop: 8,
+        marginBottom: 8,    
+        borderLeftWidth: 3,
+        borderLeftColor: '#007bff',
+    },
+    resolutionNoteCardText: {
+        fontSize: 14,
+        color: '#555',
+        marginLeft: 6,
+        flex: 1,
+        lineHeight: 20,
+    },
+    emergencySummaryText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#000000',
+        marginTop: 6,
+        marginBottom: 10,
+        lineHeight: 24,
     },
 });

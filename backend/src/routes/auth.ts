@@ -74,7 +74,24 @@ router.put('/me/avatar', requireAuth, async (req, res) => {
   if (!user) return res.status(404).json({ error: 'Not found' });
   user.avatarDataUrl = avatarDataUrl;
   await user.save();
-  res.json({ success: true, avatarDataUrl });
+  return res.json(safeUser(user));
+});
+
+router.put('/me/profile', requireAuth, async (req, res) => {
+  try {
+    const { name, phone } = req.body as { name?: string; phone?: string };
+    const user = await User.findById(req.auth!.userId);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+
+    // Update fields if provided
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+
+    await user.save();
+    return res.json(safeUser(user));
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message || 'Invalid data' });
+  }
 });
 
 function createToken(userId: string) {
@@ -91,6 +108,7 @@ function safeUser(user: any, token?: string) {
     role: user.role,
     studentId: user.studentId,
     phone: user.phone,
+    avatarDataUrl: user.avatarDataUrl,
     token,
   };
 }

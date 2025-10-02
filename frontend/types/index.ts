@@ -27,7 +27,7 @@ export interface User {
   phone: string;
   studentId: string;
   university?: University;
-  avatar?: string;
+  avatarDataUrl?: string;
 }
 
 export interface LoginCredentials {

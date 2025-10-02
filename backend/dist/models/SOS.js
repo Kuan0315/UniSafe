@@ -5,7 +5,8 @@ const SOSSchema = new Schema({
         name: { type: String, required: true },
         email: { type: String, required: true },
         phone: String,
-        studentId: { type: String, required: true }
+        studentId: { type: String, required: true },
+        avatarDataUrl: String
     },
     timestamp: { type: Date, default: Date.now },
     status: { type: String, enum: ['active', 'resolved', 'false_alarm'], default: 'active' },
@@ -48,6 +49,11 @@ const SOSSchema = new Schema({
     autoVideoEnabled: { type: Boolean, default: false },
     liveLocationEnabled: { type: Boolean, default: true },
     initialMessage: String,
-    category: String
+    category: String,
+    emergencyContacts: [{
+            name: { type: String, required: true },
+            phone: { type: String, required: true },
+            relationship: { type: String, required: true }
+        }]
 }, { timestamps: true });
 export default mongoose.model('SOS', SOSSchema);

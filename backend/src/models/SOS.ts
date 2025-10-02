@@ -7,6 +7,7 @@ export interface ISOS extends Document {
         email: string;
         phone?: string;
         studentId: string;
+        avatarDataUrl?: string;
     };
     timestamp: Date;
     status: 'active' | 'resolved' | 'false_alarm';
@@ -50,6 +51,11 @@ export interface ISOS extends Document {
     liveLocationEnabled: boolean;
     initialMessage?: string;
     category?: string;
+    emergencyContacts?: Array<{
+        name: string;
+        phone: string;
+        relationship: string;
+    }>;
 }
 
 const SOSSchema: Schema = new Schema({
@@ -58,7 +64,8 @@ const SOSSchema: Schema = new Schema({
         name: { type: String, required: true },
         email: { type: String, required: true },
         phone: String,
-        studentId: { type: String, required: true }
+        studentId: { type: String, required: true },
+        avatarDataUrl: String
     },
     timestamp: { type: Date, default: Date.now },
     status: { type: String, enum: ['active', 'resolved', 'false_alarm'], default: 'active' },
@@ -101,7 +108,12 @@ const SOSSchema: Schema = new Schema({
     autoVideoEnabled: { type: Boolean, default: false },
     liveLocationEnabled: { type: Boolean, default: true },
     initialMessage: String,
-    category: String
+    category: String,
+    emergencyContacts: [{
+        name: { type: String, required: true },
+        phone: { type: String, required: true },
+        relationship: { type: String, required: true }
+    }]
 }, { timestamps: true });
 
 export default mongoose.model<ISOS>('SOS', SOSSchema);

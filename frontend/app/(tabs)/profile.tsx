@@ -23,24 +23,10 @@ import TextInputWithVoice from '../../components/TextInputWithVoice';
 import { speakPageTitle, speakButtonAction, setTTSEnabled } from '../../services/SpeechService';
 import { Api } from '../../services/api';
 
-// Mock user data
-const mockUser = {
-    name: 'John Doe',
-    email: 'john.doe@university.edu',
-    studentId: 'STU2024001',
-    avatar: null,
-};
-
-// Mock trusted circle contacts
-const mockTrustedCircle = [
-    { id: 1, name: 'Sarah Mom', phone: '+1 (555) 123-4567', relationship: 'Mother', isOnline: true },
-    { id: 2, name: 'Mike Dad', phone: '+1 (555) 234-5678', relationship: 'Father', isOnline: false },
-    { id: 3, name: 'Emma Friend', phone: '+1 (555) 345-6789', relationship: 'Best Friend', isOnline: true },
-];
 
 export default function ProfileScreen() {
     // Speak page title on load for accessibility
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     useFocusEffect(
         useCallback(() => {
             speakPageTitle('Profile and Settings');
@@ -64,9 +50,19 @@ export default function ProfileScreen() {
     const [newContactPhone, setNewContactPhone] = useState('');
     const [newContactRelationship, setNewContactRelationship] = useState('');
 
+    // Profile editing states
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editedName, setEditedName] = useState(user?.name || '');
+    const [editedPhone, setEditedPhone] = useState(user?.phone || '');
+
     const [ttsEnabled, setTtsEnabled] = useState(true); // Default ON
 
-    const [avatar, setAvatar] = useState<string | null>(mockUser.avatar);
+    const [avatar, setAvatar] = useState<string | null>(user?.avatarDataUrl || null);
+
+    // Update avatar when user data changes
+    useEffect(() => {
+        setAvatar(user?.avatarDataUrl || null);
+    }, [user?.avatarDataUrl]);
 
     // Handle choosing/taking photo
     const handlePickImage = async () => {
@@ -86,8 +82,8 @@ export default function ProfileScreen() {
                             aspect: [1, 1],
                             quality: 1,
                         });
-                        if (!result.canceled) {
-                            setAvatar(result.assets[0].uri);
+                        if (!result.canceled && result.assets[0]) {
+                            await uploadAvatar(result.assets[0].uri);
                         }
                     },
                 },
@@ -99,14 +95,43 @@ export default function ProfileScreen() {
                             aspect: [1, 1],
                             quality: 1,
                         });
-                        if (!result.canceled) {
-                            setAvatar(result.assets[0].uri);
+                        if (!result.canceled && result.assets[0]) {
+                            await uploadAvatar(result.assets[0].uri);
                         }
                     },
                 },
                 { text: options[2], style: "cancel" },
             ]
         );
+    };
+
+    const uploadAvatar = async (imageUri: string) => {
+        try {
+            // Convert image to base64
+            const response = await fetch(imageUri);
+            const blob = await response.blob();
+            const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+
+            // Upload to backend
+            const uploadResponse = await Api.put('/auth/me/avatar', {
+                avatarDataUrl: base64
+            });
+
+            // Update local state and AuthContext
+            setAvatar(base64);
+            if (user) {
+                await updateUser({ avatarDataUrl: base64 });
+            }
+
+            Alert.alert('Success', 'Profile picture updated successfully');
+        } catch (error: any) {
+            console.error('Error uploading avatar:', error);
+            Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Unknown error'}`);
+        }
     };
     // ===== Load autoCaptureSOS setting from AsyncStorage =====
     React.useEffect(() => {
@@ -200,8 +225,10 @@ useEffect(() => {
     }
   };
 
-  fetchContacts();
-}, []);
+  if (user) {
+    fetchContacts();
+  }
+}, [user]);
 
     /*const handleAddContact = () => {
         const newContact = {
@@ -298,6 +325,46 @@ useEffect(() => {
         });
     };
 
+    // Profile editing functions
+    const startEditingProfile = () => {
+        setEditedName(user?.name || '');
+        setEditedPhone(user?.phone || '');
+        setIsEditingProfile(true);
+        speakButtonAction('Editing profile information');
+    };
+
+    const cancelEditingProfile = () => {
+        setIsEditingProfile(false);
+        speakButtonAction('Cancelled profile editing');
+    };
+
+    const saveProfile = async () => {
+        try {
+            speakButtonAction('Saving profile changes');
+            
+            console.log('Saving profile with data:', { name: editedName, phone: editedPhone });
+            
+            const response = await Api.put('/auth/me/profile', {
+                name: editedName,
+                phone: editedPhone,
+            });
+
+            console.log('Profile update response:', response);
+
+            // Update the user in AuthContext
+            await updateUser({ name: response.name, phone: response.phone });
+
+            setIsEditingProfile(false);
+            Alert.alert('Success', 'Profile updated successfully');
+            speakButtonAction('Profile updated successfully');
+        } catch (error: any) {
+            console.error('Error updating profile:', error);
+            console.error('Error details:', error.message, error.response, error.status);
+            Alert.alert('Error', `Failed to update profile: ${error.message || 'Unknown error'}`);
+            speakButtonAction('Failed to update profile');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -316,9 +383,46 @@ useEffect(() => {
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                    <Text style={styles.userEmail}>{user?.email || ''}</Text>
-                    <Text style={styles.userId}>ID: {user?.studentId}</Text>
+                    {isEditingProfile ? (
+                        <View style={styles.editProfileContainer}>
+                            <TextInputWithVoice
+                                label="Name"
+                                value={editedName}
+                                onChangeText={setEditedName}
+                                placeholder="Enter your name"
+                                prompt="your name"
+                                style={styles.editInput}
+                            />
+                            <TextInputWithVoice
+                                label="Phone Number"
+                                value={editedPhone}
+                                onChangeText={setEditedPhone}
+                                placeholder="Enter your phone number"
+                                prompt="your phone number"
+                                keyboardType="phone-pad"
+                                style={styles.editInput}
+                            />
+                            <View style={styles.editButtonsContainer}>
+                                <TouchableOpacity style={styles.editCancelButton} onPress={cancelEditingProfile}>
+                                    <Text style={styles.editCancelButtonText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.editSaveButton} onPress={saveProfile}>
+                                    <Text style={styles.editSaveButtonText}>Save</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.profileInfoContainer}>
+                            <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                            <Text style={styles.userEmail}>{user?.email || ''}</Text>
+                            <Text style={styles.userPhone}>{user?.phone || 'No phone number'}</Text>
+                            <Text style={styles.userId}>ID: {user?.studentId}</Text>
+                            <TouchableOpacity style={styles.editProfileButton} onPress={startEditingProfile}>
+                                <Ionicons name="create" size={16} color="#007AFF" />
+                                <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
                 {/* Privacy & Safety Settings */}
@@ -527,7 +631,7 @@ useEffect(() => {
                     </View>
 
                     {trustedCircle.map((contact) => (
-                        <View key={contact.id} style={styles.contactItem}>
+                        <View key={contact._id || contact.id} style={styles.contactItem}>
                             <View style={styles.contactInfo}>
                                 <View style={styles.contactAvatar}>
                                     <Ionicons name="person" size={20} color="#007AFF" />
@@ -554,7 +658,7 @@ useEffect(() => {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.contactActionButton}
-                                    onPress={() => handleRemoveContact(contact.id)}
+                                    onPress={() => handleRemoveContact(contact._id || contact.id)}
                                 >
                                     <Ionicons name="trash" size={16} color="#FF3B30" />
                                 </TouchableOpacity>
@@ -852,6 +956,71 @@ const styles = StyleSheet.create({
     userId: {
         fontSize: 14,
         color: '#999',
+    },
+    userPhone: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 4,
+    },
+    editProfileButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f0f8ff',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#007AFF',
+        marginTop: 8,
+    },
+    editProfileButtonText: {
+        fontSize: 14,
+        color: '#007AFF',
+        fontWeight: '500',
+        marginLeft: 4,
+    },
+    profileInfoContainer: {
+        alignItems: 'center',
+    },
+    editProfileContainer: {
+        width: '100%',
+        paddingHorizontal: 20,
+    },
+    editInput: {
+        marginBottom: 12,
+    },
+    editButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 16,
+    },
+    editCancelButton: {
+        backgroundColor: '#f8f9fa',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    editCancelButtonText: {
+        fontSize: 16,
+        color: '#666',
+        fontWeight: '500',
+    },
+    editSaveButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    editSaveButtonText: {
+        fontSize: 16,
+        color: '#fff',
+        fontWeight: '600',
     },
     section: {
         backgroundColor: '#fff',

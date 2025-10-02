@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import SOS from '../models/SOS.js';
 import User from '../models/User.js';
+import Contact from '../models/Contact.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
 const router = Router();
@@ -17,13 +18,16 @@ router.post('/', requireAuth, async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
+        // Get user's trusted circle contacts
+        const emergencyContacts = await Contact.find({ userId: req.auth.userId }).select('name phone relationship');
         const sosAlert = await SOS.create({
             userId: req.auth.userId,
             studentInfo: {
                 name: user.name,
                 email: user.email,
                 phone: user.phone,
-                studentId: user.studentId || user._id.toString()
+                studentId: user.studentId || user._id.toString(),
+                avatarDataUrl: user.avatarDataUrl
             },
             currentLocation: {
                 latitude,
@@ -43,7 +47,12 @@ router.post('/', requireAuth, async (req, res) => {
             initialMessage,
             category,
             type,
-            priority: type === 'emergency' ? 'high' : 'medium'
+            priority: type === 'emergency' ? 'high' : 'medium',
+            emergencyContacts: emergencyContacts.map(contact => ({
+                name: contact.name,
+                phone: contact.phone,
+                relationship: contact.relationship
+            }))
         });
         // Notify all staff/security users
         const staffUsers = await User.find({ role: { $in: ['staff', 'security'] } }).select('_id');
@@ -161,10 +170,11 @@ router.post('/:id/media', requireAuth, async (req, res) => {
 router.post('/:id/cancel', requireAuth, async (req, res) => {
     try {
         const sosId = req.params.id;
+        const { reason, details } = req.body;
         const sos = await SOS.findOneAndUpdate({ _id: sosId, userId: req.auth.userId, status: 'active' }, {
             status: 'false_alarm',
             resolvedAt: new Date(),
-            resolutionNote: 'Cancelled by student'
+            resolutionNote: reason ? `${reason}${details ? `: ${details}` : ''}` : 'Cancelled by student'
         }, { new: true });
         if (!sos) {
             return res.status(404).json({ error: 'Active SOS alert not found' });

@@ -33,7 +33,7 @@ import usePermissions from '../hooks/usePermissions';
 import { soundAlarmService } from '../../services/SoundAlarmService';
 import useLocation from '../hooks/useLocation';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
-import { triggerSOS, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery, uploadSOSMedia } from '../../services/SOSService';
+import { triggerSOS, captureEmergencyMedia, takeEmergencyPhoto, canSaveToGallery, uploadSOSMedia, cancelSOSAlert } from '../../services/SOSService';
 import { useSOSContext } from '../../contexts/SOSContext';
 import { useAlarmContext } from '../../contexts/AlarmContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -476,14 +476,29 @@ function HomeScreen() {
         console.log('SOS was a mistake - showing reason form');
     };
 
-    const handleReasonSubmit = (reason: string, details?: string) => {
-        console.log('False alarm reason submitted:', reason, details);
-        Alert.alert(
-            'Report Submitted',
-            'Thank you for helping us improve our emergency response system.',
-            [{ text: 'OK' }]
-        );
-        setShowReasonForm(false);
+    const handleReasonSubmit = async (reason: string, details?: string) => {
+        try {
+            if (currentSOSId) {
+                await cancelSOSAlert(currentSOSId, reason, details);
+                console.log('False alarm reason submitted:', reason, details);
+                Alert.alert(
+                    'Report Submitted',
+                    'Thank you for helping us improve our emergency response system.',
+                    [{ text: 'OK' }]
+                );
+                setShowReasonForm(false);
+                // Reset SOS state
+                setIsSOSActive(false);
+                setCurrentSOSId(null);
+                setShowPostIncidentResources(false);
+            } else {
+                console.error('No current SOS ID found');
+                Alert.alert('Error', 'Unable to submit report - no active emergency found');
+            }
+        } catch (error) {
+            console.error('Error submitting false alarm report:', error);
+            Alert.alert('Error', 'Failed to submit report. Please try again.');
+        }
     };
 
     const handleMinimizeSOS = () => {

@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
   isSecurity: boolean; // convenience flag
 }
 
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         role: response.role,
         phone: response.phone,
         studentId: response.studentId,
+        avatarDataUrl: response.avatarDataUrl,
       };
       setUser(userData);
       await SecureStore.setItemAsync('userData', JSON.stringify(userData));
@@ -104,6 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phone: response.phone,
         studentId: response.studentId,
         university: credentials.university,
+        avatarDataUrl: response.avatarDataUrl,
       };
       setUser(userData);
       await SecureStore.setItemAsync('userData', JSON.stringify(userData));
@@ -115,8 +118,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updateUser = async (userData: Partial<User>) => {
+    if (!user) return;
+    
+    try {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Error updating user data:', error);
+      Alert.alert('Error', 'Failed to update user information');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, signup, isSecurity: !!(user && (user.role === 'security' || user.role === 'admin')) }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, signup, updateUser, isSecurity: !!(user && (user.role === 'security' || user.role === 'admin')) }}>
       {children}
     </AuthContext.Provider>
   );

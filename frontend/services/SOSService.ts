@@ -18,6 +18,7 @@ export interface SOSAlert {
     email: string;
     phone?: string;
     studentId: string;
+    avatarDataUrl?: string;
   };
   // Convenience properties for frontend
   userName: string;
@@ -87,7 +88,11 @@ export interface SOSAlert {
   isMoving?: boolean;
   lastLocationUpdate?: Date;
   batteryLevel?: number;
-  emergencyContacts?: string[];
+  emergencyContacts?: Array<{
+    name: string;
+    phone: string;
+    relationship: string;
+  }>;
 }
 
 export const triggerSOS = async (
@@ -311,7 +316,8 @@ export const getActiveSOSAlerts = async (): Promise<SOSAlert[]> => {
         staffName: responder.name,
         joinedAt: new Date(), // We don't have this info, so use current time
         phone: responder.phone
-      })) || []
+      })) || [],
+      emergencyContacts: alert.emergencyContacts || []
     }));
   } catch (error) {
     console.error('Error fetching active SOS alerts:', error);
@@ -487,9 +493,9 @@ export const getMySOSAlerts = async (): Promise<SOSAlert[]> => {
   }
 };
 
-export const cancelSOSAlert = async (sosId: string): Promise<void> => {
+export const cancelSOSAlert = async (sosId: string, reason?: string, details?: string): Promise<void> => {
   try {
-    await Api.post(`/sos/${sosId}/cancel`);
+    await Api.post(`/sos/${sosId}/cancel`, { reason, details });
   } catch (error) {
     console.error('Error canceling SOS alert:', error);
     throw error;
