@@ -36,15 +36,6 @@ export const safeRequestMediaPermissions = async (): Promise<boolean> => {
   } catch (error) {
     console.log("MediaLibrary permissions request failed: ", error);
     
-    // Inform the user about the issue
-    Alert.alert(
-      "Permission Required",
-      "We need permission to save photos and videos to your gallery. Please grant these permissions in your device settings.",
-      [
-        { text: "OK" }
-      ]
-    );
-    
     return false;
   }
 };

@@ -20,7 +20,8 @@ router.post('/', requireAuth, async (req, res) => {
       category,
       autoVideoEnabled = false,
       liveLocationEnabled = true,
-      type = 'emergency'
+      type = 'emergency',
+      batteryLevel
     } = req.body;
 
     if (typeof latitude !== 'number' || typeof longitude !== 'number') {
@@ -68,7 +69,9 @@ router.post('/', requireAuth, async (req, res) => {
         name: contact.name,
         phone: contact.phone,
         relationship: contact.relationship
-      }))
+      })),
+      batteryLevel,
+      lastLocationUpdate: new Date()
     });
 
     // Notify all staff/security users
@@ -99,7 +102,7 @@ router.post('/', requireAuth, async (req, res) => {
 // Student updates location
 router.post('/:id/location', requireAuth, async (req, res) => {
   try {
-    const { latitude, longitude, address, accuracy } = req.body;
+    const { latitude, longitude, address, accuracy, batteryLevel } = req.body;
     const sosId = req.params.id;
 
     const sos = await SOS.findOne({ _id: sosId, userId: req.auth!.userId });
@@ -126,6 +129,10 @@ router.post('/:id/location', requireAuth, async (req, res) => {
       timestamp: new Date()
     };
     sos.locationHistory.push(locationUpdate);
+    sos.lastLocationUpdate = new Date();
+    if (batteryLevel !== undefined) {
+      sos.batteryLevel = batteryLevel;
+    }
 
     await sos.save();
 

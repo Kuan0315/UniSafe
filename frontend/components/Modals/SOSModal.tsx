@@ -98,13 +98,6 @@ export default function SOSModal({
           console.log(`Uploading ${type} to SOS alert ${emergencyId}...`);
           await uploadSOSMedia(emergencyId, type, uri, false); // false = not auto-captured
           console.log(`${type} uploaded successfully to SOS alert`);
-          
-          // Show success message
-          Alert.alert(
-            'Media Uploaded',
-            `Emergency ${type} has been uploaded to your SOS alert.`,
-            [{ text: 'OK' }]
-          );
         } catch (uploadError) {
           console.error(`Failed to upload ${type} to SOS alert:`, uploadError);
           setMediaSaveError(`Media captured but failed to upload. Please try again.`);
@@ -214,14 +207,11 @@ export default function SOSModal({
                     <Text style={styles.locationShared}>📍 Sent to emergency contacts</Text>
                   </>
                 ) : (
-                  <TouchableOpacity 
-                    onPress={requestLocationPermission}
-                    style={styles.locationPermissionButton}
-                  >
-                    <Text style={styles.locationPermissionText}>
-                      ⚠️ Tap to enable location services
+                  <View style={styles.locationLoadingContainer}>
+                    <Text style={styles.locationLoadingText}>
+                      📍 Getting your location...
                     </Text>
-                  </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -304,7 +294,7 @@ export default function SOSModal({
               <Text style={styles.noteText}>
                 {(global as any).ExpoGo ? 
                   'Gallery saving not available in Expo Go.' : 
-                  'Media will be saved to your gallery.'}
+                  ''}
               </Text>
             </View>
 
@@ -519,6 +509,18 @@ const styles = StyleSheet.create({
   locationPermissionText: {
     fontSize: 14,
     color: '#FF3B30',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  locationLoadingContainer: {
+    backgroundColor: '#fff3cd',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  locationLoadingText: {
+    fontSize: 14,
+    color: '#856404',
     fontWeight: 'bold',
     textAlign: 'center',
   },

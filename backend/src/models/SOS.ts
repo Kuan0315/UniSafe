@@ -56,6 +56,8 @@ export interface ISOS extends Document {
         phone: string;
         relationship: string;
     }>;
+    batteryLevel?: number;
+    lastLocationUpdate?: Date;
 }
 
 const SOSSchema: Schema = new Schema({
@@ -113,7 +115,9 @@ const SOSSchema: Schema = new Schema({
         name: { type: String, required: true },
         phone: { type: String, required: true },
         relationship: { type: String, required: true }
-    }]
+    }],
+    batteryLevel: Number,
+    lastLocationUpdate: Date
 }, { timestamps: true });
 
 export default mongoose.model<ISOS>('SOS', SOSSchema);

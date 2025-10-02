@@ -9,7 +9,7 @@ const router = Router();
 // Student creates SOS alert
 router.post('/', requireAuth, async (req, res) => {
     try {
-        const { latitude, longitude, address, accuracy, initialMessage, category, autoVideoEnabled = false, liveLocationEnabled = true, type = 'emergency' } = req.body;
+        const { latitude, longitude, address, accuracy, initialMessage, category, autoVideoEnabled = false, liveLocationEnabled = true, type = 'emergency', batteryLevel } = req.body;
         if (typeof latitude !== 'number' || typeof longitude !== 'number') {
             return res.status(400).json({ error: 'latitude and longitude are required' });
         }
@@ -52,7 +52,9 @@ router.post('/', requireAuth, async (req, res) => {
                 name: contact.name,
                 phone: contact.phone,
                 relationship: contact.relationship
-            }))
+            })),
+            batteryLevel,
+            lastLocationUpdate: new Date()
         });
         // Notify all staff/security users
         const staffUsers = await User.find({ role: { $in: ['staff', 'security'] } }).select('_id');
@@ -81,7 +83,7 @@ router.post('/', requireAuth, async (req, res) => {
 // Student updates location
 router.post('/:id/location', requireAuth, async (req, res) => {
     try {
-        const { latitude, longitude, address, accuracy } = req.body;
+        const { latitude, longitude, address, accuracy, batteryLevel } = req.body;
         const sosId = req.params.id;
         const sos = await SOS.findOne({ _id: sosId, userId: req.auth.userId });
         if (!sos) {
@@ -104,6 +106,10 @@ router.post('/:id/location', requireAuth, async (req, res) => {
             timestamp: new Date()
         };
         sos.locationHistory.push(locationUpdate);
+        sos.lastLocationUpdate = new Date();
+        if (batteryLevel !== undefined) {
+            sos.batteryLevel = batteryLevel;
+        }
         await sos.save();
         return res.json({ message: 'Location updated successfully' });
     }

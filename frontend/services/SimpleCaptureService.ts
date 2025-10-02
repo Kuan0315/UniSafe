@@ -35,12 +35,6 @@ export const capturePhoto = async (): Promise<string | null> => {
     const asset = result.assets[0];
     console.log(`📸 Emergency photo captured:`, asset.uri);
     
-    Alert.alert(
-      'Photo Captured',
-      'Emergency photo has been saved.',
-      [{ text: 'OK' }]
-    );
-    
     return asset.uri;
   } catch (error) {
     console.error('Error capturing photo:', error);
@@ -76,12 +70,6 @@ export const captureVideo = async (): Promise<string | null> => {
     
     const asset = result.assets[0];
     console.log(`🎥 Emergency video captured:`, asset.uri);
-    
-    Alert.alert(
-      'Video Recorded',
-      'Emergency video has been saved.',
-      [{ text: 'OK' }]
-    );
     
     return asset.uri;
   } catch (error) {

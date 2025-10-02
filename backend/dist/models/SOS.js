@@ -54,6 +54,8 @@ const SOSSchema = new Schema({
             name: { type: String, required: true },
             phone: { type: String, required: true },
             relationship: { type: String, required: true }
-        }]
+        }],
+    batteryLevel: Number,
+    lastLocationUpdate: Date
 }, { timestamps: true });
 export default mongoose.model('SOS', SOSSchema);

@@ -231,7 +231,7 @@ function HomeScreen() {
     const [autoCaptureSOS, setAutoCaptureSOS] = useState(true); // Enable auto-capture by default
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
-    const { currentLocation, locationAddress, requestLocationPermission } = useLocation();
+    const { currentLocation, locationAddress, requestLocationPermission, startLocationWatching } = useLocation();
     const permissions = usePermissions();
 
     // Refs for countdown and SOS activation
@@ -430,6 +430,11 @@ function HomeScreen() {
 
             // Using SimpleCaptureService that doesn't need MediaLibrary permissions
             console.log('Using SimpleCaptureService for media capture, no MediaLibrary permissions needed');
+
+            // Automatically start location watching
+            if (locationStatus.status === 'granted') {
+                startLocationWatching();
+            }
         };
         requestPermissions();
     }, []);
@@ -903,17 +908,20 @@ function HomeScreen() {
             // Speak emergency message for accessibility
             speakButtonAction('Emergency SOS activated. Sending your location to trusted contacts.');
 
-            // Get the user's current location
-            let location;
-            try {
-                location = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.High
-                });
-                console.log("Got location:", JSON.stringify(location));
-            } catch (error) {
-                console.error('Failed to get accurate location:', error);
-                // Fallback to last known location
-                location = currentLocation;
+            // Use the current location from the hook (should be available since we auto-request permissions)
+            let location = currentLocation;
+            if (!location) {
+                // Fallback: try to get current position if hook location isn't available
+                try {
+                    location = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.High
+                    });
+                    console.log("Got fallback location:", JSON.stringify(location));
+                } catch (error) {
+                    console.error('Failed to get location for SOS:', error);
+                    Alert.alert('Location Error', 'Unable to get your location for SOS. Please ensure location permissions are granted.');
+                    return;
+                }
             }
 
             // Get trusted contacts from profile (mockTrustedCircle in the mock data)
@@ -1226,32 +1234,8 @@ function HomeScreen() {
                 onMediaUpdated={async (type, uri) => {
                     console.log('Media updated callback received:', type, uri);
                     
-                    // Upload the captured media to the SOS alert if we have an active SOS
-                    if (currentSOSId) {
-                        try {
-                            await uploadSOSMedia(currentSOSId, type, uri, false);
-                            console.log(`Successfully uploaded ${type} to SOS alert`);
-                            
-                            // Update local state
-                            setCapturedMedia(prev => ({ ...prev, [type]: uri }));
-                            
-                            setTimeout(() => {
-                                Alert.alert('Media Captured', `Emergency ${type} has been captured and uploaded to your SOS alert.`);
-                            }, 500);
-                        } catch (error) {
-                            console.error(`Failed to upload ${type} to SOS alert:`, error);
-                            setTimeout(() => {
-                                Alert.alert('Upload Failed', `Failed to upload ${type} to SOS alert. Please try again.`);
-                            }, 500);
-                        }
-                    } else {
-                        console.log('No active SOS ID, storing media locally');
-                        setCapturedMedia(prev => ({ ...prev, [type]: uri }));
-                        
-                        setTimeout(() => {
-                            Alert.alert('Media Captured', `Emergency ${type} has been captured locally.`);
-                        }, 500);
-                    }
+                    // Update local state - upload is already handled by SOSModal
+                    setCapturedMedia(prev => ({ ...prev, [type]: uri }));
                 }}
                 handleEmergencyCall={(type) => {
                     const phoneNumbers = {

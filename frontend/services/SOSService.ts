@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+import * as Battery from 'expo-battery';
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { capturePhoto, captureVideo } from './SimpleCaptureService';
@@ -129,6 +130,16 @@ export const triggerSOS = async (
       console.warn('Failed to get address:', error);
     }
 
+    // Get battery level
+    let batteryLevel: number | undefined;
+    try {
+      const batteryInfo = await Battery.getBatteryLevelAsync();
+      batteryLevel = Math.round(batteryInfo * 100);
+      console.log('Battery level:', batteryLevel);
+    } catch (error) {
+      console.warn('Failed to get battery level:', error);
+    }
+
     // Create SOS alert on backend
     const response = await Api.post('/sos', {
       latitude: location.coords.latitude,
@@ -139,7 +150,8 @@ export const triggerSOS = async (
       category,
       autoVideoEnabled,
       liveLocationEnabled,
-      type
+      type,
+      batteryLevel
     });
 
     console.log('SOS alert created:', response.sosId);
@@ -173,11 +185,22 @@ export const updateSOSLocation = async (
       console.warn('Failed to get address:', error);
     }
 
+    // Get battery level
+    let batteryLevel: number | undefined;
+    try {
+      const batteryInfo = await Battery.getBatteryLevelAsync();
+      batteryLevel = Math.round(batteryInfo * 100);
+      console.log('Battery level for location update:', batteryLevel);
+    } catch (error) {
+      console.warn('Failed to get battery level for location update:', error);
+    }
+
     await Api.post(`/sos/${sosId}/location`, {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
       address,
       accuracy: location.coords.accuracy,
+      batteryLevel
     });
   } catch (error) {
     console.error('Error updating SOS location:', error);
@@ -317,7 +340,9 @@ export const getActiveSOSAlerts = async (): Promise<SOSAlert[]> => {
         joinedAt: new Date(), // We don't have this info, so use current time
         phone: responder.phone
       })) || [],
-      emergencyContacts: alert.emergencyContacts || []
+      emergencyContacts: alert.emergencyContacts || [],
+      batteryLevel: alert.batteryLevel,
+      lastLocationUpdate: alert.lastLocationUpdate ? new Date(alert.lastLocationUpdate) : undefined
     }));
   } catch (error) {
     console.error('Error fetching active SOS alerts:', error);

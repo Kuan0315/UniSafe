@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 
 export default function useLocation() {
@@ -34,6 +34,39 @@ export default function useLocation() {
         }
     };
 
+    const startLocationWatching = async () => {
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+                // Start watching location for continuous updates
+                const locationSubscription = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.High,
+                        timeInterval: 5000, // Update every 5 seconds
+                        distanceInterval: 10, // Update every 10 meters
+                    },
+                    (location) => {
+                        setCurrentLocation(location);
+                        reverseGeocode(location.coords.latitude, location.coords.longitude);
+                    }
+                );
+
+                // Get initial location
+                const initialLocation = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.High
+                });
+                setCurrentLocation(initialLocation);
+                await reverseGeocode(initialLocation.coords.latitude, initialLocation.coords.longitude);
+
+                // Return the subscription so it can be cleaned up if needed
+                return locationSubscription;
+            }
+        } catch (error) {
+            console.error('Error starting location watching:', error);
+        }
+        return null;
+    };
+
     const requestLocationPermission = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -47,5 +80,5 @@ export default function useLocation() {
         }
     };
 
-    return { currentLocation, locationAddress, reverseGeocode, requestLocationPermission };
+    return { currentLocation, locationAddress, reverseGeocode, requestLocationPermission, startLocationWatching };
 }
