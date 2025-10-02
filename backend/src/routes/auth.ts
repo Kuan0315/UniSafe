@@ -94,6 +94,35 @@ router.put('/me/profile', requireAuth, async (req, res) => {
   }
 });
 
+router.put('/me/settings', requireAuth, async (req, res) => {
+  try {
+    const { anonymousMode, notificationsEnabled, locationSharing, ttsEnabled, autoCaptureSOS, alarmType } = req.body as {
+      anonymousMode?: boolean;
+      notificationsEnabled?: boolean;
+      locationSharing?: boolean;
+      ttsEnabled?: boolean;
+      autoCaptureSOS?: boolean;
+      alarmType?: 'fake-call' | 'ring';
+    };
+
+    const user = await User.findById(req.auth!.userId);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+
+    // Update settings if provided
+    if (anonymousMode !== undefined) user.anonymousMode = anonymousMode;
+    if (notificationsEnabled !== undefined) user.notificationsEnabled = notificationsEnabled;
+    if (locationSharing !== undefined) user.locationSharing = locationSharing;
+    if (ttsEnabled !== undefined) user.ttsEnabled = ttsEnabled;
+    if (autoCaptureSOS !== undefined) user.autoCaptureSOS = autoCaptureSOS;
+    if (alarmType !== undefined) user.alarmType = alarmType;
+
+    await user.save();
+    return res.json(safeUser(user));
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message || 'Invalid data' });
+  }
+});
+
 function createToken(userId: string) {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET not set');
@@ -109,6 +138,12 @@ function safeUser(user: any, token?: string) {
     studentId: user.studentId,
     phone: user.phone,
     avatarDataUrl: user.avatarDataUrl,
+    anonymousMode: user.anonymousMode,
+    notificationsEnabled: user.notificationsEnabled,
+    locationSharing: user.locationSharing,
+    ttsEnabled: user.ttsEnabled,
+    autoCaptureSOS: user.autoCaptureSOS,
+    alarmType: user.alarmType,
     token,
   };
 }

@@ -64,6 +64,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phone: response.phone,
         studentId: response.studentId,
         avatarDataUrl: response.avatarDataUrl,
+        anonymousMode: response.anonymousMode,
+        notificationsEnabled: response.notificationsEnabled,
+        locationSharing: response.locationSharing,
+        ttsEnabled: response.ttsEnabled,
+        autoCaptureSOS: response.autoCaptureSOS,
+        alarmType: response.alarmType,
       };
       setUser(userData);
       await SecureStore.setItemAsync('userData', JSON.stringify(userData));
@@ -92,25 +98,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signup = async (credentials: SignupCredentials) => {
     setIsLoading(true);
     try {
-      const response = await Api.post('/auth/signup', credentials);
-      
-      // Store the token
-      await SecureStore.setItemAsync('authToken', response.token);
-      
-      // Store user data
-      const userData: User = {
-        id: response.id,
-        email: response.email,
-        name: response.name,
-        role: response.role,
-        phone: response.phone,
-        studentId: response.studentId,
-        university: credentials.university,
-        avatarDataUrl: response.avatarDataUrl,
-      };
-      setUser(userData);
-      await SecureStore.setItemAsync('userData', JSON.stringify(userData));
-      
+      await Api.post('/auth/signup', credentials);
+      // Don't automatically log in - let user login manually after signup
     } catch (error: any) {
       throw new Error(error.message || 'Signup failed');
     } finally {

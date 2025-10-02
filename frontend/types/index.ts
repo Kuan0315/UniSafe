@@ -28,6 +28,12 @@ export interface User {
   studentId: string;
   university?: University;
   avatarDataUrl?: string;
+  anonymousMode?: boolean;
+  notificationsEnabled?: boolean;
+  locationSharing?: boolean;
+  ttsEnabled?: boolean;
+  autoCaptureSOS?: boolean;
+  alarmType?: 'fake-call' | 'ring';
 }
 
 export interface LoginCredentials {

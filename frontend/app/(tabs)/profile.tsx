@@ -34,16 +34,16 @@ export default function ProfileScreen() {
     );
 
     const [showAddContactModal, setShowAddContactModal] = useState(false);
-    const [autoCaptureSOS, setAutoCaptureSOS] = useState(false);
+    const [autoCaptureSOS, setAutoCaptureSOS] = useState(user?.autoCaptureSOS || false);
     const [showChatbotModal, setShowChatbotModal] = useState(false);
-    const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>('fake-call'); // New alarm type setting
+    const [alarmType, setAlarmType] = useState<'fake-call' | 'ring'>(user?.alarmType || 'fake-call'); // New alarm type setting
     const [showAlarmTypeDropdown, setShowAlarmTypeDropdown] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [chatbotQuery, setChatbotQuery] = useState('');
     const [chatbotResponse, setChatbotResponse] = useState('');
-    const [anonymousMode, setAnonymousMode] = useState(false);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [locationSharing, setLocationSharing] = useState(true);
+    const [anonymousMode, setAnonymousMode] = useState(user?.anonymousMode || false);
+    const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
+    const [locationSharing, setLocationSharing] = useState(user?.locationSharing ?? true);
 
     // New contact/emergency form states
     const [newContactName, setNewContactName] = useState('');
@@ -63,6 +63,15 @@ export default function ProfileScreen() {
     useEffect(() => {
         setAvatar(user?.avatarDataUrl || null);
     }, [user?.avatarDataUrl]);
+
+    // Update settings when user data changes
+    useEffect(() => {
+        setAutoCaptureSOS(user?.autoCaptureSOS || false);
+        setAlarmType(user?.alarmType || 'fake-call');
+        setAnonymousMode(user?.anonymousMode || false);
+        setNotificationsEnabled(user?.notificationsEnabled ?? true);
+        setLocationSharing(user?.locationSharing ?? true);
+    }, [user]);
 
     // Handle choosing/taking photo
     const handlePickImage = async () => {
@@ -133,54 +142,86 @@ export default function ProfileScreen() {
             Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Unknown error'}`);
         }
     };
-    // ===== Load autoCaptureSOS setting from AsyncStorage =====
-    React.useEffect(() => {
-        const loadAutoCapture = async () => {
-            try {
-                const saved = await AsyncStorage.getItem('@autoCaptureSOS');
-                if (saved !== null) {
-                    setAutoCaptureSOS(saved === 'true');
-                }
-            } catch (error) {
-                console.log('Error loading autoCaptureSOS:', error);
-            }
-        };
-        loadAutoCapture();
-    }, []);
 
-    // ===== Load alarmType setting from AsyncStorage =====
-    React.useEffect(() => {
-        const loadAlarmType = async () => {
-            try {
-                const saved = await AsyncStorage.getItem('@alarmType');
-                if (saved !== null) {
-                    // Handle migration from old 'loud-alarm' to new 'ring'
-                    const migratedType = saved === 'loud-alarm' ? 'ring' : saved;
-                    setAlarmType(migratedType as 'fake-call' | 'ring');
-                }
-            } catch (error) {
-                console.log('Error loading alarmType:', error);
-            }
-        };
-        loadAlarmType();
-    }, []);
+    const saveSettingsToBackend = async (settings: Partial<{
+        anonymousMode: boolean;
+        notificationsEnabled: boolean;
+        locationSharing: boolean;
+        ttsEnabled: boolean;
+        autoCaptureSOS: boolean;
+        alarmType: 'fake-call' | 'ring';
+    }>) => {
+        try {
+            const response = await Api.put('/auth/me/settings', settings);
+            await updateUser(response);
+        } catch (error: any) {
+            console.error('Error saving settings:', error);
+            Alert.alert('Error', `Failed to save settings: ${error.message || 'Unknown error'}`);
+            throw error; // Re-throw to handle in calling function
+        }
+    };
 
     const toggleAutoCaptureSOS = async (value: boolean) => {
         try {
             setAutoCaptureSOS(value);
-            await AsyncStorage.setItem('@autoCaptureSOS', value.toString());
+            await saveSettingsToBackend({ autoCaptureSOS: value });
         } catch (error) {
-            console.log('Error saving autoCaptureSOS:', error);
+            // Revert on error
+            setAutoCaptureSOS(!value);
         }
     };
 
     const setAlarmTypeSetting = async (type: 'fake-call' | 'ring') => {
         try {
             setAlarmType(type);
-            await AsyncStorage.setItem('@alarmType', type);
+            await saveSettingsToBackend({ alarmType: type });
         } catch (error) {
-            console.log('Error saving alarmType:', error);
+            // Revert on error
+            setAlarmType(type === 'fake-call' ? 'ring' : 'fake-call');
         }
+    };
+
+    const toggleAnonymousMode = async (value: boolean) => {
+        try {
+            setAnonymousMode(value);
+            await saveSettingsToBackend({ anonymousMode: value });
+        } catch (error) {
+            // Revert on error
+            setAnonymousMode(!value);
+        }
+    };
+
+    const toggleNotifications = async (value: boolean) => {
+        try {
+            setNotificationsEnabled(value);
+            await saveSettingsToBackend({ notificationsEnabled: value });
+        } catch (error) {
+            // Revert on error
+            setNotificationsEnabled(!value);
+        }
+    };
+
+    const toggleLocationSharing = async (value: boolean) => {
+        try {
+            setLocationSharing(value);
+            await saveSettingsToBackend({ locationSharing: value });
+        } catch (error) {
+            // Revert on error
+            setLocationSharing(!value);
+        }
+    };
+
+    const toggleTTS = () => {
+        const newValue = !ttsEnabled;
+        setTtsEnabled(newValue);
+        setTTSEnabled(newValue); // Tell SpeechService
+        speakButtonAction(newValue ? 'Text-to-Speech enabled' : 'Text-to-Speech disabled');
+        // Save to backend
+        saveSettingsToBackend({ ttsEnabled: newValue }).catch(() => {
+            // Revert on error
+            setTtsEnabled(!newValue);
+            setTTSEnabled(!newValue);
+        });
     };
 
 
@@ -316,15 +357,6 @@ useEffect(() => {
         setChatbotResponse('');
     };
 
-    const toggleTTS = () => {
-        setTtsEnabled((prev) => {
-            const newState = !prev;
-            setTTSEnabled(newState); // Tell SpeechService
-            speakButtonAction(newState ? 'Text-to-Speech enabled' : 'Text-to-Speech disabled');
-            return newState;
-        });
-    };
-
     // Profile editing functions
     const startEditingProfile = () => {
         setEditedName(user?.name || '');
@@ -439,7 +471,7 @@ useEffect(() => {
                         </View>
                         <Switch
                             value={anonymousMode}
-                            onValueChange={setAnonymousMode}
+                            onValueChange={toggleAnonymousMode}
                             trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
                             thumbColor="#fff"
                         />
@@ -455,7 +487,7 @@ useEffect(() => {
                         </View>
                         <Switch
                             value={notificationsEnabled}
-                            onValueChange={setNotificationsEnabled}
+                            onValueChange={toggleNotifications}
                             trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
                             thumbColor="#fff"
                         />
@@ -471,23 +503,7 @@ useEffect(() => {
                         </View>
                         <Switch
                             value={locationSharing}
-                            onValueChange={setLocationSharing}
-                            trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
-                            thumbColor="#fff"
-                        />
-                    </View>
-
-                    <View style={styles.settingItem}>
-                        <View style={styles.settingInfo}>
-                            <Ionicons name="warning" size={20} color="#666" />
-                            <View style={styles.settingText}>
-                                <Text style={styles.settingLabel}>Smart Guardian Alerts</Text>
-                                <Text style={styles.settingDescription}>Get alerts for route deviation and unusual stops</Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={true}
-                            onValueChange={() => { }}
+                            onValueChange={toggleLocationSharing}
                             trackColor={{ false: '#e1e5e9', true: '#007AFF' }}
                             thumbColor="#fff"
                         />

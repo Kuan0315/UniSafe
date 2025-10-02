@@ -107,7 +107,9 @@ export default function SignupScreen() {
         role: 'guardian', // Default role for signup
         phone: phoneNumber,
       });
-      router.replace("/login");
+      Alert.alert("Success", "Account created successfully! Please login with your credentials.", [
+        { text: "OK", onPress: () => router.replace("/login") }
+      ]);
     } catch (e: any) {
       Alert.alert("Sign up failed", e.message || "Please try again.");
     } finally {
