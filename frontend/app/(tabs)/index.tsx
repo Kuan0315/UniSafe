@@ -502,13 +502,9 @@ function HomeScreen() {
     };
 
     const handleMinimizeSOS = () => {
-        // Minimize should also cancel the SOS emergency
-        setIsSOSActivated(false);
-        setIsSOSActive(false);
+        // Minimize should keep SOS active but hide the modal
         setShowSOSModal(false);
-        setSosStartTime(null);
-        setCurrentSOSId(null);
-        console.log('SOS minimized and cancelled');
+        console.log('SOS minimized, still active');
     };
 
     // Function to manually take a photo during SOS

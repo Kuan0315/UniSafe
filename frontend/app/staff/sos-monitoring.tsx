@@ -114,10 +114,25 @@ export default function SOSMonitoring() {
             setSosAlerts(prev =>
                 prev.map(alert =>
                     alert.id === alertId
-                        ? { ...alert, status: newStatus, responseTime: newStatus !== 'active' ? Math.floor((Date.now() - alert.timestamp.getTime()) / 60000) : undefined }
+                        ? { 
+                            ...alert, 
+                            status: newStatus, 
+                            resolvedAt: newStatus !== 'active' ? new Date() : undefined,
+                            responseTime: newStatus !== 'active' ? Math.floor((Date.now() - alert.timestamp.getTime()) / 60000) : undefined 
+                        }
                         : alert
                 )
             );
+
+            // Update selected alert to show changes immediately in modal
+            if (selectedAlert && selectedAlert.id === alertId) {
+                setSelectedAlert({
+                    ...selectedAlert,
+                    status: newStatus,
+                    resolvedAt: newStatus !== 'active' ? new Date() : undefined,
+                    responseTime: newStatus !== 'active' ? Math.floor((Date.now() - selectedAlert.timestamp.getTime()) / 60000) : undefined
+                });
+            }
             setModalVisible(false);
             Alert.alert('Success', `Alert marked as ${newStatus}`);
         } catch (error) {
@@ -465,7 +480,7 @@ export default function SOSMonitoring() {
                                 <View style={styles.headerSpacer} />
                             </View>
 
-                            <ScrollView style={styles.modalScroll}>
+                            <ScrollView style={styles.modalScroll} nestedScrollEnabled={true}>
                                 <View style={styles.modalSection}>
                                     <Text style={styles.modalSectionTitle}>User Information</Text>
                                     <Text style={styles.modalText}>Name: {selectedAlert.userName}</Text>

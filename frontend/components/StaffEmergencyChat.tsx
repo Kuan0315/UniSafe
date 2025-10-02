@@ -220,6 +220,8 @@ const StaffEmergencyChat: React.FC<StaffEmergencyChatProps> = ({
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        scrollEnabled={true}
       >
         {messages.map((message) => (
           <View
@@ -243,7 +245,7 @@ const StaffEmergencyChat: React.FC<StaffEmergencyChatProps> = ({
             </Text>
           </View>
         ))}
-        
+
         {isTyping && (
           <View style={[styles.messageContainer, styles.studentMessage]}>
             <View style={styles.messageHeader}>
@@ -292,11 +294,16 @@ const StaffEmergencyChat: React.FC<StaffEmergencyChatProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: 400,
+    flex: 1,
+    minHeight: 400,
+    maxHeight: 600,
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  scrollWrapper: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -320,7 +327,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   messagesContainer: {
-    maxHeight: 250,
+    flex: 1,
     backgroundColor: '#FFFFFF',
   },
   messagesContent: {

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getSOSChatMessages, sendSOSMessage } from '../services/SOSService';
@@ -43,10 +44,17 @@ export default function EmergencyChatScreen({
   // Fetch messages when component becomes visible or emergencyId changes
   useEffect(() => {
     if (visible && emergencyId) {
+      // Reset messages when reopening
+      setChatMessages([]);
+      setMessageText('');
       fetchMessages();
       // Set up polling for new messages every 5 seconds
       const interval = setInterval(fetchMessages, 5000);
       return () => clearInterval(interval);
+    } else if (!visible) {
+      // Clear messages and stop polling when not visible
+      setChatMessages([]);
+      setMessageText('');
     }
   }, [visible, emergencyId]);
 
@@ -132,7 +140,8 @@ export default function EmergencyChatScreen({
   if (!visible) return null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -202,6 +211,7 @@ export default function EmergencyChatScreen({
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </Modal>
   );
 }
 
