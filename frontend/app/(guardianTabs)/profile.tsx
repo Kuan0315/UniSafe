@@ -10,10 +10,10 @@ import {
     TouchableOpacity,
     ScrollView,
     Alert,
-    SafeAreaView,
     Modal,
     TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 

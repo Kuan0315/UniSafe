@@ -12,14 +12,13 @@ import {
     ScrollView,
     TextInput,
     Alert,
-    SafeAreaView,
     Modal,
     Switch,
     Image,
     BackHandler,
     ActivityIndicator,
 } from 'react-native';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { ComponentProps } from "react";
 import TextInputWithVoice from '../../components/TextInputWithVoice';
@@ -239,7 +238,7 @@ const PreviewMediaItem = ({ item, removeMedia }: {
                     style={styles.removeImageButton}
                     onPress={() => removeMedia(item.uri)}
                 >
-                    <Ionicons name="close-circle" size={24} color="#fff" />
+                    <Ionicons name="close-circle-outline" size={24} color="#000000ff" />
                 </TouchableOpacity>
             </View>
         );
@@ -251,7 +250,7 @@ const PreviewMediaItem = ({ item, removeMedia }: {
                     style={styles.removeImageButton}
                     onPress={() => removeMedia(item.uri)}
                 >
-                    <Ionicons name="close-circle" size={24} color="#fff" />
+                    <Ionicons name="close-circle-outline" size={24} color="#000000ff" />
                 </TouchableOpacity>
             </View>
         );
@@ -924,7 +923,7 @@ export default function ReportScreen() {
     }, [filteredReports]);  // Add filteredReports as dependency
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
             {/* Recent Reports Feed */}
             <ScrollView style={styles.feedContainer} showsVerticalScrollIndicator={false}>
                 <View style={styles.feedHeader}>
