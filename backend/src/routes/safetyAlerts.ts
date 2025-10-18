@@ -14,6 +14,17 @@ const createSchema = z.object({
   priority: z.enum(['high', 'medium', 'low']),
   category: z.string().min(1),
   expiresAt: z.string().datetime().optional(),
+  alertScope: z.enum(['campus-wide', 'location-specific']).optional(),
+  timeLimit: z.number().optional(),
+  scheduledAt: z.string().datetime().optional(),
+  isScheduled: z.boolean().optional(),
+  sendPushNotification: z.boolean().optional(),
+  sendEmail: z.boolean().optional(),
+  sendSMS: z.boolean().optional(),
+  alertLocation: z.string().optional(),
+  alertLatitude: z.number().optional(),
+  alertLongitude: z.number().optional(),
+  alertRadius: z.number().optional(),
 });
 
 // List active safety alerts (any authenticated user could consume; keep simple here)
@@ -27,11 +38,30 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const data = createSchema.parse(req.body);
 
+    const deliveryMethods: string[] = [];
+    if (data.sendPushNotification) deliveryMethods.push('push');
+    if (data.sendEmail) deliveryMethods.push('email');
+    if (data.sendSMS) deliveryMethods.push('sms');
+
+    const locationData = data.alertScope === 'location-specific' && data.alertLatitude && data.alertLongitude
+      ? JSON.stringify({
+          latitude: data.alertLatitude,
+          longitude: data.alertLongitude,
+          address: data.alertLocation,
+          radius: data.alertRadius || 200,
+        })
+      : undefined;
+
     const alert = await Alert.create({
       type: data.type,
       title: data.title,
       message: data.message,
-      status: 'Active',
+      status: data.isScheduled ? 'Inactive' : 'Active',
+      scope: data.alertScope === 'campus-wide' ? 'Campus Wide' : 'Building Specific',
+      location: locationData,
+      deliveryMethods,
+      schedule: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+      autoDeactivate: data.timeLimit && data.timeLimit > 0,
     });
 
     // Notify all students (could be optimized with topic push in production)

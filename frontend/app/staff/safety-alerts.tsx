@@ -203,6 +203,26 @@ export default function SafetyAlerts() {
     return;
   }
 
+  const apiData = {
+    title: title.trim(),
+    message: message.trim(),
+    type,
+    priority,
+    category,
+    expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+    alertScope,
+    timeLimit,
+    scheduledAt: scheduledAt ? scheduledAt.toISOString() : undefined,
+    isScheduled,
+    sendPushNotification,
+    sendEmail,
+    sendSMS,
+    alertLocation: alertScope === 'location-specific' ? alertLocation : undefined,
+    alertLatitude: alertScope === 'location-specific' ? alertLatitude : undefined,
+    alertLongitude: alertScope === 'location-specific' ? alertLongitude : undefined,
+    alertRadius: alertScope === 'location-specific' ? alertRadius : undefined,
+  };
+
   const alertData: SafetyAlert = {
     id: editingAlert?.id || Date.now().toString(),
     title: title.trim(),
@@ -241,8 +261,8 @@ export default function SafetyAlerts() {
       Alert.alert("Success", "Alert updated successfully");
     } else {
       // create new alert
-      await Api.post("/alerts", alertData);
-      setAlerts(prev => [alertData, ...prev]);
+      const response = await Api.post("/safety-alerts", apiData);
+      setAlerts(prev => [response.data, ...prev]);
       Alert.alert("Success", "Alert published successfully");
     }
 
