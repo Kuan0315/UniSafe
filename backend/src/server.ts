@@ -42,7 +42,7 @@ app.use('/api/locations', locationsRouter);
 app.use('/api/universities', universitiesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/sos', sosRouter);
-app.use("/alerts", alertsRouter);
+app.use('/api/alerts', alertsRouter);
 
 async function start() {
   try {
