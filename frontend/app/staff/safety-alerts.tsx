@@ -81,107 +81,15 @@ export default function SafetyAlerts() {
     loadAlerts();
   }, []);
 
-  /*const loadAlerts = async () => {
-    try {
-      // Simulate API call - replace with actual API
-      const mockAlerts: SafetyAlert[] = [
-        {
-          id: '1',
-          title: 'Emergency: Campus Lockdown',
-          message: 'Due to a security incident, all campus buildings are in lockdown. Please remain in your current location and await further instructions. Do not leave buildings until the all-clear is given.',
-          type: 'critical',
-          priority: 'high',
-          category: 'security',
-          createdBy: 'Security Office',
-          createdAt: new Date(Date.now() - 3600000),
-          isActive: true,
-          timeLimit: undefined,
-          isAutoDeactivated: false,
-          isScheduled: false,
-          sendPushNotification: true,
-          sendEmail: true,
-          sendSMS: true,
-          alertScope: 'campus-wide',
-        },
-        {
-          id: '2',
-          title: 'Weather Warning: Heavy Rain Expected',
-          message: 'Heavy rainfall is expected from 2 PM to 6 PM today. Please exercise caution when walking on campus, especially near construction areas. Shuttle services may be delayed.',
-          type: 'warning',
-          priority: 'medium',
-          category: 'weather',
-          createdBy: 'Campus Operations',
-          createdAt: new Date(Date.now() - 7200000),
-          expiresAt: new Date(Date.now() + 14400000), // 4 hours from now
-          isActive: true,
-          timeLimit: 4,
-          isAutoDeactivated: true,
-          isScheduled: false,
-          sendPushNotification: true,
-          sendEmail: false,
-          sendSMS: false,
-          alertScope: 'campus-wide',
-        },
-        {
-          id: '3',
-          title: 'Maintenance: Parking Lot B Closure',
-          message: 'Parking Lot B will be closed for maintenance from March 15-17. Alternative parking is available in Lots A and C. We apologize for any inconvenience.',
-          type: 'info',
-          priority: 'low',
-          category: 'maintenance',
-          createdBy: 'Facilities Management',
-          createdAt: new Date(Date.now() - 86400000),
-          expiresAt: new Date(Date.now() + 172800000), // 2 days from now
-          isActive: true,
-          timeLimit: 48,
-          isAutoDeactivated: true,
-          isScheduled: false,
-          sendPushNotification: true,
-          sendEmail: true,
-          sendSMS: false,
-          alertScope: 'location-specific',
-          location: {
-            latitude: 3.1201,
-            longitude: 101.6544,
-            address: 'Parking Lot B, University Campus',
-            radius: 200, // 200 meters radius
-          },
-        },
-        {
-          id: '4',
-          title: 'COVID-19 Update: Mask Guidelines',
-          message: 'Effective immediately, masks are recommended but not required in outdoor campus areas. Masks are still required in all indoor spaces including classrooms, libraries, and dining halls.',
-          type: 'info',
-          priority: 'low',
-          category: 'health',
-          createdBy: 'Health Services',
-          createdAt: new Date(Date.now() - 172800000),
-          isActive: false,
-          timeLimit: undefined,
-          isAutoDeactivated: false,
-          isScheduled: false,
-          sendPushNotification: true,
-          sendEmail: true,
-          sendSMS: false,
-          alertScope: 'campus-wide',
-        },
-      ];
-
-      setAlerts(mockAlerts);
-    } catch (error) {
-      console.error('Error loading alerts:', error);
-      Alert.alert('Error', 'Failed to load alerts');
-    }
-  };*/
   const loadAlerts = async () => {
-  try {
-    const response = await Api.get("/alerts"); // call backend
-    setAlerts(response.data); // backend returns the list of alerts
-  } catch (error) {
-    console.error("Error loading alerts:", error);
-    Alert.alert("Error", "Failed to load alerts from backend");
-  }
-};
+    try {
+      const response = await Api.get("/safety-alerts"); // call backend
+      setAlerts(response.data); // backend returns the list of alerts
+    } catch (error) {
+      console.error("Error loading alerts:", error);
+      Alert.alert("Error", "Failed to load alerts from backend");
+    }
+  };
 
 
   const openCreateModal = () => {

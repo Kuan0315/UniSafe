@@ -10,7 +10,8 @@ import guardianRouter from './routes/guardian.js';
 import locationsRouter from './routes/locations.js';
 import universitiesRouter from './routes/universities.js';
 import reportsRouter from './routes/reports.js';
-import alertsRouter from "./routes/alerts.js";
+import alertsRouter from './routes/alerts.js';
+import safetyAlertsRouter from './routes/safetyAlerts.js';
 import sosRouter from './routes/sos.js';
 dotenv.config();
 // Fallback defaults so it runs without .env creation
@@ -36,7 +37,9 @@ app.use('/api/locations', locationsRouter);
 app.use('/api/universities', universitiesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/sos', sosRouter);
-app.use("/alerts", alertsRouter);
+app.use('/api/alerts', alertsRouter);
+app.use('/api/safety-alerts', safetyAlertsRouter);
+app.use('/api/safety-alerts', safetyAlertsRouter);
 async function start() {
     try {
         const mongoUri = process.env.MONGO_URI;

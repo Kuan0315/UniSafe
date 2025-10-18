@@ -12,6 +12,7 @@ import locationsRouter from './routes/locations.js';
 import universitiesRouter from './routes/universities.js';
 import reportsRouter from './routes/reports.js';
 import alertsRouter from './routes/alerts.js';
+import safetyAlertsRouter from './routes/safetyAlerts.js';
 import sosRouter from './routes/sos.js';
 
 dotenv.config();
@@ -43,6 +44,7 @@ app.use('/api/universities', universitiesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/sos', sosRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/safety-alerts', safetyAlertsRouter);
 
 async function start() {
   try {
