@@ -11,12 +11,12 @@ import {
     TouchableOpacity,
     ScrollView,
     Alert,
-    SafeAreaView,
     Switch,
     Modal,
     TextInput,
     Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Platform } from 'react-native';
 import TextInputWithVoice from '../../components/TextInputWithVoice';

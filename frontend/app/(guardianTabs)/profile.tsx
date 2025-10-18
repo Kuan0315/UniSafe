@@ -10,10 +10,10 @@ import {
     TouchableOpacity,
     ScrollView,
     Alert,
-    SafeAreaView,
     Modal,
     TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 
@@ -103,17 +103,15 @@ export default function GuardianProfileScreen() {
                     <Text style={styles.sectionTitle}>Profile Information</Text>
                     <View style={styles.infoItem}>
                         <Ionicons name="person" size={20} color="#666" />
-                        <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                                            
-                                            
+                        <Text style={styles.infoText}>{user?.name || 'User'}</Text>                     
                     </View>
                     <View style={styles.infoItem}>
                         <Ionicons name="mail" size={20} color="#666" />
-                        <Text style={styles.userEmail}>{user?.email || ''}</Text>
+                        <Text style={styles.infoText}>{user?.email || ''}</Text>
                     </View>
                     <View style={styles.infoItem}>
                         <Ionicons name="call" size={20} color="#666" />
-                        <Text style={styles.userPhone}>ID: {user?.phone}</Text>
+                        <Text style={styles.infoText}>{user?.phone}</Text>
                     </View>
                 </View>
 
@@ -215,6 +213,8 @@ const styles = StyleSheet.create({
     },
     avatarContainer: {
         marginBottom: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     avatarPlaceholder: {
         width: 80,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     infoText: {
         fontSize: 16,
         color: '#333',
-        marginLeft: 15,
+        marginLeft: 10,
     },
     settingButton: {
         flexDirection: 'row',
