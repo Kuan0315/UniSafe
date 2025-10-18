@@ -8,7 +8,13 @@ function resolveDefaultBaseUrl(): string {
     if (typeof envUrl === 'string' && envUrl.trim().length > 0) {
         return envUrl.replace(/\/$/, '') + '/api';
     }
-    // 2) In native dev, derive LAN IP from Metro bundler URL
+    // 2) Use BACKEND_URL from app.json extra
+    const manifest: any = Constants;
+    const backendUrl = manifest?.expoConfig?.extra?.BACKEND_URL;
+    if (backendUrl) {
+        return backendUrl.replace(/\/$/, '') + '/api';
+    }
+    // 3) In native dev, derive LAN IP from Metro bundler URL
     if (Platform.OS !== 'web' && __DEV__) {
         try {
             // scriptURL example: http://192.168.1.10:19000/index.bundle?platform=android&dev=true&hot=false
@@ -21,7 +27,6 @@ function resolveDefaultBaseUrl(): string {
                 }
             }
             // Fallbacks via Expo Constants
-            const manifest: any = (Constants as any);
             const hostUri: string | undefined = manifest?.expoConfig?.hostUri || manifest?.manifest2?.extra?.expoGo?.developer?.host;
             const debuggerHost: string | undefined = manifest?.manifest?.debuggerHost;
             const hostCandidate = hostUri?.split(':')[0] || debuggerHost?.split(':')[0];
@@ -30,11 +35,11 @@ function resolveDefaultBaseUrl(): string {
             }
         } catch { }
     }
-    // 3) Fallback to localhost (works on emulators and web)
+    // 4) Fallback to localhost (works on emulators and web)
     return 'http://localhost:4000/api';
 }
 
-const DEFAULT_BASE_URL = resolveDefaultBaseUrl();
+const DEFAULT_BASE_URL = 'https://unisafe-xhj4.onrender.com/api';
 
 export const Api = {
     baseUrl: DEFAULT_BASE_URL,

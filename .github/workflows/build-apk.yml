@@ -32,43 +32,15 @@ jobs:
       - name: Setup EAS project
         run: |
           cd frontend
-          # Create fresh EAS config to avoid linking issues
-          echo '{
-            "cli": {
-              "version": ">= 16.19.3",
-              "appVersionSource": "remote"
-            },
-            "build": {
-              "development": {
-                "developmentClient": true,
-                "distribution": "internal"
-              },
-              "preview": {
-                "distribution": "internal",
-                "android": {
-                  "buildType": "apk"
-                }
-              },
-              "production": {
-                "autoIncrement": true
-              },
-              "apk": {
-                "android": {
-                  "buildType": "apk"
-                }
-              }
-            },
-            "submit": {
-              "production": {}
-            }
-          }' > eas.json
+          # Use existing EAS config
+          echo "Using existing eas.json"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK with EAS
         run: |
           cd frontend
-          eas build --platform android --profile apk --non-interactive --wait
+          eas build --platform android --profile preview --non-interactive --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 

@@ -62,7 +62,7 @@
       "androidCollapsedTitle": "UniSafe Alert"
     },
     "extra": {
-      "BACKEND_URL": "https://unisafe-xhj4.onrender.com",
+      "BACKEND_URL": "http://localhost:5000",
       "router": {},
       "eas": {
         "projectId": "052137eb-4dc4-4d7c-972a-f843b3a23e8f"
