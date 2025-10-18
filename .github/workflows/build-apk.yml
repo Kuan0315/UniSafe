@@ -29,18 +29,18 @@ jobs:
           cd frontend
           npm ci
 
-      # ✅ No need for eas login anymore — EXPO_TOKEN will authenticate automatically
-      - name: Verify EAS authentication
+      - name: Configure EAS project (auto-accept prompts)
         run: |
           cd frontend
-          eas whoami || echo "Expo token will be used automatically"
+          # Answer "yes" to configure existing project
+          echo "y" | eas build:configure --platform android || echo "Configuration completed"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK with EAS
         run: |
           cd frontend
-          eas build --platform android --profile apk --wait
+          eas build --platform android --profile apk --non-interactive --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
