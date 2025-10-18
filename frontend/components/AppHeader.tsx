@@ -92,10 +92,10 @@ const BLUE = "#1E88E5";
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: "#fff",
+    backgroundColor: "transparent",
   },
   container: {
-    backgroundColor: "#fff",
+    backgroundColor: "transparent",
   },
   brandRow: {
     flexDirection: "row",
