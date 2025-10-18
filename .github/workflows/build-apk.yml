@@ -21,7 +21,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Setup Expo CLI
+      - name: Setup Expo and EAS CLI
         run: npm install -g @expo/cli@latest eas-cli@latest
 
       - name: Install dependencies
@@ -29,44 +29,41 @@ jobs:
           cd frontend
           npm ci
 
-      - name: Setup EAS
+      # ✅ No need for eas login anymore — EXPO_TOKEN will authenticate automatically
+      - name: Verify EAS authentication
         run: |
           cd frontend
-          eas login --non-interactive
+          eas whoami || echo "Expo token will be used automatically"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK
+      - name: Build APK with EAS
         run: |
           cd frontend
-          eas build --platform android --profile apk --non-interactive --wait
+          eas build --platform android --profile apk --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Download APK
         run: |
           cd frontend
-          # Get the latest build URL and download the APK
           BUILD_URL=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].artifacts.buildUrl')
-          wget -O UniSafe.apk "$BUILD_URL"
+          if [ "$BUILD_URL" != "null" ]; then
+            curl -L -o UniSafe.apk "$BUILD_URL"
+          else
+            echo "Failed to get build URL"
+            exit 1
+          fi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: UniSafe ${{ github.ref }}
+          files: frontend/UniSafe.apk
+          name: UniSafe ${{ github.ref_name }}
           draft: false
           prerelease: false
-
-      - name: Upload APK to Release
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: frontend/UniSafe.apk
-          asset_name: UniSafe.apk
-          asset_content_type: application/vnd.android.package-archive
