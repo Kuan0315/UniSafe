@@ -84,10 +84,11 @@ export default function SafetyAlerts() {
   const loadAlerts = async () => {
     try {
       const response = await Api.get("/safety-alerts"); // call backend
-      setAlerts(response.data); // backend returns the list of alerts
+      setAlerts(response.data || []); // backend returns the list of alerts
     } catch (error) {
       console.error("Error loading alerts:", error);
       Alert.alert("Error", "Failed to load alerts from backend");
+      setAlerts([]); // set to empty array on error
     }
   };
 

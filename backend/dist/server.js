@@ -39,7 +39,6 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/sos', sosRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/safety-alerts', safetyAlertsRouter);
-app.use('/api/safety-alerts', safetyAlertsRouter);
 async function start() {
     try {
         const mongoUri = process.env.MONGO_URI;
