@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "UniSafe",
-    "slug": "unisafe",
+    "slug": "frontend",
     "owner": "kuan0315",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -65,11 +65,8 @@
       "BACKEND_URL": "http://localhost:5000",
       "router": {},
       "eas": {
-        "projectId": "88ce7fcc-edc8-4c3f-b45f-b0aae65a9aa9"
+        "projectId": "052137eb-4dc4-4d7c-972a-f843b3a23e8f"
       }
-    },
-    "eas": {
-      "projectId": "88ce7fcc-edc8-4c3f-b45f-b0aae65a9aa9"
     }
   }
 }
