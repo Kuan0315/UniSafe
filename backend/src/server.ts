@@ -5,14 +5,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
 
-import authRouter from './routes/auth';
-import contactsRouter from './routes/contacts';
-import guardianRouter from './routes/guardian';
-import locationsRouter from './routes/locations';
-import universitiesRouter from './routes/universities';
-import reportsRouter from './routes/reports';
-import alertsRouter from './routes/alerts';
-import sosRouter from './routes/sos';
+import authRouter from './routes/auth.js';
+import contactsRouter from './routes/contacts.js';
+import guardianRouter from './routes/guardian.js';
+import locationsRouter from './routes/locations.js';
+import universitiesRouter from './routes/universities.js';
+import reportsRouter from './routes/reports.js';
+import alertsRouter from './routes/alerts.js';
+import sosRouter from './routes/sos.js';
 
 dotenv.config();
 // Fallback defaults so it runs without .env creation
