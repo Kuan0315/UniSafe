@@ -10,6 +10,19 @@ Youtube presentation link -> https://youtu.be/aCrNtWJechs
 
 Demo video -> https://drive.google.com/file/d/1SVP0GNse8_tPDcw2o2KVaev3BUa2t3o9/view?usp=drive_link
 
+## 📱 Download APK
+
+**Latest Release:** [Download UniSafe APK](https://github.com/Kuan0315/UniSafe/releases/latest)
+
+### Installation Instructions:
+1. Download the APK file from the latest release
+2. Enable "Install from unknown sources" in your Android settings
+3. Install the APK file
+4. Grant necessary permissions for location, camera, and notifications
+
+### Building from Source:
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed instructions on building the APK yourself.
+
 Terminal Command:
 
 (backend)

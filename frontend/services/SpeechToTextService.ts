@@ -13,7 +13,7 @@ export interface SpeechToTextOptions {
 class SpeechToTextService {
   private isSupported: boolean = false;
   private recording: Audio.Recording | null = null;
-  private apiKey = process.env.EXPO_PUBLIC_GOOGLE_SPEECH_API_KEY || 'AIzaSyA6LhiERPIHt9wZRrUHsAIdGA3IIfaSz8Q'; // Fallback to provided key
+  private apiKey = process.env.EXPO_PUBLIC_GOOGLE_SPEECH_API_KEY; // Fallback to provided key
 
   constructor() {
     this.checkSupport();

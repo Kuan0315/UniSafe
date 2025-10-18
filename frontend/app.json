@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "UniSafe",
-    "slug": "frontend",
+    "slug": "unisafe",
+    "owner": "kuan0315",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -37,9 +38,6 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "INTERNET",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "INTERNET"
       ],
       "package": "com.yourcompany.unisafe"
@@ -57,14 +55,21 @@
         }
       ]
     ],
-    "extra": {
-      "BACKEND_URL": "http://localhost:5000"
-    },
     "notification": {
       "icon": "./assets/images/logo.png",
       "color": "#FF0000",
       "androidMode": "default",
       "androidCollapsedTitle": "UniSafe Alert"
+    },
+    "extra": {
+      "BACKEND_URL": "http://localhost:5000",
+      "router": {},
+      "eas": {
+        "projectId": "88ce7fcc-edc8-4c3f-b45f-b0aae65a9aa9"
+      }
+    },
+    "eas": {
+      "projectId": "88ce7fcc-edc8-4c3f-b45f-b0aae65a9aa9"
     }
   }
 }
