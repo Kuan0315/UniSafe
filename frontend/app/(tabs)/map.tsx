@@ -22,6 +22,7 @@ import { MAPS_CONFIG } from '../../config/maps';
 import GeofencingService from '../../services/GeofencingService';
 import { speakPageTitle, speakButtonAction } from '../../services/SpeechService';
 import { openGoogleMaps } from '../../services/NavigationService';
+import { Api } from '../../services/api';
 
 
 const { width, height } = Dimensions.get('window');
@@ -36,64 +37,22 @@ interface Incident {
   severity: 'low' | 'medium' | 'high';
 }
 
-// Mock data for incidents
-const mockIncidents: Incident[] = [
-  {
-    id: 1,
-    type: 'theft',
-    title: 'Theft Report',
-    description: 'Phone stolen near Engineering Building',
-    location: { latitude: 3.1201, longitude: 101.6544 },
-    time: '2 hours ago',
-    severity: 'medium',
-  },
-  {
-    id: 2,
-    type: 'harassment',
-    title: 'Harassment Report',
-    description: 'Verbal harassment near Library',
-    location: { latitude: 3.1250, longitude: 101.6600 },
-    time: '1 hour ago',
-    severity: 'high',
-  },
-  {
-    id: 3,
-    type: 'accident',
-    title: 'Accident Report',
-    description: 'Minor collision in parking lot',
-    location: { latitude: 3.1150, longitude: 101.6480 },
-    time: '30 mins ago',
-    severity: 'low',
-  },
-  // Test incidents for SRJK(C) Bukit Siput area (near coordinates 2.4858831, 102.8460264)
-  {
-    id: 4,
-    type: 'theft',
-    title: 'Phone Theft - Bukit Siput',
-    description: 'Phone stolen near main road to school',
-    location: { latitude: 2.4820, longitude: 102.8475 }, // Along likely route
-    time: '45 mins ago',
-    severity: 'medium',
-  },
-  {
-    id: 5,
-    type: 'harassment',
-    title: 'Harassment - School Area',
-    description: 'Verbal harassment reported near SRJK area',
-    location: { latitude: 2.4845, longitude: 102.8465 }, // Close to school
-    time: '1.5 hours ago',
-    severity: 'high',
-  },
-  {
-    id: 6,
-    type: 'suspicious',
-    title: 'Suspicious Activity',
-    description: 'Suspicious person loitering near Jalan Abdul Hamid',
-    location: { latitude: 2.4830, longitude: 102.8450 }, // Alternative route area
-    time: '30 mins ago',
-    severity: 'low',
-  },
-];
+interface SafetyAlert {
+  id: string;
+  title: string;
+  message: string;
+  type: 'critical' | 'warning' | 'info';
+  priority: 'high' | 'medium' | 'low';
+  alertScope: 'campus-wide' | 'location-specific';
+  location?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    radius?: number;
+  };
+  createdAt: Date;
+  isActive: boolean;
+}
 
 // Mock data for crowd density
 const mockCrowdDensity = [
@@ -159,6 +118,7 @@ export default function MapScreen() {
   const [selectingOriginTimestamp, setSelectingOriginTimestamp] = useState<number | null>(null);
   const [fitToRoute, setFitToRoute] = useState(false);
   const [availableRoutes, setAvailableRoutes] = useState<any[]>([]);
+  const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
 
 
   // Speak page title on load for accessibility
@@ -264,6 +224,52 @@ export default function MapScreen() {
       }
     };
   }, []);
+
+  // Load safety alerts
+  useEffect(() => {
+    loadSafetyAlerts();
+  }, []);
+
+  const loadSafetyAlerts = async () => {
+    try {
+      const response = await Api.get("/safety-alerts");
+      const rawAlerts = (response || []).filter((alert: any) => alert && typeof alert === 'object');
+      
+      // Transform backend data to match frontend interface
+      const transformedAlerts: SafetyAlert[] = rawAlerts.map((alert: any) => {
+        let parsedLocation = undefined;
+        if (alert.location) {
+          try {
+            parsedLocation = JSON.parse(alert.location);
+          } catch (e) {
+            // Failed to parse location
+          }
+        }
+        
+        return {
+          id: alert._id || alert.id,
+          title: alert.title,
+          message: alert.message,
+          type: alert.type as 'critical' | 'warning' | 'info',
+          priority: (alert.priority || 'medium') as 'high' | 'medium' | 'low',
+          alertScope: alert.scope === 'Campus Wide' ? 'campus-wide' : 'location-specific',
+          location: parsedLocation ? {
+            latitude: parsedLocation.latitude,
+            longitude: parsedLocation.longitude,
+            address: parsedLocation.address,
+            radius: parsedLocation.radius,
+          } : undefined,
+          createdAt: new Date(alert.createdAt),
+          isActive: alert.status === 'Active',
+        };
+      });
+      
+      setSafetyAlerts(transformedAlerts);
+    } catch (error) {
+      console.error("Error loading safety alerts:", error);
+      setSafetyAlerts([]);
+    }
+  };
 
   // --- Helper: decode polyline (Google polyline -> array of {lat, lng}) ---
   function decodePolyline(encoded: string): { latitude: number; longitude: number }[] {
@@ -896,7 +902,7 @@ export default function MapScreen() {
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         'walking',
         'fastest',
-        mockIncidents
+        []
       );
 
       if (plan) {
@@ -937,7 +943,7 @@ export default function MapScreen() {
       console.log('🔬 COMPREHENSIVE ROUTE TEST - Comparing Fastest vs Safest');
       console.log('📍 From:', currentOrigin);
       console.log('📍 To:', previewLocation);
-      console.log('🚨 Active incidents:', mockIncidents.map(inc => `${inc.title} (${inc.severity}) at ${inc.location.latitude}, ${inc.location.longitude}`));
+      console.log('🚨 Active incidents: []');
 
       // Test fastest route
       console.log('\n🏃 TESTING FASTEST ROUTE:');
@@ -946,7 +952,7 @@ export default function MapScreen() {
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         transportMode === 'motorbike' ? 'driving' : transportMode,
         'fastest',
-        mockIncidents
+        []
       );
 
       // Test safest route
@@ -956,7 +962,7 @@ export default function MapScreen() {
         { lat: previewLocation.latitude, lng: previewLocation.longitude },
         transportMode === 'motorbike' ? 'driving' : transportMode,
         'safest',
-        mockIncidents
+        []
       );
 
       // Compare results
@@ -996,8 +1002,8 @@ export default function MapScreen() {
   };
 
   const filteredIncidents = selectedIncidentType === 'all'
-    ? mockIncidents
-    : mockIncidents.filter(incident => incident.type === selectedIncidentType);
+    ? []
+    : [].filter((incident: Incident) => incident.type === selectedIncidentType);
 
   const handleIncidentPress = (incident: any) => {
     setSelectedIncident(incident);
@@ -1208,6 +1214,7 @@ export default function MapScreen() {
             userHeading={userHeading}
             {...(region && { region })}
             incidents={filteredIncidents}
+            safetyAlerts={safetyAlerts}
             showSafeRoute={showSafeRoute}
             destination={destinationCoords}
             origin={originCoords}
@@ -1347,7 +1354,7 @@ export default function MapScreen() {
                       { lat: previewLocation.latitude, lng: previewLocation.longitude },
                       transport.mode,
                       'fastest',
-                      mockIncidents
+                      []
                     );
 
                     const safest = await planRoutesAndSelect(
@@ -1355,7 +1362,7 @@ export default function MapScreen() {
                       { lat: previewLocation.latitude, lng: previewLocation.longitude },
                       transport.mode,
                       'safest',
-                      mockIncidents
+                      []
                     );
 
                     return {
@@ -1605,7 +1612,7 @@ export default function MapScreen() {
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,
-                        mockIncidents
+                        []
                       );
                       if (route) {
                         setSelectedRoute(route);
@@ -1641,7 +1648,7 @@ export default function MapScreen() {
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,
-                        mockIncidents
+                        []
                       );
                       if (route) {
                         setSelectedRoute(route);
@@ -1677,7 +1684,7 @@ export default function MapScreen() {
                         { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
                         newMode,
                         routeType,
-                        mockIncidents
+                        []
                       );
                       if (route) {
                         setSelectedRoute(route);
@@ -2061,6 +2068,7 @@ export default function MapScreen() {
               userHeading={userHeading}
               {...(region && { region })}
               incidents={filteredIncidents}
+              safetyAlerts={safetyAlerts}
               showSafeRoute={showSafeRoute}
               destination={destinationCoords}
               origin={originCoords}

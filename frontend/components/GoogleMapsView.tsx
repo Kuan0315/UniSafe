@@ -238,6 +238,16 @@ export default function GoogleMapsView({
       '#FF3B30';
   };
 
+  const getAlertColor = (type: string) => {
+    const alertColors = {
+      critical: '#FF3B30',
+      warning: '#FF9500',
+      info: '#007AFF'
+    };
+
+    return alertColors[type as keyof typeof alertColors] || '#FF3B30';
+  };
+
   const handleMapPress = (event: any) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     onMapPress?.(latitude, longitude);
@@ -398,13 +408,11 @@ export default function GoogleMapsView({
               description={alert.message}
               onPress={() => handleSafetyAlertPress(alert)}
             >
-              <View style={styles.safetyAlertMarker}>
-                <Ionicons
-                  name={getSafetyAlertIcon(alert.type)}
-                  size={20}
-                  color="white"
-                />
-              </View>
+              <Ionicons
+                name={getSafetyAlertIcon(alert.type)}
+                size={24}
+                color={getAlertColor(alert.type)}
+              />
             </Marker>
           ))}
 
@@ -851,20 +859,5 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#FF9500',
-  },
-  safetyAlertMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FF3B30',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
 });

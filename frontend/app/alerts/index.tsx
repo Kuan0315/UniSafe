@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -6,12 +6,14 @@ import {
     Text,
     TouchableOpacity,
     StatusBar,
-    Alert
+    Alert,
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Api } from '../../services/api';
 
 type AlertType = 'critical' | 'warning' | 'info';
 
@@ -27,70 +29,73 @@ interface AlertData {
     priority: string;
 }
 
-const alertsData: AlertData[] = [
-    {
-        id: '1',
-        type: 'critical',
-        category: 'SECURITY THREAT',
-        title: 'Suspicious Activity',
-        message: 'Suspicious activity reported near Library. Security has been notified and is investigating. Students are advised to avoid the area and use alternative routes.',
-        time: '5 mins ago',
-        distance: '200m away',
-        icon: 'alert-circle',
-        priority: 'CRITICAL'
-    },
-    {
-        id: '2',
-        type: 'warning',
-        category: 'WEATHER',
-        title: 'Heavy Rain Warning',
-        message: 'Heavy rain warning issued for campus area. Avoid outdoor activities and use covered walkways. Some outdoor events may be cancelled.',
-        time: '12 mins ago',
-        distance: 'Campus-wide',
-        icon: 'warning',
-        priority: 'WARNING'
-    },
-    {
-        id: '3',
-        type: 'info',
-        category: 'SECURITY UPDATE',
-        title: 'Security Patrol',
-        message: 'Campus security patrol is currently active in Science Building area. This is a routine patrol to ensure campus safety.',
-        time: '15 mins ago',
-        distance: '500m away',
-        icon: 'shield-checkmark',
-        priority: 'INFO'
-    },
-    {
-        id: '4',
-        type: 'warning',
-        category: 'MAINTENANCE',
-        title: 'Construction Work',
-        message: 'Construction work in progress near Engineering Building. Expect noise and limited access. Use alternative entrances.',
-        time: '25 mins ago',
-        distance: '350m away',
-        icon: 'construct',
-        priority: 'WARNING'
-    },
-    {
-        id: '5',
-        type: 'info',
-        category: 'ANNOUNCEMENT',
-        title: 'Campus Event',
-        message: 'Student safety workshop scheduled for tomorrow at 2 PM in Main Auditorium. All students welcome to attend.',
-        time: '1 hour ago',
-        distance: 'Main Campus',
-        icon: 'people',
-        priority: 'INFO'
-    }
-];
-
 export default function AlertsScreen() {
+    const [alerts, setAlerts] = useState<AlertData[]>([]);
     const [selectedFilter, setSelectedFilter] = useState<'all' | AlertType>('all');
+    const [refreshing, setRefreshing] = useState(false);
+
+    useEffect(() => {
+        loadAlerts();
+    }, []);
+
+    const loadAlerts = async () => {
+        try {
+            const response = await Api.get("/safety-alerts");
+            const rawAlerts = (response || []).filter((alert: any) => alert && typeof alert === 'object');
+            
+            // Transform backend data to match frontend interface
+            const transformedAlerts: AlertData[] = rawAlerts.map((alert: any) => ({
+                id: alert._id || alert.id,
+                type: alert.type as AlertType,
+                category: (alert.category || 'GENERAL').toUpperCase(),
+                title: alert.title,
+                message: alert.message,
+                time: formatTimeAgo(new Date(alert.createdAt)),
+                distance: alert.scope === 'Campus Wide' ? 'Campus-wide' : 'Location-specific',
+                icon: getAlertIcon(alert.type),
+                priority: (alert.priority || 'medium').toUpperCase(),
+            }));
+            
+            setAlerts(transformedAlerts);
+        } catch (error) {
+            console.error("Error loading alerts:", error);
+            Alert.alert("Error", "Failed to load alerts");
+            setAlerts([]);
+        }
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadAlerts();
+        setRefreshing(false);
+    };
+
+    const formatTimeAgo = (date: Date) => {
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    };
+
+    const getAlertIcon = (type: string) => {
+        switch (type) {
+            case 'critical': return 'alert-circle';
+            case 'warning': return 'warning';
+            case 'info': return 'information-circle';
+            default: return 'information-circle';
+        }
+    };
 
     const filteredAlerts = selectedFilter === 'all'
-        ? alertsData
-        : alertsData.filter(alert => alert.type === selectedFilter);
+        ? alerts
+        : alerts.filter(alert => alert.type === selectedFilter);
 
     const getAlertCardStyle = (type: AlertType) => {
         switch (type) {
@@ -160,7 +165,7 @@ export default function AlertsScreen() {
                     <Text style={styles.headerTitle}>Safety Alerts</Text>
                     <View style={styles.headerRight}>
                         <View style={styles.alertCountBadge}>
-                            <Text style={styles.alertCountText}>{alertsData.length}</Text>
+                            <Text style={styles.alertCountText}>{alerts.length}</Text>
                         </View>
                     </View>
                 </View>
@@ -173,7 +178,7 @@ export default function AlertsScreen() {
                             onPress={() => setSelectedFilter('all')}
                         >
                             <Text style={[styles.filterButtonText, selectedFilter === 'all' && styles.filterButtonTextActive]}>
-                                All ({alertsData.length})
+                                All ({alerts.length})
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -181,7 +186,7 @@ export default function AlertsScreen() {
                             onPress={() => setSelectedFilter('critical')}
                         >
                             <Text style={[styles.filterButtonText, selectedFilter === 'critical' && styles.filterButtonTextActive]}>
-                                Critical ({alertsData.filter(a => a.type === 'critical').length})
+                                Critical ({alerts.filter((a: AlertData) => a.type === 'critical').length})
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -189,7 +194,7 @@ export default function AlertsScreen() {
                             onPress={() => setSelectedFilter('warning')}
                         >
                             <Text style={[styles.filterButtonText, selectedFilter === 'warning' && styles.filterButtonTextActive]}>
-                                Warning ({alertsData.filter(a => a.type === 'warning').length})
+                                Warning ({alerts.filter((a: AlertData) => a.type === 'warning').length})
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -197,7 +202,7 @@ export default function AlertsScreen() {
                             onPress={() => setSelectedFilter('info')}
                         >
                             <Text style={[styles.filterButtonText, selectedFilter === 'info' && styles.filterButtonTextActive]}>
-                                Info ({alertsData.filter(a => a.type === 'info').length})
+                                Info ({alerts.filter((a: AlertData) => a.type === 'info').length})
                             </Text>
                         </TouchableOpacity>
                     </ScrollView>
@@ -208,6 +213,13 @@ export default function AlertsScreen() {
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollViewContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#007AFF"
+                        />
+                    }
                 >
                     {filteredAlerts.map((alert) => (
                         <TouchableOpacity

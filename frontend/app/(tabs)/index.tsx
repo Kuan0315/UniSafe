@@ -46,6 +46,7 @@ import { capturePhoto, captureVideo } from '../../services/SimpleCaptureService'
 import * as FileSystem from 'expo-file-system';
 import { Camera } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
+import { Api } from '../../services/api';
 // Import torch safely with fallback
 let Torch: any = null;
 try {
@@ -72,50 +73,39 @@ const SafetyAlertsSection = () => {
         loadAlerts();
     }, []);
 
-    const loadAlerts = () => {
-        // Mock alerts - In real app, this would fetch from API
-        const mockAlerts: SafetyAlert[] = [
-            {
-                id: '1',
-                title: 'Campus Lockdown',
-                message: 'Security incident in progress. Remain in current location.',
-                type: 'critical',
-                priority: 'high',
-                createdAt: new Date(Date.now() - 300000), // 5 mins ago
-                isActive: true,
-            },
-            {
-                id: '2',
-                title: 'Heavy Rain Warning',
-                message: 'Heavy rainfall expected. Exercise caution near construction areas.',
-                type: 'warning',
-                priority: 'medium',
-                createdAt: new Date(Date.now() - 720000), // 12 mins ago
-                isActive: true,
-            },
-            {
-                id: '3',
-                title: 'Parking Closure',
-                message: 'Parking Lot B closed for maintenance until 6 PM.',
-                type: 'info',
-                priority: 'low',
-                createdAt: new Date(Date.now() - 3600000), // 1 hour ago
-                isActive: true,
-            },
-        ];
+    const loadAlerts = async () => {
+        try {
+            const response = await Api.get("/safety-alerts");
+            const rawAlerts = (response || []).filter((alert: any) => alert && typeof alert === 'object');
+            
+            // Transform backend data to match frontend interface
+            const transformedAlerts: SafetyAlert[] = rawAlerts.map((alert: any) => ({
+                id: alert._id || alert.id,
+                title: alert.title,
+                message: alert.message,
+                type: alert.type as 'critical' | 'warning' | 'info',
+                priority: (alert.priority || 'medium') as 'high' | 'medium' | 'low',
+                createdAt: new Date(alert.createdAt),
+                isActive: alert.status === 'Active',
+            }));
+            
+            // Sort by priority: high -> medium -> low, then by creation time (newest first)
+            const sortedAlerts = transformedAlerts
+                .filter((alert: SafetyAlert) => alert.isActive)
+                .sort((a: SafetyAlert, b: SafetyAlert) => {
+                    const priorityOrder = { high: 3, medium: 2, low: 1 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+                    return b.createdAt.getTime() - a.createdAt.getTime();
+                });
 
-        // Sort by priority: high -> medium -> low, then by creation time (newest first)
-        const sortedAlerts = mockAlerts
-            .filter(alert => alert.isActive)
-            .sort((a, b) => {
-                const priorityOrder = { high: 3, medium: 2, low: 1 };
-                if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                    return priorityOrder[b.priority] - priorityOrder[a.priority];
-                }
-                return b.createdAt.getTime() - a.createdAt.getTime();
-            });
-
-        setAlerts(sortedAlerts);
+            setAlerts(sortedAlerts);
+        } catch (error) {
+            console.error("Error loading alerts:", error);
+            // On error, keep empty array or show a message
+            setAlerts([]);
+        }
     };
 
     const getAlertIcon = (type: string) => {

@@ -85,6 +85,68 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// Update safety alert
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = createSchema.parse(req.body);
+
+    const deliveryMethods: string[] = [];
+    if (data.sendPushNotification) deliveryMethods.push('push');
+    if (data.sendEmail) deliveryMethods.push('email');
+    if (data.sendSMS) deliveryMethods.push('sms');
+
+    const locationData = data.alertScope === 'location-specific' && data.alertLatitude && data.alertLongitude
+      ? JSON.stringify({
+          latitude: data.alertLatitude,
+          longitude: data.alertLongitude,
+          address: data.alertLocation,
+          radius: data.alertRadius || 200,
+        })
+      : undefined;
+
+    const updatedAlert = await Alert.findByIdAndUpdate(
+      id,
+      {
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        status: data.isScheduled ? 'Inactive' : 'Active',
+        scope: data.alertScope === 'campus-wide' ? 'Campus Wide' : 'Building Specific',
+        location: locationData,
+        deliveryMethods,
+        schedule: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+        autoDeactivate: data.timeLimit && data.timeLimit > 0,
+      },
+      { new: true }
+    );
+
+    if (!updatedAlert) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    res.json(updatedAlert);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete safety alert
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedAlert = await Alert.findByIdAndDelete(id);
+
+    if (!deletedAlert) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    res.json({ message: 'Alert deleted successfully' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 export default router;
 
 

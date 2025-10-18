@@ -84,7 +84,48 @@ export default function SafetyAlerts() {
   const loadAlerts = async () => {
     try {
       const response = await Api.get("/safety-alerts"); // call backend
-      setAlerts(response.data || []); // backend returns the list of alerts
+      const rawAlerts = (response || []).filter((alert: any) => alert && typeof alert === 'object');
+      
+      // Transform backend data to match frontend interface
+      const transformedAlerts = rawAlerts.map((alert: any) => {
+        let parsedLocation = undefined;
+        if (alert.location) {
+          try {
+            parsedLocation = JSON.parse(alert.location);
+          } catch (e) {
+            // Failed to parse location
+          }
+        }
+        
+        return {
+          id: alert._id || alert.id,
+          title: alert.title,
+          message: alert.message,
+          type: alert.type,
+          priority: alert.priority || 'medium', // backend may not have this
+          category: alert.category || 'general', // backend may not have this
+          createdBy: alert.createdBy || 'Staff',
+          createdAt: new Date(alert.createdAt),
+          expiresAt: alert.expiresAt ? new Date(alert.expiresAt) : undefined,
+          timeLimit: alert.timeLimit,
+          scheduledAt: alert.schedule ? new Date(alert.schedule) : undefined,
+          isActive: alert.status === 'Active',
+          isAutoDeactivated: alert.autoDeactivate || false,
+          isScheduled: !!alert.schedule,
+          sendPushNotification: alert.deliveryMethods?.includes('push') || false,
+          sendEmail: alert.deliveryMethods?.includes('email') || false,
+          sendSMS: alert.deliveryMethods?.includes('sms') || false,
+          alertScope: alert.scope === 'Campus Wide' ? 'campus-wide' : 'location-specific',
+          location: parsedLocation ? {
+            latitude: parsedLocation.latitude,
+            longitude: parsedLocation.longitude,
+            address: parsedLocation.address,
+            radius: parsedLocation.radius,
+          } : undefined,
+        };
+      });
+      
+      setAlerts(transformedAlerts);
     } catch (error) {
       console.error("Error loading alerts:", error);
       Alert.alert("Error", "Failed to load alerts from backend");
@@ -198,8 +239,8 @@ export default function SafetyAlerts() {
     }
   };*/
   const saveAlert = async () => {
-  if (!title.trim() || !message.trim()) {
-    Alert.alert("Error", "Please fill in title and message");
+  if (!title.trim() || !message.trim() || !category.trim()) {
+    Alert.alert("Error", "Please fill in title, message, and category");
     return;
   }
 
@@ -256,13 +297,89 @@ export default function SafetyAlerts() {
   try {
     if (editingAlert) {
       // update existing alert
-      await Api.put(`/alerts/${editingAlert.id}`, alertData);
-      setAlerts(prev => prev.map(a => a.id === editingAlert.id ? alertData : a));
+      const response = await Api.put(`/safety-alerts/${editingAlert.id}`, apiData);
+      
+      // Transform the updated alert to match frontend interface
+      let parsedLocation = undefined;
+      if (response.location) {
+        try {
+          parsedLocation = JSON.parse(response.location);
+        } catch (e) {
+          // Failed to parse location
+        }
+      }
+      
+      const updatedAlert: SafetyAlert = {
+        id: response._id || response.id,
+        title: response.title,
+        message: response.message,
+        type: response.type,
+        priority: response.priority || 'medium',
+        category: response.category || 'general',
+        createdBy: response.createdBy || 'Staff',
+        createdAt: new Date(response.createdAt),
+        expiresAt: response.expiresAt ? new Date(response.expiresAt) : undefined,
+        timeLimit: response.timeLimit,
+        scheduledAt: response.schedule ? new Date(response.schedule) : undefined,
+        isActive: response.status === 'Active',
+        isAutoDeactivated: response.autoDeactivate || false,
+        isScheduled: !!response.schedule,
+        sendPushNotification: response.deliveryMethods?.includes('push') || false,
+        sendEmail: response.deliveryMethods?.includes('email') || false,
+        sendSMS: response.deliveryMethods?.includes('sms') || false,
+        alertScope: response.scope === 'Campus Wide' ? 'campus-wide' : 'location-specific',
+        location: parsedLocation ? {
+          latitude: parsedLocation.latitude,
+          longitude: parsedLocation.longitude,
+          address: parsedLocation.address,
+          radius: parsedLocation.radius,
+        } : undefined,
+      };
+      
+      setAlerts(prev => prev.map(a => a.id === editingAlert.id ? updatedAlert : a));
       Alert.alert("Success", "Alert updated successfully");
     } else {
       // create new alert
       const response = await Api.post("/safety-alerts", apiData);
-      setAlerts(prev => [response.data, ...prev]);
+      
+      // Transform the created alert to match frontend interface
+      let parsedLocation = undefined;
+      if (response.location) {
+        try {
+          parsedLocation = JSON.parse(response.location);
+        } catch (e) {
+          // Failed to parse location
+        }
+      }
+      
+      const createdAlert: SafetyAlert = {
+        id: response._id || response.id,
+        title: response.title,
+        message: response.message,
+        type: response.type,
+        priority: response.priority || 'medium',
+        category: response.category || 'general',
+        createdBy: response.createdBy || 'Staff',
+        createdAt: new Date(response.createdAt),
+        expiresAt: response.expiresAt ? new Date(response.expiresAt) : undefined,
+        timeLimit: response.timeLimit,
+        scheduledAt: response.schedule ? new Date(response.schedule) : undefined,
+        isActive: response.status === 'Active',
+        isAutoDeactivated: response.autoDeactivate || false,
+        isScheduled: !!response.schedule,
+        sendPushNotification: response.deliveryMethods?.includes('push') || false,
+        sendEmail: response.deliveryMethods?.includes('email') || false,
+        sendSMS: response.deliveryMethods?.includes('sms') || false,
+        alertScope: response.scope === 'Campus Wide' ? 'campus-wide' : 'location-specific',
+        location: parsedLocation ? {
+          latitude: parsedLocation.latitude,
+          longitude: parsedLocation.longitude,
+          address: parsedLocation.address,
+          radius: parsedLocation.radius,
+        } : undefined,
+      };
+      
+      setAlerts(prev => [createdAlert, ...prev]);
       Alert.alert("Success", "Alert published successfully");
     }
 
@@ -354,7 +471,7 @@ export default function SafetyAlerts() {
       style: "destructive",
       onPress: async () => {
         try {
-          await Api.delete(`/alerts/${alertId}`);
+          await Api.delete(`/safety-alerts/${alertId}`);
           setAlerts(prev => prev.filter(alert => alert.id !== alertId));
           Alert.alert("Success", "Alert deleted");
         } catch (error) {
