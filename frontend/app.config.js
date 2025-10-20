@@ -10,6 +10,7 @@ export default ({ config }) => ({
   icon: "./assets/images/logo.png",
   scheme: "frontend",
   userInterfaceStyle: "automatic",
+  projectId: "052137eb-4dc4-4d7c-972a-f843b3a23e8f",
   splash: {
     image: "./assets/images/splash-icon.png",
     resizeMode: "contain",
