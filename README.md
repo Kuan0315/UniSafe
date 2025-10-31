@@ -151,6 +151,14 @@ UniSafe provides a comprehensive safety ecosystem with role-specific functionali
 - **Emergency Broadcasts**: Campus-wide urgent notifications
 - **Customizable Settings**: Control frequency and preferences
 
+### Discreet Alarm
+● Press and hold the Alarm button for 3 seconds to activate the alarm.
+● A loud alert sound will be triggered to warn or attract attention from nearby people.
+● The Alarm Indicator will appear at the top bar once the alarm is active.
+● To stop the alarm, tap the Alarm Indicator on the top bar.
+● You can customize the alarm action in your Profile settings, choosing whether the
+Discrete Alarm will ring or automatically make a call when activated.
+
 ### 👤 Profile & Safety Tools
 - **Trusted Circle Management**: Family and friend contacts
 - **Privacy Controls**: Anonymous mode and location sharing preferences
