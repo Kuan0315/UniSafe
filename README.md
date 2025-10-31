@@ -44,29 +44,6 @@ Transforming UniSafe into a true **smart campus safety ecosystem**.
 ### Building from Source:
 See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed instructions on building the APK yourself.
 
-## 🔐 Login Credentials & User Roles
-
-### 🧪 Test Accounts
-
-#### 👨‍🎓 Student Account
-```json
-{
-  "email": "tester@edu.com",
-  "name": "Tester",
-  "role": "student",
-  "password": "password123"
-}
-```
-
-#### 👩‍🏫 Staff Account
-```json
-{
-  "email": "uni@example.com",
-  "name": "University Staff",
-  "role": "staff", 
-  "password": "password123"
-}
-```
 
 ### 📝 User Registration Rules
 
@@ -120,9 +97,7 @@ npm start
 UniSafe provides a comprehensive safety ecosystem with role-specific functionality for Students, Staff, and Guardians. The platform combines real-time emergency response, intelligent route planning, community reporting, and professional staff management tools.
 
 ### 🔑 Authentication & User Management
-- **Google Sign-In**: Secure authentication using Google OAuth
 - **Role-Based Access**: Different permissions for Students, Staff, and Guardians
-- **Guest Mode**: Anonymous access for browsing reports (limited features)
 - **Profile Management**: Personal information and preferences
 
 ### 🆘 Emergency Response System
@@ -132,7 +107,6 @@ UniSafe provides a comprehensive safety ecosystem with role-specific functionali
 - **Haptic Feedback**: Vibration pulses during countdown
 - **Auto Evidence Capture**: Photos and videos (if enabled)
 - **GPS Precision**: Location accuracy within 5 meters
-- **Emergency Contacts**: Instant alerts to trusted contacts
 - **Emergency Services**: Direct connection to campus security and police
 - **Staff Notification**: Real-time alerts to campus security staff dashboard
 
@@ -146,7 +120,6 @@ UniSafe provides a comprehensive safety ecosystem with role-specific functionali
   - **🚗 Driving**: Car navigation with real-time traffic integration
   - **🏍️ Motorbike**: Optimized for two-wheeler navigation
   - **🚶 Walking**: Pedestrian-friendly pathfinding with safety considerations
-  - **🚲 Cycling**: Bicycle route optimization (coming soon)
 
 #### Guardian Navigation Integration
 - **Real-time Location Sharing**: Guardians can track student navigation progress
